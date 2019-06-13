@@ -1,0 +1,8 @@
+{
+  "domain": "ds_air",
+  "name": "DS-AIR",
+  "documentation": "https://github.com/mypalg/ha-dsair",
+  "dependencies": [],
+  "codeowners": [],
+  "requirements": []
+}
