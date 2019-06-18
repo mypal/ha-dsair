@@ -20,12 +20,12 @@ class Encode:
         self._list.append(d)
 
     def write4(self, d):
-        self._fmt += 'B'
+        self._fmt += 'I'
         self._len += 4
         self._list.append(d)
 
     def writes(self, d):
-        self._fmt += 's'
+        self._fmt += str(len(d))+'s'
         self._len += len(d)
 
     def pack(self):
@@ -37,10 +37,9 @@ class Encode:
         return self._len
 
 
-cnt = 0
-
-
 class Param:
+    cnt = 0
+
     def __init__(self, device_type: EnumDevice, cmd_type: EnumCmdType, has_result):
         self.cmd_type = cmd_type
         self.device_type = device_type
@@ -59,7 +58,8 @@ class Param:
         s.write1(0)  # 4 保留字
         s.write1(self.sub_body_ver)  # 5 子体版本
         s.write1(0)  # 6 保留字
-        s.write4(++cnt)  # 7~10 自增命令ID
+        Param.cnt += 1
+        s.write4(Param.cnt)  # 7~10 自增命令ID
         s.write1(self.device_type.value[0])  # 11 设备类型
         s.write4(self.device_type.value[1])  # 12~15 设备类型id
         s.write1(self.need_ack)  # 16 是否需要ack
