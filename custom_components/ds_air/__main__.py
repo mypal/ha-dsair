@@ -18,6 +18,4 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             print(res)
             data = buf
     finally:
-        print(EnumCmdType.CONTROL)
-        print(EnumCmdType.SYS_ACK)
         s.close()
