@@ -25,6 +25,11 @@ def result_factory(data):
     r1, length, r2, r3, subbody_ver, r4, cnt, dev_type, dev_id, need_ack, cmd_type, subbody, r5 = data
     print(length, subbody_ver, dev_type, dev_id, need_ack, cmd_type, subbody)
     result = None
+    print('******')
+    print(dev_id)
+    print(EnumDevice.SYSTEM.value)
+    print(EnumDevice.SYSTEM.value[1])
+    print('******')
     if dev_id == EnumDevice.SYSTEM.value[1]:
         if cmd_type == EnumCmdType.SYS_ACK.value:
             result = AckResult(cnt, EnumDevice.SYSTEM)
