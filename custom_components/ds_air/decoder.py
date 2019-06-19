@@ -25,13 +25,14 @@ def result_factory(data):
     r1, length, r2, r3, subbody_ver, r4, cnt, dev_type, dev_id, need_ack, cmd_type, subbody, r5 = data
     print(length, subbody_ver, dev_type, dev_id, need_ack, cmd_type, subbody)
     result = None
-    print('******')
-    print(dev_id)
-    print(EnumDevice.SYSTEM.value)
-    print(EnumDevice.SYSTEM.value[1])
-    print('******')
     if dev_id == EnumDevice.SYSTEM.value[1]:
+        print('******')
+        print(cmd_type)
+        print(EnumCmdType.SYS_ACK)
+        print(EnumCmdType.SYS_ACK.value)
+        print('******')
         if cmd_type == EnumCmdType.SYS_ACK.value:
+            print('here')
             result = AckResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_CMD_RSP.value:
             result = CmdRspResult(cnt, EnumDevice.SYSTEM)
@@ -82,6 +83,8 @@ def result_factory(data):
 
     else:
         """ignore other device"""
+
+    return result
 
 
 class BaseResult(BaseBean):
