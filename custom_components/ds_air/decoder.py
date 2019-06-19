@@ -7,7 +7,6 @@ from .ctrl_enum import EnumDevice, EnumCmdType
 
 def decoder(b):
     if b[0] != 2:
-        print(b[0])
         return None
 
     length = struct.unpack('<H', b[1:3])[0]
@@ -23,16 +22,9 @@ def decoder(b):
 
 def result_factory(data):
     r1, length, r2, r3, subbody_ver, r4, cnt, dev_type, dev_id, need_ack, cmd_type, subbody, r5 = data
-    print(length, subbody_ver, dev_type, dev_id, need_ack, cmd_type, subbody)
     result = None
     if dev_id == EnumDevice.SYSTEM.value[1]:
-        print('******')
-        print(cmd_type)
-        print(EnumCmdType.SYS_ACK)
-        print(EnumCmdType.SYS_ACK.value)
-        print('******')
         if cmd_type == EnumCmdType.SYS_ACK.value:
-            print('here')
             result = AckResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_CMD_RSP.value:
             result = CmdRspResult(cnt, EnumDevice.SYSTEM)
