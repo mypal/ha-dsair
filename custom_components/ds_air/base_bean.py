@@ -6,8 +6,8 @@ class BaseBean:
         self._cmd_id = cmd_id
         self._cmd_type = cmd_type
         self._target = target
-        self._need_ack = None
-        self._subbody_ver = None
+        self._need_ack = 1
+        self._subbody_ver = 0
 
     @property
     def cmd_id(self):
