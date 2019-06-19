@@ -1,6 +1,7 @@
 import struct
 
-from custom_components.ds_air.config import Config
+from .config import Config
+from .dao import Room
 from .base_bean import BaseBean
 from .ctrl_enum import EnumDevice, EnumCmdType
 
@@ -221,9 +222,26 @@ class ChangePWResult(BaseResult):
 class GetRoomInfoResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_GET_ROOM_INFO)
+        self._count = 0
+        self._hds = []
+        self._rooms = []
 
     def load_bytes(self, b):
-        """todo"""
+        self._count, s = struct.unpack('<HB', b[:3])
+        for i in range(s):
+            room = Room()
+
+    @property
+    def count(self):
+        return self._count
+
+    @property
+    def hds(self):
+        return self._hds
+
+    @property
+    def rooms(self):
+        return self._rooms
 
 
 class QueryScheduleSettingResult(BaseResult):

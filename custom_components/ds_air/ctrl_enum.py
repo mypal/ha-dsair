@@ -37,3 +37,28 @@ class EnumDevice(Enum):
     NEWAIRCON = (8, 23)
     SYSTEM = (0, 0)
     VENTILATION = (8, 20)
+
+
+class FanDirection(IntEnum):
+    FIX = 0
+    STEP_1 = 1
+    STEP_2 = 2
+    STEP_3 = 3
+    STEP_4 = 4
+    STEP_5 = 5
+
+
+class FanVolume(IntEnum):
+    NO = 0
+    FIX = 1
+    STEP_2 = 2
+    STEP_3 = 3
+    STEP_4 = 4
+    STEP_5 = 5
+    STEPLESS = 7
+
+
+class OutDoorRunCond(IntEnum):
+    COLD = 2
+    HEAT = 1
+    VENT = 0
