@@ -12,10 +12,13 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
         s.sendall(HandShakeParam().to_string())
         data = s.recv(1024)
+        print('data:')
         print(repr(data))
         while data:
             res, buf = decoder(data)
-            print(repr(res))
+            print('result:')
+            print(res.__dict__)
+            print('buffer:')
             print(repr(buf))
             data = buf
     finally:
