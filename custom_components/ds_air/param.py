@@ -31,7 +31,6 @@ class Encode:
 
     def pack(self):
         self._list[1] = self._len - 4
-        print(self._fmt, self._list)
         return struct.pack(self._fmt, *self._list)
 
     @property
