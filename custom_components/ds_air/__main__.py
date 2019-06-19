@@ -17,8 +17,6 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             while data:
                 res, buf = decoder(data)
                 print('result:')
-                print(res)
-                print(repr(res))
                 print(res.__dict__)
                 print('buffer:')
                 print(repr(buf))

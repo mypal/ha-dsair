@@ -97,7 +97,7 @@ class AckResult(BaseResult):
 
 class CmdRspResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_CMD_RSP)
         self._cmdId = None
         self._code = None
 
@@ -115,7 +115,7 @@ class CmdRspResult(BaseResult):
 
 class TimeSyncResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_TIME_SYNC)
         self._time = None
 
     def load_bytes(self, b):
@@ -128,7 +128,7 @@ class TimeSyncResult(BaseResult):
 
 class ErrCodeResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ERR_CODE)
         self._code = None
         self._device = None
         self._room = None
@@ -160,7 +160,7 @@ class ErrCodeResult(BaseResult):
 
 class GetWeatherResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_GET_WEATHER)
         self._condition = None
         self._humidity = None
         self._temp = None
@@ -194,7 +194,7 @@ class GetWeatherResult(BaseResult):
 
 class LoginResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_LOGIN)
         self._status = None
 
     def load_bytes(self, b):
@@ -207,7 +207,7 @@ class LoginResult(BaseResult):
 
 class ChangePWResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_CHANGE_PW)
         self._status = None
 
     def load_bytes(self, b):
@@ -220,7 +220,7 @@ class ChangePWResult(BaseResult):
 
 class GetRoomInfoResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_GET_ROOM_INFO)
 
     def load_bytes(self, b):
         """todo"""
@@ -228,7 +228,7 @@ class GetRoomInfoResult(BaseResult):
 
 class QueryScheduleSettingResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_SETTING)
 
     def load_bytes(self, b):
         """todo"""
@@ -236,7 +236,7 @@ class QueryScheduleSettingResult(BaseResult):
 
 class QueryScheduleIDResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_ID)
 
     def load_bytes(self, b):
         """todo"""
@@ -244,7 +244,7 @@ class QueryScheduleIDResult(BaseResult):
 
 class HandShakeResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_HAND_SHAKE)
 
     def load_bytes(self, b):
         """todo"""
@@ -252,7 +252,7 @@ class HandShakeResult(BaseResult):
 
 class CmdTransferResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_CMD_TRANSFER)
 
     def load_bytes(self, b):
         """todo"""
@@ -260,7 +260,7 @@ class CmdTransferResult(BaseResult):
 
 class QueryScheduleFinish(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_FINISH)
 
     def load_bytes(self, b):
         """todo"""
@@ -268,7 +268,7 @@ class QueryScheduleFinish(BaseResult):
 
 class AirConStatusChangedResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.STATUS_CHANGED)
 
     def load_bytes(self, b):
         """todo"""
@@ -276,7 +276,7 @@ class AirConStatusChangedResult(BaseResult):
 
 class AirConQueryStatusResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.QUERY_STATUS)
 
     def load_bytes(self, b):
         """todo"""
@@ -284,7 +284,7 @@ class AirConQueryStatusResult(BaseResult):
 
 class AirConRecommendedIndoorTempResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.AIR_RECOMMENDED_INDOOR_TEMP)
 
     def load_bytes(self, b):
         """todo"""
@@ -292,7 +292,7 @@ class AirConRecommendedIndoorTempResult(BaseResult):
 
 class AirConCapabilityQueryResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.AIR_CAPABILITY_QUERY)
 
     def load_bytes(self, b):
         """todo"""
@@ -300,7 +300,7 @@ class AirConCapabilityQueryResult(BaseResult):
 
 class AirConQueryScenarioSettingResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.QUERY_SCENARIO_SETTING)
 
     def load_bytes(self, b):
         """todo"""
