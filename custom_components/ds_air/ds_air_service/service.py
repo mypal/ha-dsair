@@ -86,6 +86,10 @@ class Service:
                 or Service._new_aircons is None or Service._bathrooms is None:
             await asyncio.sleep(1)
 
+    @staticmethod
+    def get_aircons():
+        return Service._aircons
+
     # ----split line---- above for component, below for inner call
 
     @staticmethod
