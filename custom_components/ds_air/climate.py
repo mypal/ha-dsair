@@ -14,7 +14,6 @@ from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE
 
 from .ds_air_service.ctrl_enum import EnumControl
 from .ds_air_service.dao import AirCon
-from .ds_air_service.display import display
 
 SUPPORT_FLAGS = SUPPORT_TARGET_HUMIDITY_LOW | SUPPORT_TARGET_HUMIDITY_HIGH
 
@@ -26,7 +25,6 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     climates = []
     for aircon in Service.get_new_aircons():
         climates.append(DsAir(aircon))
-    print(display(climates))
     add_entities(climates)
 
 
