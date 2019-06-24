@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import socket
 import typing
 from threading import Thread, Lock
@@ -12,6 +13,8 @@ from .decoder import decoder, BaseResult
 
 HOST = '192.168.1.110'
 PORT = 8008
+
+_LOGGER = logging.getLogger(__name__)
 
 
 class SocketClient:
@@ -28,8 +31,8 @@ class SocketClient:
 
     def send(self, p: Param):
         self._locker.acquire()
-        print('\n\033[1;35msend:\033[0m')
-        print(display(p))
+        _LOGGER.debug('\n\033[1;35msend:\033[0m')
+        _LOGGER.debug(display(p))
         self._s.sendall(p.to_string())
         self._locker.release()
 
@@ -52,8 +55,8 @@ class RecvThread(Thread):
         while True:
             res = self._sock.recv()
             for i in res:
-                print('\n\033[1;36mrecv:\033[0m')
-                print(display(i))
+                _LOGGER.debug('\n\033[1;36mrecv:\033[0m')
+                _LOGGER.debug(display(i))
                 i.do()
 
 

@@ -18,7 +18,6 @@ def decoder(b):
         if length == 0:
             return HeartbeatResult(), None
         else:
-            print('exception:' + b)
             return None, None
 
     return result_factory(struct.unpack('<BHBBBBIBIBH' + str(length - 16) + 'sB', b[:length + 4])), b[length + 4:]
