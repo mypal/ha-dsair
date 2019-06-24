@@ -33,7 +33,8 @@ class DsAir(ClimateDevice):
 
     def __init__(self, aircon: AirCon):
         """Initialize the climate device."""
-        self._name = aircon.room_id
+        print(aircon.alias)
+        self._name = aircon.alias
         flag = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_OPERATION_MODE | SUPPORT_SWING_MODE | SUPPORT_ON_OFF
         self._support_flags = flag
         status = aircon.status
