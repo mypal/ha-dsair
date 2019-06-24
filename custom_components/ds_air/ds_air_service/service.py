@@ -1,9 +1,9 @@
 import asyncio
 import logging
 import socket
+import time
 import typing
 from threading import Thread, Lock
-from time import sleep
 
 from .ctrl_enum import EnumDevice
 from .dao import Room, AirCon, AirConStatus
@@ -87,12 +87,12 @@ class Service:
     _none_stat_dev_cnt = 0  # type: int
 
     @staticmethod
-    async def init(host: str = HOST, port: int = PORT):
+    def init(host: str = HOST, port: int = PORT):
         Service._socket_client = SocketClient(host, port)
         Service._socket_client.send(HandShakeParam())
         while Service._rooms is None or Service._aircons is None \
                 or Service._new_aircons is None or Service._bathrooms is None:
-            await asyncio.sleep(1)
+            time.sleep(1)  # asyncio.sleep(1)
 
     @staticmethod
     def get_aircons():

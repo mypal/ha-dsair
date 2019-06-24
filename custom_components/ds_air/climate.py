@@ -16,14 +16,14 @@ from .ds_air_service.ctrl_enum import EnumControl
 from .ds_air_service.dao import AirCon
 
 
-async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
+def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Demo climate devices."""
     from .ds_air_service.service import Service
-    await Service.init()
+    Service.init()
     climates = []
     for aircon in Service.get_aircons():
         climates.append(DsAir(aircon))
-    async_add_entities(climates)
+    add_entities(climates)
 
 
 class DsAir(ClimateDevice):
