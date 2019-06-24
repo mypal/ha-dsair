@@ -4,7 +4,7 @@ import typing
 from .param import GetRoomInfoParam, AirConRecommendedIndoorTempParam, AirConCapabilityQueryParam, \
     AirConQueryStatusParam
 from .config import Config
-from .dao import Room, AirCon, Geothermic, Ventilation, HD, Device
+from .dao import Room, AirCon, Geothermic, Ventilation, HD, Device, AirConStatus
 from .base_bean import BaseBean
 from .ctrl_enum import EnumDevice, EnumCmdType, EnumFanDirection, EnumOutDoorRunCond, EnumFanVolume, EnumControl
 
@@ -328,13 +328,13 @@ class GetRoomInfoResult(BaseResult):
 
     def do(self):
         from .service import Service
-        Service.rooms = self.rooms
-        Service.send(AirConRecommendedIndoorTempParam())
+        Service.set_rooms(self.rooms)
+        Service.send_msg(AirConRecommendedIndoorTempParam())
 
         aircons = []
         new_aircons = []
         bathrooms = []
-        for i in Service.rooms:
+        for i in Service.get_rooms():
             if i.air_con.new_air_con:
                 new_aircons.append(i.air_con)
             elif i.air_con.bath_room:
@@ -342,18 +342,22 @@ class GetRoomInfoResult(BaseResult):
             else:
                 aircons.append(i.air_con)
 
+        Service.set_aircons(aircons)
+        Service.set_new_aircons(new_aircons)
+        Service.set_bathrooms(bathrooms)
+
         p = AirConCapabilityQueryParam()
         p.aircons = aircons
         p.target = EnumDevice.AIRCON
-        Service.send(p)
+        Service.send_msg(p)
         p = AirConCapabilityQueryParam()
         p.aircons = new_aircons
         p.target = EnumDevice.NEWAIRCON
-        Service.send(p)
+        Service.send_msg(p)
         p = AirConCapabilityQueryParam()
         p.aircons = bathrooms
         p.target = EnumDevice.BATHROOM
-        Service.send(p)
+        Service.send_msg(p)
 
     @property
     def count(self):
@@ -397,7 +401,7 @@ class HandShakeResult(BaseResult):
         p = GetRoomInfoParam()
         p.room_ids.append(0xffff)
         from .service import Service
-        Service.send(p)
+        Service.send_msg(p)
 
 
 class CmdTransferResult(BaseResult):
@@ -465,6 +469,12 @@ class AirConQueryStatusResult(BaseResult):
             else:
                 if flag >> 7 & 1:
                     self.breathe = EnumControl.Breathe(d.read1())
+
+    def do(self):
+        from .service import Service
+        status = AirConStatus(self.current_temp, self.setted_temp, self.switch, self.air_flow, self.breathe,
+                              self.fan_direction1, self.fan_direction2, self.humidity, self.mode)
+        Service.set_aircon_status(self.target, self.room, self.unit, status)
 
 
 class AirConRecommendedIndoorTempResult(BaseResult):
@@ -544,7 +554,7 @@ class AirConCapabilityQueryResult(BaseResult):
                 p.target = EnumDevice.NEWAIRCON
                 p.device = i
                 from .service import Service
-                Service.send(p)
+                Service.send_msg(p)
 
     @property
     def aircons(self):

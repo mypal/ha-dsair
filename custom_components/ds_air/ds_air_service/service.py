@@ -1,8 +1,11 @@
+import asyncio
 import socket
 import typing
 from threading import Thread, Lock
 from time import sleep
 
+from .ctrl_enum import EnumDevice
+from .dao import Room, AirCon, AirConStatus
 from .param import Param, HandShakeParam, HeartbeatParam
 from .display import display
 from .decoder import decoder, BaseResult
@@ -55,7 +58,7 @@ class RecvThread(Thread):
 
 
 class HeartBeatThread(Thread):
-    def __init__(self, sock):
+    def __init__(self, sock: SocketClient):
         super().__init__()
         self._sock = sock
 
@@ -67,13 +70,63 @@ class HeartBeatThread(Thread):
 
 
 class Service:
-    socket_client = SocketClient(HOST, PORT)
-    rooms = []
+    _socket_client = None      # type: SocketClient
+    _rooms = None              # type: typing.List[Room]
+    _aircons = None            # type: typing.List[AirCon]
+    _new_aircons = None        # type: typing.List[AirCon]
+    _bathrooms = None          # type: typing.List[AirCon]
+    _ready = False             # type: bool
+    _none_stat_dev_cnt = 0  # type: int
 
     @staticmethod
-    def hand_shake():
-        Service.socket_client.send(HandShakeParam())
+    async def init(host: str = HOST, port: int = PORT):
+        Service._socket_client = SocketClient(host, port)
+        Service._socket_client.send(HandShakeParam())
+        while Service._rooms is None or Service._aircons is None \
+                or Service._new_aircons is None or Service._bathrooms is None:
+            await asyncio.sleep(1)
+
+    # ----split line---- above for component, below for inner call
 
     @staticmethod
-    def send(p: Param):
-        Service.socket_client.send(p)
+    def send_msg(p: Param):
+        """send msg to climate gateway"""
+        Service._socket_client.send(p)
+
+    @staticmethod
+    def get_rooms():
+        return Service._rooms
+
+    @staticmethod
+    def set_rooms(v: typing.List[Room]):
+        Service._rooms = v
+
+    @staticmethod
+    def set_aircons(v: typing.List[AirCon]):
+        Service._none_stat_dev_cnt += len(v)
+        Service._aircons = v
+
+    @staticmethod
+    def set_new_aircons(v: typing.List[AirCon]):
+        Service._none_stat_dev_cnt += len(v)
+        Service._new_aircons = v
+
+    @staticmethod
+    def set_bathrooms(v: typing.List[AirCon]):
+        Service._none_stat_dev_cnt += len(v)
+        Service._bathrooms = v
+
+    @staticmethod
+    def set_aircon_status(target: EnumDevice, room: int, unit: int, status: AirConStatus):
+        li = []
+        if target == EnumDevice.AIRCON:
+            li = Service._aircons
+        elif target == EnumDevice.NEWAIRCON:
+            li = Service._new_aircons
+        elif target == EnumDevice.BATHROOM:
+            li = Service._bathrooms
+        for i in li:
+            if i.unit_id == unit and i.room_id == room:
+                i.status = status
+                Service._none_stat_dev_cnt -= 1
+                break

@@ -1,4 +1,6 @@
-from .ctrl_enum import EnumOutDoorRunCond, EnumFanDirection, EnumFanVolume, EnumSwitch
+import types
+
+from .ctrl_enum import EnumOutDoorRunCond, EnumFanDirection, EnumFanVolume, EnumSwitch, EnumControl
 
 
 class Device:
@@ -8,6 +10,31 @@ class Device:
         self.name: str = ''
         self.room_id: int = 0
         self.unit_id: int = 0
+
+
+def _nothing():
+    """do nothing"""
+
+
+class AirConStatus:
+    def __init__(self, current_temp: int = 0, setted_temp: int = 0,
+                 switch: EnumControl.Switch = EnumControl.Switch.OFF,
+                 air_flow: EnumControl.AirFlow = EnumControl.AirFlow.AUTO,
+                 breathe: EnumControl.Breathe = EnumControl.Breathe.CLOSE,
+                 fan_direction1: EnumControl.FanDirection = EnumControl.FanDirection.INVALID,
+                 fan_direction2: EnumControl.FanDirection = EnumControl.FanDirection.INVALID,
+                 humidity: EnumControl.Humidity = EnumControl.Humidity.CLOSE,
+                 mode: EnumControl.Mode = EnumControl.Mode.AUTO):
+        self.current_temp = current_temp      # type: int
+        self.setted_temp = setted_temp        # type: int
+        self.switch = switch                  # type: EnumControl.Switch
+        self.air_flow = air_flow              # type: EnumControl.AirFlow
+        self.breathe = breathe                # type: EnumControl.Breathe
+        self.fan_direction1 = fan_direction1  # type: EnumControl.FanDirection
+        self.fan_direction2 = fan_direction2  # type: EnumControl.FanDirection
+        self.humidity = humidity              # type: EnumControl.Humidity
+        self.mode = mode                      # type: EnumControl.Mode
+        self.status_change_hook = _nothing    # type: types.FunctionType
 
 
 class AirCon(Device):
@@ -31,6 +58,7 @@ class AirCon(Device):
         self.relax_mode: int
         self.sleep_mode: int
         self.ventilation_mode: int
+        self.status: [AirConStatus] = None
 
 
 class Geothermic(Device):
