@@ -9,11 +9,14 @@ from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_HIGH, ATTR_TARGET_TEMP_LOW,
     SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE,
     SUPPORT_OPERATION_MODE, SUPPORT_SWING_MODE,
-    SUPPORT_ON_OFF)
+    SUPPORT_ON_OFF, SUPPORT_TARGET_HUMIDITY_LOW, SUPPORT_TARGET_HUMIDITY_HIGH)
 from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE
 
 from .ds_air_service.ctrl_enum import EnumControl
 from .ds_air_service.dao import AirCon
+from .ds_air_service.display import display
+
+SUPPORT_FLAGS = SUPPORT_TARGET_HUMIDITY_LOW | SUPPORT_TARGET_HUMIDITY_HIGH
 
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
@@ -23,6 +26,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     climates = []
     for aircon in Service.get_aircons():
         climates.append(DsAir(aircon))
+    print(display(climates))
     add_entities(climates)
 
 
@@ -35,12 +39,12 @@ class DsAir(ClimateDevice):
         flag = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_OPERATION_MODE | SUPPORT_SWING_MODE | SUPPORT_ON_OFF
         self._support_flags = flag
         status = aircon.status
-        self._target_temperature = status.setted_temp
+        self._target_temperature = status.setted_temp/10
         self._target_humidity = None
         self._unit_of_measurement = TEMP_CELSIUS
         self._away = None
         self._hold = None
-        self._current_temperature = status.current_temp
+        self._current_temperature = status.current_temp/10
         self._current_humidity = None
         self._fan_list = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
         self._current_fan_mode = EnumControl.get_air_flow_name(status.air_flow.value)
@@ -49,7 +53,7 @@ class DsAir(ClimateDevice):
         self._current_operation = EnumControl.get_mode_name(status.mode.value)
         self._aux = None
         self._swing_list = ['0', '1', '2', '3', '4', '5', '6', '7']
-        self._current_swing_mode = str(status.fan_direction1.value)
+        self._current_swing_mode = self._swing_list[status.fan_direction1.value]
         self._target_temperature_high = None
         self._target_temperature_low = None
 
