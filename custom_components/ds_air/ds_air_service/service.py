@@ -95,8 +95,8 @@ class Service:
             time.sleep(1)  # asyncio.sleep(1)
 
     @staticmethod
-    def get_aircons():
-        return Service._aircons
+    def get_new_aircons():
+        return Service._new_aircons
 
     # ----split line---- above for component, below for inner call
 

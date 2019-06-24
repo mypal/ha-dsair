@@ -24,7 +24,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     from .ds_air_service.service import Service
     Service.init()
     climates = []
-    for aircon in Service.get_aircons():
+    for aircon in Service.get_new_aircons():
         climates.append(DsAir(aircon))
     print(display(climates))
     add_entities(climates)
