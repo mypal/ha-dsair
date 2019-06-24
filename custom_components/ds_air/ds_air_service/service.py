@@ -74,7 +74,7 @@ class HeartBeatThread(Thread):
         super().run()
         while True:
             self._sock.send(HeartbeatParam())
-            sleep(60)
+            time.sleep(60)
 
 
 class Service:
