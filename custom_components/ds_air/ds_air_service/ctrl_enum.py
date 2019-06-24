@@ -1,5 +1,7 @@
 from enum import Enum, IntEnum
 
+from components.climate.const import STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_AUTO, STATE_HEAT, STATE_ECO
+
 
 class EnumCmdType(IntEnum):
     AIR_CAPABILITY_QUERY = 6
@@ -140,7 +142,7 @@ class Mode(IntEnum):
     MOREDRY = 9
 
 
-_MODE_NAME_LIST = ['制冷', '干燥', '送风', '自动', '制热', '除湿', '清爽', '睡眠', '预热', '超级干燥']
+_MODE_NAME_LIST = [STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_AUTO, STATE_HEAT, STATE_DRY, STATE_AUTO, STATE_ECO, STATE_HEAT, STATE_DRY]
 
 
 class Switch(IntEnum):

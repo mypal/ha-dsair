@@ -9,8 +9,9 @@ from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_HIGH, ATTR_TARGET_TEMP_LOW,
     SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE,
     SUPPORT_OPERATION_MODE, SUPPORT_SWING_MODE,
-    SUPPORT_ON_OFF, SUPPORT_TARGET_HUMIDITY_LOW, SUPPORT_TARGET_HUMIDITY_HIGH)
-from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE
+    SUPPORT_ON_OFF, SUPPORT_TARGET_HUMIDITY_LOW, SUPPORT_TARGET_HUMIDITY_HIGH, STATE_COOL, STATE_HEAT, STATE_DRY,
+    STATE_FAN_ONLY, STATE_AUTO, STATE_ECO)
+from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE, PRECISION_WHOLE
 
 from .ds_air_service.ctrl_enum import EnumControl
 from .ds_air_service.dao import AirCon
@@ -47,7 +48,7 @@ class DsAir(ClimateDevice):
         self._current_humidity = None
         self._fan_list = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
         self._current_fan_mode = EnumControl.get_air_flow_name(status.air_flow.value)
-        self._operation_list = ['制冷', '制热', '除湿', '送风', '清爽', '贴心睡眠']
+        self._operation_list = [STATE_COOL, STATE_HEAT, STATE_DRY, STATE_FAN_ONLY, STATE_AUTO, STATE_ECO]
         self._on = status.switch.value == EnumControl.Switch.ON
         self._current_operation = EnumControl.get_mode_name(status.mode.value)
         self._aux = None
@@ -55,6 +56,21 @@ class DsAir(ClimateDevice):
         self._current_swing_mode = self._swing_list[status.fan_direction1.value]
         self._target_temperature_high = None
         self._target_temperature_low = None
+
+    @property
+    def min_temp(self):
+        """Return the minimum temperature."""
+        return 16
+
+    @property
+    def max_temp(self):
+        """Return the maximum temperature."""
+        return 32
+
+    @property
+    def target_temperature_step(self):
+        """Return the supported step of target temperature."""
+        return 1
 
     @property
     def supported_features(self):
