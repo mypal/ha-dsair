@@ -11,7 +11,7 @@ from homeassistant.components.climate.const import (
     SUPPORT_OPERATION_MODE, SUPPORT_SWING_MODE,
     SUPPORT_ON_OFF, SUPPORT_TARGET_HUMIDITY_LOW, SUPPORT_TARGET_HUMIDITY_HIGH, STATE_COOL, STATE_HEAT, STATE_DRY,
     STATE_FAN_ONLY, STATE_AUTO, STATE_ECO)
-from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE, PRECISION_WHOLE
+from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE
 
 from .ds_air_service.ctrl_enum import EnumControl
 from .ds_air_service.dao import AirCon
