@@ -17,6 +17,11 @@ PORT = 8008
 _LOGGER = logging.getLogger(__name__)
 
 
+def _log(s: str):
+    for i in s.split('\n'):
+        _LOGGER.debug(i)
+
+
 class SocketClient:
     def __init__(self, host: str, port: int):
         self._host = host
@@ -31,8 +36,8 @@ class SocketClient:
 
     def send(self, p: Param):
         self._locker.acquire()
-        _LOGGER.debug('\n\033[1;35msend:\033[0m')
-        _LOGGER.debug(display(p))
+        _log('send:')
+        _log(display(p))
         self._s.sendall(p.to_string())
         self._locker.release()
 
@@ -55,8 +60,8 @@ class RecvThread(Thread):
         while True:
             res = self._sock.recv()
             for i in res:
-                _LOGGER.debug('\n\033[1;36mrecv:\033[0m')
-                _LOGGER.debug(display(i))
+                _log('recv:')
+                _log(display(i))
                 i.do()
 
 

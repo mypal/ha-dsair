@@ -100,6 +100,9 @@ class AirFlow(IntEnum):
     AUTO = 5
 
 
+_AIR_FLOW_NAME_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
+
+
 class Breathe(IntEnum):
     CLOSE = 0
     WEAK = 1
@@ -137,6 +140,9 @@ class Mode(IntEnum):
     MOREDRY = 9
 
 
+_MODE_NAME_LIST = ['制冷', '干燥', '送风', '自动', '制热', '除湿', '清爽', '睡眠', '预热', '超级干燥']
+
+
 class Switch(IntEnum):
     OFF = 0
     ON = 1
@@ -161,3 +167,11 @@ class EnumControl:
     Humidity = Humidity
     Mode = Mode
     Type = Type
+
+    @staticmethod
+    def get_mode_name(idx):
+        return _MODE_NAME_LIST[idx]
+
+    @staticmethod
+    def get_air_flow_name(idx):
+        return _AIR_FLOW_NAME_LIST[idx]

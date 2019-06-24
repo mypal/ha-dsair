@@ -7,86 +7,51 @@ https://home-assistant.io/components/demo/
 from homeassistant.components.climate import ClimateDevice
 from homeassistant.components.climate.const import (
     ATTR_TARGET_TEMP_HIGH, ATTR_TARGET_TEMP_LOW,
-    SUPPORT_TARGET_TEMPERATURE, SUPPORT_TARGET_HUMIDITY,
-    SUPPORT_TARGET_HUMIDITY_LOW, SUPPORT_TARGET_HUMIDITY_HIGH,
-    SUPPORT_AWAY_MODE, SUPPORT_HOLD_MODE, SUPPORT_FAN_MODE,
-    SUPPORT_OPERATION_MODE, SUPPORT_AUX_HEAT, SUPPORT_SWING_MODE,
-    SUPPORT_TARGET_TEMPERATURE_HIGH, SUPPORT_TARGET_TEMPERATURE_LOW,
+    SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE,
+    SUPPORT_OPERATION_MODE, SUPPORT_SWING_MODE,
     SUPPORT_ON_OFF)
-from homeassistant.const import TEMP_CELSIUS, TEMP_FAHRENHEIT, ATTR_TEMPERATURE
+from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE
 
-SUPPORT_FLAGS = SUPPORT_TARGET_HUMIDITY_LOW | SUPPORT_TARGET_HUMIDITY_HIGH
+from .ds_air_service.ctrl_enum import EnumControl
+from .ds_air_service.dao import AirCon
 
 
 async def async_setup_platform(hass, config, async_add_entities, discovery_info=None):
     """Set up the Demo climate devices."""
     from .ds_air_service.service import Service
     await Service.init()
-    async_add_entities([
-        DemoClimate('HeatPump', 68, TEMP_FAHRENHEIT, None, None, 77,
-                    None, None, None, None, 'heat', None, None,
-                    None, True),
-        DemoClimate('Hvac', 21, TEMP_CELSIUS, True, None, 22, 'On High',
-                    67, 54, 'Off', 'cool', False, None, None, None),
-        DemoClimate('Ecobee', None, TEMP_CELSIUS, None, 'home', 23, 'Auto Low',
-                    None, None, 'Auto', 'auto', None, 24, 21, None)
-    ])
+    climates = []
+    for aircon in Service.get_aircons():
+        climates.append(DsAir(aircon))
+    async_add_entities(climates)
 
 
-class DemoClimate(ClimateDevice):
+class DsAir(ClimateDevice):
     """Representation of a demo climate device."""
 
-    def __init__(self, name, target_temperature, unit_of_measurement,
-                 away, hold, current_temperature, current_fan_mode,
-                 target_humidity, current_humidity, current_swing_mode,
-                 current_operation, aux, target_temp_high, target_temp_low,
-                 is_on):
+    def __init__(self, aircon: AirCon):
         """Initialize the climate device."""
-        self._name = name
-        self._support_flags = SUPPORT_FLAGS
-        if target_temperature is not None:
-            self._support_flags = \
-                self._support_flags | SUPPORT_TARGET_TEMPERATURE
-        if away is not None:
-            self._support_flags = self._support_flags | SUPPORT_AWAY_MODE
-        if hold is not None:
-            self._support_flags = self._support_flags | SUPPORT_HOLD_MODE
-        if current_fan_mode is not None:
-            self._support_flags = self._support_flags | SUPPORT_FAN_MODE
-        if target_humidity is not None:
-            self._support_flags = \
-                self._support_flags | SUPPORT_TARGET_HUMIDITY
-        if current_swing_mode is not None:
-            self._support_flags = self._support_flags | SUPPORT_SWING_MODE
-        if current_operation is not None:
-            self._support_flags = self._support_flags | SUPPORT_OPERATION_MODE
-        if aux is not None:
-            self._support_flags = self._support_flags | SUPPORT_AUX_HEAT
-        if target_temp_high is not None:
-            self._support_flags = \
-                self._support_flags | SUPPORT_TARGET_TEMPERATURE_HIGH
-        if target_temp_low is not None:
-            self._support_flags = \
-                self._support_flags | SUPPORT_TARGET_TEMPERATURE_LOW
-        if is_on is not None:
-            self._support_flags = self._support_flags | SUPPORT_ON_OFF
-        self._target_temperature = target_temperature
-        self._target_humidity = target_humidity
-        self._unit_of_measurement = unit_of_measurement
-        self._away = away
-        self._hold = hold
-        self._current_temperature = current_temperature
-        self._current_humidity = current_humidity
-        self._current_fan_mode = current_fan_mode
-        self._current_operation = current_operation
-        self._aux = aux
-        self._current_swing_mode = current_swing_mode
-        self._fan_list = ['On Low', 'On High', 'Auto Low', 'Auto High', 'Off']
-        self._operation_list = ['heat', 'cool', 'auto', 'off']
-        self._swing_list = ['Auto', '1', '2', '3', 'Off']
-        self._target_temperature_high = target_temp_high
-        self._target_temperature_low = target_temp_low
-        self._on = is_on
+        self._name = aircon.alias
+        flag = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_OPERATION_MODE | SUPPORT_SWING_MODE | SUPPORT_ON_OFF
+        self._support_flags = flag
+        status = aircon.status
+        self._target_temperature = status.setted_temp
+        self._target_humidity = None
+        self._unit_of_measurement = TEMP_CELSIUS
+        self._away = None
+        self._hold = None
+        self._current_temperature = status.current_temp
+        self._current_humidity = None
+        self._fan_list = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
+        self._current_fan_mode = EnumControl.get_air_flow_name(status.air_flow.value)
+        self._operation_list = ['制冷', '制热', '除湿', '送风', '清爽', '贴心睡眠']
+        self._on = status.switch.value == EnumControl.Switch.ON
+        self._current_operation = EnumControl.get_mode_name(status.mode.value)
+        self._aux = None
+        self._swing_list = ['0', '1', '2', '3', '4', '5', '6', '7']
+        self._current_swing_mode = str(status.fan_direction1.value)
+        self._target_temperature_high = None
+        self._target_temperature_low = None
 
     @property
     def supported_features(self):

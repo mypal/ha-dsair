@@ -58,7 +58,7 @@ class AirCon(Device):
         self.relax_mode: int
         self.sleep_mode: int
         self.ventilation_mode: int
-        self.status: [AirConStatus] = None
+        self.status: AirConStatus = None
 
 
 class Geothermic(Device):
