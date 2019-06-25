@@ -4,7 +4,6 @@ Demo platform that offers a fake climate device.
 For more details about this platform, please refer to the documentation
 https://home-assistant.io/components/demo/
 """
-import copy
 
 from homeassistant.components.climate import ClimateDevice
 from homeassistant.components.climate.const import (
@@ -15,8 +14,10 @@ from homeassistant.components.climate.const import (
 from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE
 
 from .ds_air_service.ctrl_enum import EnumControl
-from .ds_air_service.dao import AirCon, Device, AirConStatus
+from .ds_air_service.dao import AirCon, AirConStatus
 
+SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_OPERATION_MODE \
+                | SUPPORT_SWING_MODE | SUPPORT_ON_OFF
 OPERATION_LIST = [STATE_COOL, STATE_HEAT, STATE_DRY, STATE_FAN_ONLY, STATE_AUTO, STATE_ECO]
 FAN_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
 SWING_LIST = ['➡️', '↘️', '⬇️', '↙️', '⬅️', '↔️', '🔄']
@@ -90,23 +91,7 @@ class DsAir(ClimateDevice):
     @property
     def supported_features(self):
         """Return the list of supported features."""
-
-        li = []
-        aircon = self._device_info
-        if aircon.cool_mode:
-            li.append(STATE_COOL)
-        if aircon.heat_mode:
-            li.append(STATE_HEAT)
-        if aircon.auto_dry_mode:
-            li.append(STATE_DRY)
-        if aircon.ventilation_mode:
-            li.append(STATE_FAN_ONLY)
-        if aircon.relax_mode:
-            li.append(STATE_AUTO)
-        if aircon.sleep_mode:
-            li.append(STATE_ECO)
-
-        return li
+        return SUPPORT_FLAGS
 
     @property
     def should_poll(self):
@@ -161,7 +146,21 @@ class DsAir(ClimateDevice):
     @property
     def operation_list(self):
         """Return the list of available operation modes."""
-        return OPERATION_LIST
+        li = []
+        aircon = self._device_info
+        if aircon.cool_mode:
+            li.append(STATE_COOL)
+        if aircon.heat_mode:
+            li.append(STATE_HEAT)
+        if aircon.auto_dry_mode:
+            li.append(STATE_DRY)
+        if aircon.ventilation_mode:
+            li.append(STATE_FAN_ONLY)
+        if aircon.relax_mode:
+            li.append(STATE_AUTO)
+        if aircon.sleep_mode:
+            li.append(STATE_ECO)
+        return li
 
     @property
     def is_away_mode_on(self):
