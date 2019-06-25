@@ -102,19 +102,19 @@ class Service:
                 if i.room_id == j.id:
                     i.alias = j.alias
                     if i.unit_id:
-                        i.alias += 1
+                        i.alias += str(i.unit_id)
         for i in Service._new_aircons:
             for j in Service._rooms:
                 if i.room_id == j.id:
                     i.alias = j.alias
                     if i.unit_id:
-                        i.alias += 1
+                        i.alias += str(i.unit_id)
         for i in Service._bathrooms:
             for j in Service._rooms:
                 if i.room_id == j.id:
                     i.alias = j.alias
                     if i.unit_id:
-                        i.alias += 1
+                        i.alias += str(i.unit_id)
         Service._ready = True
 
     @staticmethod
