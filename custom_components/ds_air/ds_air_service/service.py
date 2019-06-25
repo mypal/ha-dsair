@@ -56,6 +56,7 @@ class RecvThread(Thread):
     def __init__(self, sock: SocketClient):
         super().__init__()
         self._sock = sock
+        self._locker = Lock()
 
     def run(self) -> None:
         while True:
@@ -63,7 +64,9 @@ class RecvThread(Thread):
             for i in res:
                 _log('recv:')
                 _log(display(i))
+                self._locker.acquire()
                 i.do()
+                self._locker.release()
 
 
 class HeartBeatThread(Thread):
@@ -86,7 +89,7 @@ class Service:
     _bathrooms = None          # type: typing.List[AirCon]
     _ready = False             # type: bool
     _none_stat_dev_cnt = 0     # type: int
-    _status_hook = {}          # type: typing.Dict[((int, int), types.FunctionType)]
+    _status_hook = []          # type: typing.List[(AirCon, types.FunctionType)]
 
     @staticmethod
     def init(host: str = HOST, port: int = PORT):
@@ -95,6 +98,11 @@ class Service:
         while Service._rooms is None or Service._aircons is None \
                 or Service._new_aircons is None or Service._bathrooms is None:
             time.sleep(1)  # asyncio.sleep(1)
+        Service._ready = True
+
+    @staticmethod
+    def is_ready() -> bool:
+        return Service._ready
 
     @staticmethod
     def get_new_aircons():
@@ -107,8 +115,8 @@ class Service:
         _log(display(status))
 
     @staticmethod
-    def register_status_hook(device: Device, hook: types.FunctionType):
-        Service._status_hook[(device.room_id, device.unit_id)] = hook
+    def register_status_hook(device: AirCon, hook):
+        Service._status_hook.append((device, hook))
 
     # ----split line---- above for component, below for inner call
 
@@ -154,3 +162,14 @@ class Service:
                 i.status = status
                 Service._none_stat_dev_cnt -= 1
                 break
+
+    @staticmethod
+    def update_aircon(target: EnumDevice, room: int, unit: int, **kwargs):
+        li = Service._status_hook
+        for item in li:
+            i, func = item
+            if i.unit_id == unit and i.room_id == room and EnumDevice.get_device(i) == target:
+                try:
+                    func(**kwargs)
+                except Exception as e:
+                    _log(str(e))

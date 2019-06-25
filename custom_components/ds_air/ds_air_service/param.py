@@ -1,6 +1,7 @@
 import struct
 import typing
 
+from .config import Config
 from .dao import AirCon, Device
 from .base_bean import BaseBean
 from .ctrl_enum import EnumCmdType, EnumDevice, EnumControl
@@ -163,3 +164,49 @@ class AirConQueryStatusParam(AirconParam):
     @device.setter
     def device(self, v):
         self._device = v
+
+
+class AirConControlParam(AirconParam):
+    def __init__(self, aircon: AirCon):
+        super().__init__(EnumCmdType.CONTROL, False)
+        self.target = EnumDevice.get_device(aircon)
+        self._aircon = aircon
+
+    def generate_subbody(self, s):
+        aircon = self._aircon
+        status = aircon.status
+        s.write1(aircon.room_id)
+        s.write1(aircon.unit_id)
+        li = []
+        flag = 0
+        if status.switch is not None:
+            flag = flag | EnumControl.Type.SWITCH
+            li.append((1, status.switch.value))
+        if status.mode is not None:
+            flag = flag | EnumControl.Type.MODE
+            li.append((1, status.mode.value))
+        if status.air_flow is not None:
+            flag = flag | EnumControl.Type.AIR_FLOW
+            li.append((1, status.air_flow.value))
+        if status.current_temp is not None:
+            flag = flag | EnumControl.Type.CURRENT_TEMP
+            li.append((2, status.current_temp))
+        if status.setted_temp is not None:
+            flag = flag | EnumControl.Type.SETTED_TEMP
+            li.append((2, status.setted_temp))
+        if Config.is_new_version:
+            if self.target != EnumDevice.BATHROOM:
+                if status.fan_direction1 is not None:
+                    flag = flag | EnumControl.Type.FAN_DIRECTION
+                    li.append((1, status.fan_direction1 | status.fan_direction2 << 4))
+
+                if self.target == EnumDevice.NEWAIRCON:
+                    if status.humidity is not None:
+                        flag = flag | EnumControl.Type.HUMIDITY
+                        li.append((1, status.humidity))
+        s.write1(flag)
+        for bit, val in li:
+            if bit == 1:
+                s.write1(val)
+            elif bit == 2:
+                s.write2(val)

@@ -17,6 +17,17 @@ def _nothing():
 
 
 class AirConStatus:
+    def __init__(self):
+        self.current_temp = None
+        self.setted_temp = None
+        self.switch = None
+        self.air_flow = None
+        self.breathe = None
+        self.fan_direction1 = None
+        self.fan_direction2 = None
+        self.humidity = None
+        self.mode = None
+
     def __init__(self, current_temp: int = 0, setted_temp: int = 0,
                  switch: EnumControl.Switch = EnumControl.Switch.OFF,
                  air_flow: EnumControl.AirFlow = EnumControl.AirFlow.AUTO,
@@ -38,25 +49,25 @@ class AirConStatus:
 
 class AirCon(Device):
     def __init__(self):
-        Device.__init__(self)
-        self.auto_dry_mode: int
-        self.auto_mode: int
-        self.bath_room: bool
-        self.cool_mode: int
-        self.dry_mode: int
-        self.fan_dire_auto: bool
-        self.fan_direction1: EnumFanDirection
-        self.fan_direction2: EnumFanDirection
-        self.fan_volume: EnumFanVolume
-        self.fan_volume_auto: bool
-        self.heat_mode: int
-        self.more_dry_mode: int
-        self.new_air_con: bool
-        self.out_door_run_cond: EnumOutDoorRunCond
-        self.pre_heat_mode: int
-        self.relax_mode: int
-        self.sleep_mode: int
-        self.ventilation_mode: int
+        super().__init__()
+        self.auto_dry_mode: int = 0
+        self.auto_mode: int = 0
+        self.bath_room: bool = False
+        self.new_air_con: bool = False
+        self.cool_mode: int = 0
+        self.dry_mode: int = 0
+        self.fan_dire_auto: bool = False
+        self.fan_direction1: EnumFanDirection = EnumFanDirection.FIX
+        self.fan_direction2: EnumFanDirection = EnumFanDirection.FIX
+        self.fan_volume: EnumFanVolume = EnumFanVolume.FIX
+        self.fan_volume_auto: bool = False
+        self.heat_mode: int = 0
+        self.more_dry_mode: int = 0
+        self.out_door_run_cond: EnumOutDoorRunCond = EnumOutDoorRunCond.VENT
+        self.pre_heat_mode: int = 0
+        self.relax_mode: int = 0
+        self.sleep_mode: int = 0
+        self.ventilation_mode: int = 0
         self.status: AirConStatus = None
 
 

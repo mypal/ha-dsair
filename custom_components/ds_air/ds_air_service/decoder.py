@@ -295,15 +295,8 @@ class GetRoomInfoResult(BaseResult):
                     if EnumDevice.AIRCON == device or EnumDevice.NEWAIRCON == device or EnumDevice.BATHROOM == device:
                         dev = AirCon()
                         room.air_con = dev
-                        if EnumDevice.NEWAIRCON == device:
-                            dev.new_air_con = True
-                            dev.bath_room = False
-                        elif EnumDevice.BATHROOM == device:
-                            dev.new_air_con = False
-                            dev.bath_room = True
-                        else:
-                            dev.new_air_con = False
-                            dev.bath_room = False
+                        dev.new_air_con = EnumDevice.NEWAIRCON == device
+                        dev.bath_room = EnumDevice.BATHROOM == device
                     elif EnumDevice.GEOTHERMIC == device:
                         dev = Geothermic()
                         room.geothermic = dev
@@ -423,9 +416,35 @@ class QueryScheduleFinish(BaseResult):
 class AirConStatusChangedResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.STATUS_CHANGED)
+        self._room = 0                 # type: int
+        self._unit = 0                 # type: int
+        self._status = AirConStatus()  # type: AirConStatus
 
     def load_bytes(self, b):
-        """todo"""
+        d = Decode(b)
+        self._room = d.read1()
+        self._unit = d.read1()
+        status = self._status
+        flag = d.read1()
+        if flag & EnumControl.Type.SWITCH:
+            status.switch = EnumControl.Switch(d.read1())
+        if flag & EnumControl.Type.MODE:
+            status.mode = EnumControl.Mode(d.read1())
+        if flag & EnumControl.Type.AIR_FLOW:
+            status.air_flow = EnumControl.AirFlow(d.read1())
+        if flag & EnumControl.Type.CURRENT_TEMP:
+            status.current_temp = d.read2()
+        if flag & EnumControl.Type.SETTED_TEMP:
+            status.setted_temp = d.read2()
+        if Config.is_new_version:
+            if flag & EnumControl.Type.FAN_DIRECTION:
+                direction = d.read1()
+                status.fan_direction1 = EnumControl.FanDirection(direction & 0xF)
+                status.fan_direction2 = EnumControl.FanDirection((direction >> 4) & 0xF)
+
+    def do(self):
+        from .service import Service
+        Service.update_aircon(self.target, self._room, self._unit, status=self._status)
 
 
 class AirConQueryStatusResult(BaseResult):
@@ -548,13 +567,19 @@ class AirConCapabilityQueryResult(BaseResult):
                 self._air_cons.append(aircon)
 
     def do(self):
-        if len(self._air_cons):
-            for i in self._air_cons:
-                p = AirConQueryStatusParam()
-                p.target = EnumDevice.NEWAIRCON
-                p.device = i
-                from .service import Service
-                Service.send_msg(p)
+        from .service import Service
+        if Service.is_ready():
+            if len(self._air_cons):
+                for i in self._air_cons:
+                    Service.update_aircon(EnumDevice.get_device(i), i.room_id, i.unit_id, aircon=i)
+        else:
+            if len(self._air_cons):
+                for i in self._air_cons:
+                    p = AirConQueryStatusParam()
+                    p.target = self.target
+                    p.device = i
+                    from .service import Service
+                    Service.send_msg(p)
 
     @property
     def aircons(self):

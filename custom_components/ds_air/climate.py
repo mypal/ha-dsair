@@ -15,10 +15,8 @@ from homeassistant.components.climate.const import (
 from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE
 
 from .ds_air_service.ctrl_enum import EnumControl
-from .ds_air_service.dao import AirCon, Device
+from .ds_air_service.dao import AirCon, Device, AirConStatus
 
-SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_OPERATION_MODE \
-                | SUPPORT_SWING_MODE | SUPPORT_ON_OFF
 OPERATION_LIST = [STATE_COOL, STATE_HEAT, STATE_DRY, STATE_FAN_ONLY, STATE_AUTO, STATE_ECO]
 FAN_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
 SWING_LIST = ['➡️', '↘️', '⬇️', '↙️', '⬅️', '↔️', '🔄']
@@ -40,14 +38,39 @@ class DsAir(ClimateDevice):
     def __init__(self, aircon: AirCon):
         """Initialize the climate device."""
         self._name = aircon.alias
-        self._device_info = Device()
-        self._device_info.room_id = aircon.room_id
-        self._device_info.unit_id = aircon.unit_id
-        self._device_info.id = aircon.id
-        self._device_info.name = aircon.name
-        self._device_info.alias = aircon.alias
-        self._support_flags = SUPPORT_FLAGS
+        self._device_info = aircon
         self._status = aircon.status
+        from .ds_air_service.service import Service
+        Service.register_status_hook(aircon, self._status_change_hook)
+
+    def _status_change_hook(self, **kwargs):
+        if kwargs['aircon'] is not None:
+            aircon: AirCon = kwargs['aircon']
+            aircon.status = self._device_info.status
+            self._device_info = aircon
+
+        if kwargs['status'] is not None:
+            status: AirConStatus = self._device_info.status
+            new_status: AirConStatus = kwargs['status']
+            if new_status.mode is not None:
+                status.mode = new_status.mode
+            if new_status.switch is not None:
+                status.switch = new_status.switch
+            if new_status.humidity is not None:
+                status.humidity = new_status.humidity
+            if new_status.air_flow is not None:
+                status.air_flow = new_status.air_flow
+            if new_status.fan_direction1 is not None:
+                status.fan_direction1 = new_status.fan_direction1
+            if new_status.fan_direction2 is not None:
+                status.fan_direction2 = new_status.fan_direction2
+            if new_status.setted_temp is not None:
+                status.setted_temp = new_status.setted_temp
+            if new_status.current_temp is not None:
+                status.current_temp = new_status.current_temp
+            if new_status.breathe is not None:
+                status.breathe = new_status.breathe
+        self.schedule_update_ha_state()
 
     @property
     def min_temp(self):
@@ -67,7 +90,23 @@ class DsAir(ClimateDevice):
     @property
     def supported_features(self):
         """Return the list of supported features."""
-        return self._support_flags
+
+        li = []
+        aircon = self._device_info
+        if aircon.cool_mode:
+            li.append(STATE_COOL)
+        if aircon.heat_mode:
+            li.append(STATE_HEAT)
+        if aircon.auto_dry_mode:
+            li.append(STATE_DRY)
+        if aircon.ventilation_mode:
+            li.append(STATE_FAN_ONLY)
+        if aircon.relax_mode:
+            li.append(STATE_AUTO)
+        if aircon.sleep_mode:
+            li.append(STATE_ECO)
+
+        return li
 
     @property
     def should_poll(self):
@@ -87,12 +126,12 @@ class DsAir(ClimateDevice):
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        return self._status.current_temp
+        return self._status.current_temp/10
 
     @property
     def target_temperature(self):
         """Return the temperature we try to reach."""
-        return self._status.setted_temp
+        return self._status.setted_temp/10
 
     @property
     def target_temperature_high(self):
@@ -167,8 +206,8 @@ class DsAir(ClimateDevice):
     def set_temperature(self, **kwargs):
         """Set new target temperatures."""
         if kwargs.get(ATTR_TEMPERATURE) is not None:
-            new_status = copy.deepcopy(self._status)
-            new_status.setted_temp = kwargs.get(ATTR_TEMPERATURE)*10
+            new_status = AirConStatus()
+            new_status.setted_temp = round(kwargs.get(ATTR_TEMPERATURE)*10)
             from .ds_air_service.service import Service
             Service.control(self._device_info, new_status)
 
@@ -178,21 +217,22 @@ class DsAir(ClimateDevice):
 
     def set_swing_mode(self, swing_mode):
         """Set new swing mode."""
-        new_status = copy.deepcopy(self._status)
+        new_status = AirConStatus()
         new_status.fan_direction1 = EnumControl.get_fan_direction_enum(swing_mode)
+        new_status.fan_direction2 = self._status.fan_direction2
         from .ds_air_service.service import Service
         Service.control(self._device_info, new_status)
 
     def set_fan_mode(self, fan_mode):
         """Set new fan mode."""
-        new_status = copy.deepcopy(self._status)
+        new_status = AirConStatus()
         new_status.air_flow = EnumControl.get_air_flow_enum(fan_mode)
         from .ds_air_service.service import Service
         Service.control(self._device_info, new_status)
 
     def set_operation_mode(self, operation_mode):
         """Set new operation mode."""
-        new_status = copy.deepcopy(self._status)
+        new_status = AirConStatus()
         new_status.mode = EnumControl.get_mode_enum(operation_mode)
         from .ds_air_service.service import Service
         Service.control(self._device_info, new_status)
@@ -219,14 +259,14 @@ class DsAir(ClimateDevice):
 
     def turn_on(self):
         """Turn on."""
-        new_status = copy.deepcopy(self._status)
+        new_status = AirConStatus()
         new_status.switch = EnumControl.Switch.ON
         from .ds_air_service.service import Service
         Service.control(self._device_info, new_status)
 
     def turn_off(self):
         """Turn off."""
-        new_status = copy.deepcopy(self._status)
+        new_status = AirConStatus()
         new_status.switch = EnumControl.Switch.OFF
         from .ds_air_service.service import Service
         Service.control(self._device_info, new_status)
