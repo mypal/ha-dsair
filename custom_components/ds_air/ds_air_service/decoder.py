@@ -4,7 +4,7 @@ import typing
 from .param import GetRoomInfoParam, AirConRecommendedIndoorTempParam, AirConCapabilityQueryParam, \
     AirConQueryStatusParam
 from .config import Config
-from .dao import Room, AirCon, Geothermic, Ventilation, HD, Device, AirConStatus
+from .dao import Room, AirCon, Geothermic, Ventilation, HD, Device, AirConStatus, get_device_by_aircon
 from .base_bean import BaseBean
 from .ctrl_enum import EnumDevice, EnumCmdType, EnumFanDirection, EnumOutDoorRunCond, EnumFanVolume, EnumControl
 
@@ -571,7 +571,7 @@ class AirConCapabilityQueryResult(BaseResult):
         if Service.is_ready():
             if len(self._air_cons):
                 for i in self._air_cons:
-                    Service.update_aircon(EnumDevice.get_device(i), i.room_id, i.unit_id, aircon=i)
+                    Service.update_aircon(get_device_by_aircon(i), i.room_id, i.unit_id, aircon=i)
         else:
             if len(self._air_cons):
                 for i in self._air_cons:

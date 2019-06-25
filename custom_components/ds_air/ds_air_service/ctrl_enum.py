@@ -1,8 +1,7 @@
 from enum import Enum, IntEnum
 
-from homeassistant.components.climate.const import STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_AUTO, STATE_HEAT, STATE_ECO
-
-from .dao import AirCon
+from homeassistant.components.climate.const import STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_AUTO, STATE_HEAT, \
+    STATE_ECO
 
 
 class EnumCmdType(IntEnum):
@@ -41,15 +40,6 @@ class EnumDevice(Enum):
     NEWAIRCON = (8, 23)
     SYSTEM = (0, 0)
     VENTILATION = (8, 20)
-
-    @staticmethod
-    def get_device(aircon: AirCon):
-        if aircon.new_air_con:
-            return EnumDevice.NEWAIRCON
-        elif aircon.bath_room:
-            return EnumDevice.BATHROOM
-        else:
-            return EnumDevice.AIRCON
 
 
 class EnumFanDirection(IntEnum):

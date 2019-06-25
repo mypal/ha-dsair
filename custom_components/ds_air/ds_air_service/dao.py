@@ -1,6 +1,4 @@
-import types
-
-from .ctrl_enum import EnumOutDoorRunCond, EnumFanDirection, EnumFanVolume, EnumSwitch, EnumControl
+from .ctrl_enum import EnumOutDoorRunCond, EnumFanDirection, EnumFanVolume, EnumSwitch, EnumControl, EnumDevice
 
 
 class Device:
@@ -17,25 +15,14 @@ def _nothing():
 
 
 class AirConStatus:
-    def __init__(self):
-        self.current_temp = None
-        self.setted_temp = None
-        self.switch = None
-        self.air_flow = None
-        self.breathe = None
-        self.fan_direction1 = None
-        self.fan_direction2 = None
-        self.humidity = None
-        self.mode = None
-
-    def __init__(self, current_temp: int = 0, setted_temp: int = 0,
-                 switch: EnumControl.Switch = EnumControl.Switch.OFF,
-                 air_flow: EnumControl.AirFlow = EnumControl.AirFlow.AUTO,
-                 breathe: EnumControl.Breathe = EnumControl.Breathe.CLOSE,
-                 fan_direction1: EnumControl.FanDirection = EnumControl.FanDirection.INVALID,
-                 fan_direction2: EnumControl.FanDirection = EnumControl.FanDirection.INVALID,
-                 humidity: EnumControl.Humidity = EnumControl.Humidity.CLOSE,
-                 mode: EnumControl.Mode = EnumControl.Mode.AUTO):
+    def __init__(self, current_temp: int = None, setted_temp: int = None,
+                 switch: EnumControl.Switch = None,
+                 air_flow: EnumControl.AirFlow = None,
+                 breathe: EnumControl.Breathe = None,
+                 fan_direction1: EnumControl.FanDirection = None,
+                 fan_direction2: EnumControl.FanDirection = None,
+                 humidity: EnumControl.Humidity = None,
+                 mode: EnumControl.Mode = None):
         self.current_temp = current_temp      # type: int
         self.setted_temp = setted_temp        # type: int
         self.switch = switch                  # type: EnumControl.Switch
@@ -68,7 +55,16 @@ class AirCon(Device):
         self.relax_mode: int = 0
         self.sleep_mode: int = 0
         self.ventilation_mode: int = 0
-        self.status: AirConStatus = None
+        self.status: AirConStatus = AirConStatus()
+
+
+def get_device_by_aircon(aircon: AirCon):
+    if aircon.new_air_con:
+        return EnumDevice.NEWAIRCON
+    elif aircon.bath_room:
+        return EnumDevice.BATHROOM
+    else:
+        return EnumDevice.AIRCON
 
 
 class Geothermic(Device):

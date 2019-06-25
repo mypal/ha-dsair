@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import socket
 import time
@@ -7,10 +6,10 @@ import typing
 from threading import Thread, Lock
 
 from .ctrl_enum import EnumDevice
-from .dao import Room, AirCon, AirConStatus, Device
-from .param import Param, HandShakeParam, HeartbeatParam
-from .display import display
+from .dao import Room, AirCon, AirConStatus, Device, get_device_by_aircon
 from .decoder import decoder, BaseResult
+from .display import display
+from .param import Param, HandShakeParam, HeartbeatParam
 
 HOST = '192.168.1.110'
 PORT = 8008
@@ -168,7 +167,7 @@ class Service:
         li = Service._status_hook
         for item in li:
             i, func = item
-            if i.unit_id == unit and i.room_id == room and EnumDevice.get_device(i) == target:
+            if i.unit_id == unit and i.room_id == room and get_device_by_aircon(i) == target:
                 try:
                     func(**kwargs)
                 except Exception as e:
