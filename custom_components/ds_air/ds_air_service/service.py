@@ -6,10 +6,10 @@ import typing
 from threading import Thread, Lock
 
 from .ctrl_enum import EnumDevice
-from .dao import Room, AirCon, AirConStatus, Device, get_device_by_aircon
+from .dao import Room, AirCon, AirConStatus, get_device_by_aircon
 from .decoder import decoder, BaseResult
 from .display import display
-from .param import Param, HandShakeParam, HeartbeatParam
+from .param import Param, HandShakeParam, HeartbeatParam, AirConControlParam
 
 HOST = '192.168.1.110'
 PORT = 8008
@@ -104,10 +104,9 @@ class Service:
         return Service._new_aircons
 
     @staticmethod
-    def control(device_info: Device, status: AirConStatus):
-        _log('************control**************')
-        _log(display(device_info))
-        _log(display(status))
+    def control(aircon: AirCon, status: AirConStatus):
+        p = AirConControlParam(aircon, status)
+        Service.send_msg(p)
 
     @staticmethod
     def register_status_hook(device: AirCon, hook):

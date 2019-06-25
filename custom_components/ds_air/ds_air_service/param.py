@@ -2,7 +2,7 @@ import struct
 import typing
 
 from .config import Config
-from .dao import AirCon, Device, get_device_by_aircon
+from .dao import AirCon, Device, get_device_by_aircon, AirConStatus
 from .base_bean import BaseBean
 from .ctrl_enum import EnumCmdType, EnumDevice, EnumControl
 
@@ -167,14 +167,15 @@ class AirConQueryStatusParam(AirconParam):
 
 
 class AirConControlParam(AirconParam):
-    def __init__(self, aircon: AirCon):
+    def __init__(self, aircon: AirCon, new_status: AirConStatus):
         super().__init__(EnumCmdType.CONTROL, False)
         self.target = get_device_by_aircon(aircon)
         self._aircon = aircon
+        self._new_status = new_status
 
     def generate_subbody(self, s):
         aircon = self._aircon
-        status = aircon.status
+        status = self._new_status
         s.write1(aircon.room_id)
         s.write1(aircon.unit_id)
         li = []
