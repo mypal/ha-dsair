@@ -2,11 +2,12 @@ import asyncio
 import logging
 import socket
 import time
+import types
 import typing
 from threading import Thread, Lock
 
 from .ctrl_enum import EnumDevice
-from .dao import Room, AirCon, AirConStatus
+from .dao import Room, AirCon, AirConStatus, Device
 from .param import Param, HandShakeParam, HeartbeatParam
 from .display import display
 from .decoder import decoder, BaseResult
@@ -84,7 +85,8 @@ class Service:
     _new_aircons = None        # type: typing.List[AirCon]
     _bathrooms = None          # type: typing.List[AirCon]
     _ready = False             # type: bool
-    _none_stat_dev_cnt = 0  # type: int
+    _none_stat_dev_cnt = 0     # type: int
+    _status_hook = {}          # type: typing.Dict[((int, int), types.FunctionType)]
 
     @staticmethod
     def init(host: str = HOST, port: int = PORT):
@@ -97,6 +99,16 @@ class Service:
     @staticmethod
     def get_new_aircons():
         return Service._new_aircons
+
+    @staticmethod
+    def control(device_info: Device, status: AirConStatus):
+        _log('************control**************')
+        _log(display(device_info))
+        _log(display(status))
+
+    @staticmethod
+    def register_status_hook(device: Device, hook: types.FunctionType):
+        Service._status_hook[(device.room_id, device.unit_id)] = hook
 
     # ----split line---- above for component, below for inner call
 

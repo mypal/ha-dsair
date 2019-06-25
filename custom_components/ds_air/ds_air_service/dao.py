@@ -34,7 +34,6 @@ class AirConStatus:
         self.fan_direction2 = fan_direction2  # type: EnumControl.FanDirection
         self.humidity = humidity              # type: EnumControl.Humidity
         self.mode = mode                      # type: EnumControl.Mode
-        self.status_change_hook = _nothing    # type: types.FunctionType
 
 
 class AirCon(Device):

@@ -122,6 +122,9 @@ class FanDirection(IntEnum):
     SWING = 7
 
 
+_FAN_DIRECTION_LIST = ['INVALID', '➡️', '↘️', '⬇️', '↙️', '⬅️', '↔️', '🔄']
+
+
 class Humidity(IntEnum):
     CLOSE = 0
     STEP1 = 1
@@ -142,7 +145,7 @@ class Mode(IntEnum):
     MOREDRY = 9
 
 
-_MODE_NAME_LIST = [STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_AUTO, STATE_HEAT, STATE_DRY, STATE_AUTO, STATE_ECO, STATE_HEAT, STATE_DRY]
+_MODE_NAME_LIST = [STATE_COOL, 'DRY', STATE_FAN_ONLY, 'AUTO', STATE_HEAT, STATE_DRY, STATE_AUTO, STATE_ECO, 'PREHEAT', 'MOREDRY']
 
 
 class Switch(IntEnum):
@@ -175,5 +178,22 @@ class EnumControl:
         return _MODE_NAME_LIST[idx]
 
     @staticmethod
+    def get_mode_enum(name):
+        return Mode(_MODE_NAME_LIST.index(name))
+
+    @staticmethod
     def get_air_flow_name(idx):
         return _AIR_FLOW_NAME_LIST[idx]
+
+    @staticmethod
+    def get_air_flow_enum(name):
+        return AirFlow(_AIR_FLOW_NAME_LIST.index(name))
+
+    @staticmethod
+    def get_fan_direction_name(idx):
+        return _FAN_DIRECTION_LIST[idx]
+
+    @staticmethod
+    def get_fan_direction_enum(name):
+        return FanDirection(_FAN_DIRECTION_LIST.index(name))
+

@@ -334,6 +334,7 @@ class GetRoomInfoResult(BaseResult):
         new_aircons = []
         bathrooms = []
         for i in Service.get_rooms():
+            i.air_con.alias = i.alias
             if i.air_con.new_air_con:
                 new_aircons.append(i.air_con)
             elif i.air_con.bath_room:
