@@ -160,6 +160,8 @@ class DsAir(ClimateDevice):
             li.append(STATE_AUTO)
         if aircon.sleep_mode:
             li.append(STATE_ECO)
+        print('##############################')
+        print(li)
         return li
 
     @property
