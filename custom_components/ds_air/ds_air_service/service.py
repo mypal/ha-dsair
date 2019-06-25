@@ -96,7 +96,25 @@ class Service:
         Service._socket_client.send(HandShakeParam())
         while Service._rooms is None or Service._aircons is None \
                 or Service._new_aircons is None or Service._bathrooms is None:
-            time.sleep(1)  # asyncio.sleep(1)
+            time.sleep(1)
+        for i in Service._aircons:
+            for j in Service._rooms:
+                if i.room_id == j.id:
+                    i.alias = j.alias
+                    if i.unit_id:
+                        i.alias += 1
+        for i in Service._new_aircons:
+            for j in Service._rooms:
+                if i.room_id == j.id:
+                    i.alias = j.alias
+                    if i.unit_id:
+                        i.alias += 1
+        for i in Service._bathrooms:
+            for j in Service._rooms:
+                if i.room_id == j.id:
+                    i.alias = j.alias
+                    if i.unit_id:
+                        i.alias += 1
         Service._ready = True
 
     @staticmethod
