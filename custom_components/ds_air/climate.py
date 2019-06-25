@@ -157,7 +157,7 @@ class DsAir(ClimateDevice):
     @property
     def current_swing_mode(self):
         """Return the swing setting."""
-        return EnumControl.get_air_flow_name(self._status.fan_direction1.value)
+        return EnumControl.get_fan_direction_enum(self._status.fan_direction1.value)
 
     @property
     def swing_list(self):
