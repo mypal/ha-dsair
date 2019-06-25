@@ -41,6 +41,8 @@ class DsAir(ClimateDevice):
         self._name = aircon.alias
         self._device_info = aircon
         self._status = aircon.status
+        print('##################init')
+        print(aircon.__dict__)
         from .ds_air_service.service import Service
         Service.register_status_hook(aircon, self._status_change_hook)
 
@@ -161,7 +163,7 @@ class DsAir(ClimateDevice):
         if aircon.sleep_mode:
             li.append(STATE_ECO)
         print('##############################')
-        print(dict(li))
+        print(aircon.__dict__)
         print(li)
         return li
 

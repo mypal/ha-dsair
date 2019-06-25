@@ -100,10 +100,6 @@ class Service:
         Service._ready = True
 
     @staticmethod
-    def is_ready() -> bool:
-        return Service._ready
-
-    @staticmethod
     def get_new_aircons():
         return Service._new_aircons
 
@@ -118,6 +114,10 @@ class Service:
         Service._status_hook.append((device, hook))
 
     # ----split line---- above for component, below for inner call
+
+    @staticmethod
+    def is_ready() -> bool:
+        return Service._ready
 
     @staticmethod
     def send_msg(p: Param):
