@@ -83,9 +83,9 @@ class HeartBeatThread(Thread):
 class Service:
     _socket_client = None      # type: SocketClient
     _rooms = None              # type: typing.List[Room]
-    _aircons = None            # type: typing.List[AirCon]
-    _new_aircons = None        # type: typing.List[AirCon]
-    _bathrooms = None          # type: typing.List[AirCon]
+    _aircons = []            # type: typing.List[AirCon]
+    _new_aircons = []        # type: typing.List[AirCon]
+    _bathrooms = []          # type: typing.List[AirCon]
     _ready = False             # type: bool
     _none_stat_dev_cnt = 0     # type: int
     _status_hook = []          # type: typing.List[(AirCon, types.FunctionType)]
@@ -133,19 +133,17 @@ class Service:
         Service._rooms = v
 
     @staticmethod
-    def set_aircons(v: typing.List[AirCon]):
+    def add_device(t: EnumDevice, v: typing.List[AirCon]):
         Service._none_stat_dev_cnt += len(v)
-        Service._aircons = v
-
-    @staticmethod
-    def set_new_aircons(v: typing.List[AirCon]):
-        Service._none_stat_dev_cnt += len(v)
-        Service._new_aircons = v
-
-    @staticmethod
-    def set_bathrooms(v: typing.List[AirCon]):
-        Service._none_stat_dev_cnt += len(v)
-        Service._bathrooms = v
+        li = []
+        if t == EnumDevice.AIRCON:
+            li = Service._aircons
+        elif t == EnumDevice.NEWAIRCON:
+            li = Service._new_aircons
+        else:
+            li = Service._bathrooms
+        for i in v:
+            li.append(i)
 
     @staticmethod
     def set_aircon_status(target: EnumDevice, room: int, unit: int, status: AirConStatus):

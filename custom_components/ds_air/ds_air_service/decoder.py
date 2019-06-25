@@ -335,10 +335,6 @@ class GetRoomInfoResult(BaseResult):
             else:
                 aircons.append(i.air_con)
 
-        Service.set_aircons(aircons)
-        Service.set_new_aircons(new_aircons)
-        Service.set_bathrooms(bathrooms)
-
         p = AirConCapabilityQueryParam()
         p.aircons = aircons
         p.target = EnumDevice.AIRCON
@@ -580,6 +576,7 @@ class AirConCapabilityQueryResult(BaseResult):
                     p.device = i
                     from .service import Service
                     Service.send_msg(p)
+                Service.add_device(self.target, self._air_cons)
 
     @property
     def aircons(self):
