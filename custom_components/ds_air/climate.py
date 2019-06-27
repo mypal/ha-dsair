@@ -67,14 +67,16 @@ class DsAir(ClimateDevice):
 
     def _status_change_hook(self, **kwargs):
         _log('hook:')
-        print(str(kwargs))
         if kwargs['aircon'] is not None:
             aircon: AirCon = kwargs['aircon']
             aircon.status = self._device_info.status
             self._device_info = aircon
             _log(display(self._device_info))
 
+        print('*********************')
+        print(str(kwargs['status']))
         if kwargs['status'] is not None:
+            print('in')
             status: AirConStatus = self._status
             new_status: AirConStatus = kwargs['status']
             if new_status.mode is not None:
@@ -96,6 +98,7 @@ class DsAir(ClimateDevice):
             if new_status.breathe is not None:
                 status.breathe = new_status.breathe
             _log(display(self._status))
+            print(display(self._status))
         self.schedule_update_ha_state()
 
     @property
