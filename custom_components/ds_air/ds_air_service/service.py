@@ -180,8 +180,4 @@ class Service:
         for item in li:
             i, func = item
             if i.unit_id == unit and i.room_id == room and get_device_by_aircon(i) == target:
-                try:
-                    func(**kwargs)
-                except Exception as e:
-                    print('Exception!!!!!!!!!!!!!!!!')
-                    print(e)
+                func(**kwargs)
