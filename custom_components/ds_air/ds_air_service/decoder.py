@@ -576,7 +576,7 @@ class AirConCapabilityQueryResult(BaseResult):
                     p.device = i
                     from .service import Service
                     Service.send_msg(p)
-                Service.add_device(self.target, self._air_cons)
+                Service.set_device(self.target, self._air_cons)
 
     @property
     def aircons(self):
