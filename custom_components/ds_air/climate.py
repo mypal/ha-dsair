@@ -67,6 +67,7 @@ class DsAir(ClimateDevice):
 
     def _status_change_hook(self, **kwargs):
         _log('hook:')
+        print(str(kwargs.__dict__))
         if kwargs['aircon'] is not None:
             aircon: AirCon = kwargs['aircon']
             aircon.status = self._device_info.status
