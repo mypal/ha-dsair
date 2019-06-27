@@ -422,6 +422,8 @@ class AirConStatusChangedResult(BaseResult):
         self._unit = d.read1()
         status = self._status
         flag = d.read1()
+        print('********************')
+        print(flag)
         if flag & EnumControl.Type.SWITCH:
             status.switch = EnumControl.Switch(d.read1())
         if flag & EnumControl.Type.MODE:
@@ -440,6 +442,8 @@ class AirConStatusChangedResult(BaseResult):
 
     def do(self):
         from .service import Service
+        from .display import display
+        print(display(self._status))
         Service.update_aircon(self.target, self._room, self._unit, status=self._status)
 
 
