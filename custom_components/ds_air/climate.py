@@ -6,6 +6,9 @@ https://home-assistant.io/components/demo/
 """
 import voluptuous as vol
 from homeassistant.components.climate import ClimateDevice, PLATFORM_SCHEMA
+import logging
+
+from homeassistant.components.climate import ClimateDevice
 from homeassistant.components.climate.const import (
     SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE,
     SUPPORT_OPERATION_MODE, SUPPORT_SWING_MODE,
@@ -28,12 +31,19 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_PORT): cv.port
 })
 
+_LOGGER = logging.getLogger(__name__)
+
+
+def _log(s: str):
+    for i in s.split('\n'):
+        _LOGGER.debug(i)
+
 
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Demo climate devices."""
 
     from .ds_air_service.service import Service
-    Service.init(config[CONF_HOST], config[CONF_PORT])
+    Service.init()
     climates = []
     for aircon in Service.get_new_aircons():
         climates.append(DsAir(aircon))
@@ -44,6 +54,9 @@ class DsAir(ClimateDevice):
     """Representation of a demo climate device."""
 
     def __init__(self, aircon: AirCon):
+        _log('create aircon:')
+        _log(str(aircon.__dict__))
+        _log(str(aircon.status.__dict__))
         """Initialize the climate device."""
         self._name = aircon.alias
         self._device_info = aircon
@@ -52,6 +65,8 @@ class DsAir(ClimateDevice):
         Service.register_status_hook(aircon, self._status_change_hook)
 
     def _status_change_hook(self, **kwargs):
+        _log('hook:')
+        _log(str(kwargs))
         if kwargs['aircon'] is not None:
             aircon: AirCon = kwargs['aircon']
             aircon.status = self._device_info.status
