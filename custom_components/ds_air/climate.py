@@ -4,11 +4,11 @@ Demo platform that offers a fake climate device.
 For more details about this platform, please refer to the documentation
 https://home-assistant.io/components/demo/
 """
-import voluptuous as vol
-from homeassistant.components.climate import ClimateDevice, PLATFORM_SCHEMA
 import logging
 
+import voluptuous as vol
 from homeassistant.components.climate import ClimateDevice
+from homeassistant.components.climate import PLATFORM_SCHEMA
 from homeassistant.components.climate.const import (
     SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE,
     SUPPORT_OPERATION_MODE, SUPPORT_SWING_MODE,
@@ -19,6 +19,7 @@ from homeassistant.helpers import config_validation as cv
 
 from .ds_air_service.ctrl_enum import EnumControl
 from .ds_air_service.dao import AirCon, AirConStatus
+from .ds_air_service.display import display
 
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_OPERATION_MODE \
                 | SUPPORT_SWING_MODE | SUPPORT_ON_OFF
@@ -66,13 +67,14 @@ class DsAir(ClimateDevice):
 
     def _status_change_hook(self, **kwargs):
         _log('hook:')
-        _log(str(kwargs))
         if kwargs['aircon'] is not None:
+            print(display(kwargs['aircon']))
             aircon: AirCon = kwargs['aircon']
             aircon.status = self._device_info.status
             self._device_info = aircon
 
         if kwargs['status'] is not None:
+            print(display(kwargs['status']))
             status: AirConStatus = self._device_info.status
             new_status: AirConStatus = kwargs['status']
             if new_status.mode is not None:
