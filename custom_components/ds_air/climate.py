@@ -94,7 +94,7 @@ class DsAir(ClimateDevice):
                 status.current_temp = new_status.current_temp
             if new_status.breathe is not None:
                 status.breathe = new_status.breathe
-            print(display(self._status))
+            _log(display(self._status))
         self.schedule_update_ha_state()
 
     @property
