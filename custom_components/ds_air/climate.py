@@ -71,6 +71,7 @@ class DsAir(ClimateDevice):
             aircon: AirCon = kwargs['aircon']
             aircon.status = self._device_info.status
             self._device_info = aircon
+            _log(display(self._device_info))
 
         if kwargs['status'] is not None:
             status: AirConStatus = self._status
@@ -93,7 +94,7 @@ class DsAir(ClimateDevice):
                 status.current_temp = new_status.current_temp
             if new_status.breathe is not None:
                 status.breathe = new_status.breathe
-        _log(display(self._status))
+            _log(display(self._status))
         self.schedule_update_ha_state()
 
     @property
