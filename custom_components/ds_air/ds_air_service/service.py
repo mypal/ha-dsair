@@ -181,7 +181,9 @@ class Service:
             i, func = item
             if i.unit_id == unit and i.room_id == room and get_device_by_aircon(i) == target:
                 try:
+                    _log('##################call')
                     _log(display(kwargs['status']))
                     func(**kwargs)
                 except Exception as e:
+                    _log('Exception!!!!!!!!!!!!!!!!')
                     _log(str(e))
