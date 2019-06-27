@@ -569,14 +569,13 @@ class AirConCapabilityQueryResult(BaseResult):
                 for i in self._air_cons:
                     Service.update_aircon(get_device_by_aircon(i), i.room_id, i.unit_id, aircon=i)
         else:
-            if len(self._air_cons):
-                for i in self._air_cons:
-                    p = AirConQueryStatusParam()
-                    p.target = self.target
-                    p.device = i
-                    from .service import Service
-                    Service.send_msg(p)
-                Service.set_device(self.target, self._air_cons)
+            for i in self._air_cons:
+                p = AirConQueryStatusParam()
+                p.target = self.target
+                p.device = i
+                from .service import Service
+                Service.send_msg(p)
+            Service.set_device(self.target, self._air_cons)
 
     @property
     def aircons(self):
