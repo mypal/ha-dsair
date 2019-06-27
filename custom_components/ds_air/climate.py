@@ -74,8 +74,7 @@ class DsAir(ClimateDevice):
             _log(display(self._device_info))
 
         print('*********************')
-        import json
-        print(json.dumps(kwargs))
+        print(display(kwargs['status']))
         if kwargs['status'] is not None:
             print('in')
             status: AirConStatus = self._status
