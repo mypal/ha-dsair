@@ -18,6 +18,10 @@ climate:
 ```
 3. 重启HA服务
 
+# TODO
+
+根据APP反解显示，网关可控制新风、地暖、HD(不知道是个啥设备)、新版空调、老版空调和浴室设备。由于我家只有新版室内机，所以目前只实现了这个。其他设备实现没写完，理论上都不能够支持。
+
 # 开发过程
 
 本组件开发过程可在[blog](https://www.mypal.wang/blog/lun-yi-ci-jia-yong-kong-diao-jie-ru-hazhe-teng-jing-li/)查看
