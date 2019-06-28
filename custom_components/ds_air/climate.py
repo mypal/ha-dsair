@@ -32,6 +32,9 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_PORT): cv.port
 })
 
+DEFAULT_HOST = '192.168.1.110'
+DEFAULT_PORT = 8008
+
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -43,8 +46,16 @@ def _log(s: str):
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Demo climate devices."""
 
+    host = config.get(CONF_HOST)
+    port = config.get(CONF_PORT)
+    if host is None:
+        host = DEFAULT_HOST
+    if port is None:
+        port = DEFAULT_PORT
+
+    _log('host:'+host+'\nport:'+str(port))
     from .ds_air_service.service import Service
-    Service.init()
+    Service.init(host, port)
     climates = []
     for aircon in Service.get_new_aircons():
         climates.append(DsAir(aircon))

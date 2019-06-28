@@ -11,9 +11,6 @@ from .decoder import decoder, BaseResult
 from .display import display
 from .param import Param, HandShakeParam, HeartbeatParam, AirConControlParam
 
-HOST = '192.168.1.110'
-PORT = 8008
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -91,7 +88,7 @@ class Service:
     _status_hook = []          # type: typing.List[(AirCon, types.FunctionType)]
 
     @staticmethod
-    def init(host: str = HOST, port: int = PORT):
+    def init(host: str, port: int):
         Service._socket_client = SocketClient(host, port)
         Service._socket_client.send(HandShakeParam())
         while Service._rooms is None or Service._aircons is None \
