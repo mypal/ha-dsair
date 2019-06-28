@@ -32,7 +32,7 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_PORT): cv.port
 })
 
-DEFAULT_HOST = '192.168.1.110'
+DEFAULT_HOST = '192.168.1.150'
 DEFAULT_PORT = 8008
 
 _LOGGER = logging.getLogger(__name__)
