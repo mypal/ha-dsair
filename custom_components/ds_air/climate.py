@@ -12,8 +12,8 @@ from homeassistant.components.climate import PLATFORM_SCHEMA
 from homeassistant.components.climate.const import (
     SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE,
     SUPPORT_OPERATION_MODE, SUPPORT_SWING_MODE,
-    SUPPORT_ON_OFF, STATE_COOL, STATE_HEAT, STATE_DRY,
-    STATE_FAN_ONLY, STATE_AUTO, STATE_ECO)
+    STATE_COOL, STATE_HEAT, STATE_DRY,
+    STATE_FAN_ONLY, STATE_AUTO, STATE_ECO, SERVICE_SET_HUMIDITY)
 from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE, CONF_HOST, CONF_PORT, STATE_OFF
 from homeassistant.helpers import config_validation as cv
 
@@ -22,7 +22,7 @@ from .ds_air_service.dao import AirCon, AirConStatus
 from .ds_air_service.display import display
 
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_OPERATION_MODE \
-                | SUPPORT_SWING_MODE | SUPPORT_ON_OFF
+                | SUPPORT_SWING_MODE | SERVICE_SET_HUMIDITY
 OPERATION_LIST = [STATE_COOL, STATE_HEAT, STATE_DRY, STATE_FAN_ONLY, STATE_AUTO, STATE_ECO]
 FAN_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
 SWING_LIST = ['➡️', '↘️', '⬇️', '↙️', '⬅️', '↔️', '🔄']
@@ -228,7 +228,10 @@ class DsAir(ClimateDevice):
     @property
     def current_fan_mode(self):
         """Return the fan setting."""
-        return EnumControl.get_air_flow_name(self._device_info.status.air_flow.value)
+        if self._device_info.status.switch == EnumControl.Switch.OFF:
+            return STATE_OFF
+        else:
+            return EnumControl.get_air_flow_name(self._device_info.status.air_flow.value)
 
     @property
     def fan_list(self):
