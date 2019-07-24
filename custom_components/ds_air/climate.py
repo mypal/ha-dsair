@@ -183,7 +183,10 @@ class DsAir(ClimateDevice):
     @property
     def current_operation(self):
         """Return current operation ie. heat, cool, idle."""
-        return EnumControl.get_mode_name(self._device_info.status.mode.value)
+        if self._device_info.status.switch == EnumControl.Switch.OFF:
+            return STATE_OFF
+        else:
+            return EnumControl.get_mode_name(self._device_info.status.mode.value)
 
     @property
     def operation_list(self):
@@ -228,10 +231,7 @@ class DsAir(ClimateDevice):
     @property
     def current_fan_mode(self):
         """Return the fan setting."""
-        if self._device_info.status.switch == EnumControl.Switch.OFF:
-            return STATE_OFF
-        else:
-            return EnumControl.get_air_flow_name(self._device_info.status.air_flow.value)
+        return EnumControl.get_air_flow_name(self._device_info.status.air_flow.value)
 
     @property
     def fan_list(self):
@@ -251,9 +251,11 @@ class DsAir(ClimateDevice):
     def set_temperature(self, **kwargs):
         """Set new target temperatures."""
         if kwargs.get(ATTR_TEMPERATURE) is not None:
+            status = self._device_info.status
             new_status = AirConStatus()
-            if new_status.switch == EnumControl.Switch.ON \
-                    and new_status.mode not in [EnumControl.Mode.VENTILATION, EnumControl.Mode.MOREDRY]:
+            if status.switch == EnumControl.Switch.ON \
+                    and status.mode not in [EnumControl.Mode.VENTILATION, EnumControl.Mode.MOREDRY]:
+                status.setted_temp = round(kwargs.get(ATTR_TEMPERATURE)*10)
                 new_status.setted_temp = round(kwargs.get(ATTR_TEMPERATURE)*10)
                 from .ds_air_service.service import Service
                 Service.control(self._device_info, new_status)
@@ -261,9 +263,11 @@ class DsAir(ClimateDevice):
 
     def set_humidity(self, humidity):
         """Set new humidity level."""
-        new_status = self._device_info.status
-        if new_status.switch == EnumControl.Switch.ON \
-                and new_status.mode in [EnumControl.Mode.RELAX, EnumControl.Mode.SLEEP]:
+        status = self._device_info.status
+        new_status = AirConStatus()
+        if status.switch == EnumControl.Switch.ON \
+                and status.mode in [EnumControl.Mode.RELAX, EnumControl.Mode.SLEEP]:
+            status.humidity = EnumControl.Humidity(int(humidity))
             new_status.humidity = EnumControl.Humidity(int(humidity))
             from .ds_air_service.service import Service
             Service.control(self._device_info, new_status)
@@ -271,9 +275,12 @@ class DsAir(ClimateDevice):
 
     def set_swing_mode(self, swing_mode):
         """Set new swing mode."""
-        new_status = self._device_info.status
-        if new_status.switch == EnumControl.Switch.ON:
+        status = self._device_info.status
+        new_status = AirConStatus()
+        if status.switch == EnumControl.Switch.ON:
+            status.fan_direction1 = self._device_info.status.fan_direction1
             new_status.fan_direction1 = self._device_info.status.fan_direction1
+            status.fan_direction2 = EnumControl.get_fan_direction_enum(swing_mode)
             new_status.fan_direction2 = EnumControl.get_fan_direction_enum(swing_mode)
             from .ds_air_service.service import Service
             Service.control(self._device_info, new_status)
@@ -281,9 +288,11 @@ class DsAir(ClimateDevice):
 
     def set_fan_mode(self, fan_mode):
         """Set new fan mode."""
-        new_status = self._device_info.status
-        if new_status.switch == EnumControl.Switch.ON \
-                and new_status.mode not in [EnumControl.Mode.MOREDRY, EnumControl.Mode.SLEEP]:
+        status = self._device_info.status
+        new_status = AirConStatus()
+        if status.switch == EnumControl.Switch.ON \
+                and status.mode not in [EnumControl.Mode.MOREDRY, EnumControl.Mode.SLEEP]:
+            status.air_flow = EnumControl.get_air_flow_enum(fan_mode)
             new_status.air_flow = EnumControl.get_air_flow_enum(fan_mode)
             from .ds_air_service.service import Service
             Service.control(self._device_info, new_status)
@@ -291,14 +300,17 @@ class DsAir(ClimateDevice):
 
     def set_operation_mode(self, operation_mode):
         """Set new operation mode."""
+        status = self._device_info.status
+        new_status = AirConStatus()
         if operation_mode == STATE_OFF:
-            new_status = self._device_info.status
+            status.switch = EnumControl.Switch.OFF
             new_status.switch = EnumControl.Switch.OFF
             from .ds_air_service.service import Service
             Service.control(self._device_info, new_status)
         else:
-            new_status = self._device_info.status
+            status.switch = EnumControl.Switch.ON
             new_status.switch = EnumControl.Switch.ON
+            status.mode = EnumControl.get_mode_enum(operation_mode)
             new_status.mode = EnumControl.get_mode_enum(operation_mode)
             from .ds_air_service.service import Service
             Service.control(self._device_info, new_status)
