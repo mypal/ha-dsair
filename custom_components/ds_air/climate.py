@@ -6,26 +6,33 @@ https://home-assistant.io/components/demo/
 """
 
 print("*********************test")
-
 import logging
 from typing import Optional, List
 
+print("*********************test")
 import voluptuous as vol
+print("*********************test")
 from homeassistant.components.climate import ClimateDevice
+print("*********************test")
 from homeassistant.components.climate import PLATFORM_SCHEMA
+print("*********************test")
 from homeassistant.components.climate.const import (
     SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE,
     SUPPORT_SWING_MODE,
     SUPPORT_TARGET_HUMIDITY, HVAC_MODE_OFF, HVAC_MODE_HEAT, HVAC_MODE_COOL, HVAC_MODE_HEAT_COOL, HVAC_MODE_AUTO,
     HVAC_MODE_DRY,
     HVAC_MODE_FAN_ONLY)
+print("*********************test")
 from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE, CONF_HOST, CONF_PORT
+print("*********************test")
 from homeassistant.helpers import config_validation as cv
 
+print("*********************test")
 from .ds_air_service.ctrl_enum import EnumControl
+print("*********************test")
 from .ds_air_service.dao import AirCon, AirConStatus
+print("*********************test")
 from .ds_air_service.display import display
-
 print("*********************test")
 
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_SWING_MODE \
@@ -49,9 +56,6 @@ def _log(s: str):
         _LOGGER.debug(i)
 
 
-print("*********************test")
-
-
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Demo climate devices."""
 
@@ -69,9 +73,6 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     for aircon in Service.get_new_aircons():
         climates.append(DsAir(aircon))
     add_entities(climates)
-
-
-print("*********************test")
 
 
 class DsAir(ClimateDevice):
@@ -342,6 +343,3 @@ class DsAir(ClimateDevice):
     @property
     def max_humidity(self):
         return 3
-
-
-print("*********************test")
