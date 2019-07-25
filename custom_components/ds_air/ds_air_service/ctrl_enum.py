@@ -1,7 +1,7 @@
 from enum import Enum, IntEnum
 
-from homeassistant.components.climate.const import STATE_COOL, STATE_DRY, STATE_FAN_ONLY, STATE_AUTO, STATE_HEAT, \
-    STATE_ECO
+from homeassistant.components.climate.const import \
+    HVAC_MODE_COOL, HVAC_MODE_FAN_ONLY, HVAC_MODE_HEAT, HVAC_MODE_DRY, HVAC_MODE_AUTO, HVAC_MODE_HEAT_COOL
 
 
 class EnumCmdType(IntEnum):
@@ -127,7 +127,8 @@ class Mode(IntEnum):
     MOREDRY = 9
 
 
-_MODE_NAME_LIST = [STATE_COOL, 'DRY', STATE_FAN_ONLY, 'AUTO', STATE_HEAT, STATE_DRY, STATE_AUTO, STATE_ECO, 'PREHEAT', 'MOREDRY']
+_MODE_NAME_LIST = [HVAC_MODE_COOL, 'DRY', HVAC_MODE_FAN_ONLY, 'AUTO', HVAC_MODE_HEAT,
+                   HVAC_MODE_DRY, HVAC_MODE_AUTO, HVAC_MODE_HEAT_COOL, 'PREHEAT', 'MOREDRY']
 
 
 class Switch(IntEnum):
