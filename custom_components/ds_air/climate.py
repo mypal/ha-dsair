@@ -4,6 +4,9 @@ Demo platform that offers a fake climate device.
 For more details about this platform, please refer to the documentation
 https://home-assistant.io/components/demo/
 """
+
+print("*********************test")
+
 import logging
 from typing import Optional, List
 
