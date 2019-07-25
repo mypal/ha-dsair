@@ -26,6 +26,8 @@ from .ds_air_service.ctrl_enum import EnumControl
 from .ds_air_service.dao import AirCon, AirConStatus
 from .ds_air_service.display import display
 
+print("*********************test")
+
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_SWING_MODE \
                 | SUPPORT_SWING_MODE | SUPPORT_TARGET_HUMIDITY
 FAN_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
@@ -47,6 +49,9 @@ def _log(s: str):
         _LOGGER.debug(i)
 
 
+print("*********************test")
+
+
 def setup_platform(hass, config, add_entities, discovery_info=None):
     """Set up the Demo climate devices."""
 
@@ -64,6 +69,9 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     for aircon in Service.get_new_aircons():
         climates.append(DsAir(aircon))
     add_entities(climates)
+
+
+print("*********************test")
 
 
 class DsAir(ClimateDevice):
@@ -334,3 +342,6 @@ class DsAir(ClimateDevice):
     @property
     def max_humidity(self):
         return 3
+
+
+print("*********************test")
