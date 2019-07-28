@@ -96,6 +96,7 @@ class HeartBeatThread(Thread):
 
     def run(self) -> None:
         super().run()
+        time.sleep(30)
         while True:
             Service.send_msg(HeartbeatParam())
             Service.poll_aircon_status()
