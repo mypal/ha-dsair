@@ -9,7 +9,7 @@ from .ctrl_enum import EnumDevice
 from .dao import Room, AirCon, AirConStatus, get_device_by_aircon
 from .decoder import decoder, BaseResult
 from .display import display
-from .param import Param, HandShakeParam, HeartbeatParam, AirConControlParam
+from .param import Param, HandShakeParam, HeartbeatParam, AirConControlParam, AirConQueryStatusParam
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -24,23 +24,48 @@ class SocketClient:
         self._host = host
         self._port = port
         self._locker = Lock()
-        self._s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._s.connect((self._host, self._port))
+        self._s = None
+        while not self.do_connect():
+            time.sleep(3)
         self._recv_thread = RecvThread(self)
         self._recv_thread.start()
-        self._heartbeat_thread = HeartBeatThread(self)
+        self._heartbeat_thread = HeartBeatThread()
         self._heartbeat_thread.start()
+
+    def do_connect(self):
+        self._s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            self._s.connect((self._host, self._port))
+            return True
+        except Exception:
+            return False
 
     def send(self, p: Param):
         self._locker.acquire()
         _log('send:')
         _log(display(p))
-        self._s.sendall(p.to_string())
+        done = False
+        while not done:
+            try:
+                self._s.sendall(p.to_string())
+                done = True
+            except Exception:
+                time.sleep(3)
+                self.do_connect()
         self._locker.release()
 
     def recv(self) -> typing.List[BaseResult]:
         res = []
-        data = self._s.recv(1024)
+        done = False
+        data = None
+
+        while not done:
+            try:
+                data = self._s.recv(1024)
+                done = True
+            except Exception:
+                time.sleep(3)
+                self.do_connect()
         while data:
             r, b = decoder(data)
             res.append(r)
@@ -66,26 +91,26 @@ class RecvThread(Thread):
 
 
 class HeartBeatThread(Thread):
-    def __init__(self, sock: SocketClient):
+    def __init__(self):
         super().__init__()
-        self._sock = sock
 
     def run(self) -> None:
         super().run()
         while True:
-            self._sock.send(HeartbeatParam())
+            Service.send_msg(HeartbeatParam())
+            Service.poll_aircon_status()
             time.sleep(60)
 
 
 class Service:
-    _socket_client = None      # type: SocketClient
-    _rooms = None              # type: typing.List[Room]
-    _aircons = None            # type: typing.List[AirCon]
-    _new_aircons = None        # type: typing.List[AirCon]
-    _bathrooms = None          # type: typing.List[AirCon]
-    _ready = False             # type: bool
-    _none_stat_dev_cnt = 0     # type: int
-    _status_hook = []          # type: typing.List[(AirCon, types.FunctionType)]
+    _socket_client = None  # type: SocketClient
+    _rooms = None  # type: typing.List[Room]
+    _aircons = None  # type: typing.List[AirCon]
+    _new_aircons = None  # type: typing.List[AirCon]
+    _bathrooms = None  # type: typing.List[AirCon]
+    _ready = False  # type: bool
+    _none_stat_dev_cnt = 0  # type: int
+    _status_hook = []  # type: typing.List[(AirCon, types.FunctionType)]
 
     @staticmethod
     def init(host: str, port: int):
@@ -158,18 +183,29 @@ class Service:
 
     @staticmethod
     def set_aircon_status(target: EnumDevice, room: int, unit: int, status: AirConStatus):
-        li = []
-        if target == EnumDevice.AIRCON:
-            li = Service._aircons
-        elif target == EnumDevice.NEWAIRCON:
-            li = Service._new_aircons
-        elif target == EnumDevice.BATHROOM:
-            li = Service._bathrooms
-        for i in li:
-            if i.unit_id == unit and i.room_id == room:
-                i.status = status
-                Service._none_stat_dev_cnt -= 1
-                break
+        if Service._ready:
+            Service.update_aircon(target, room, unit, status=status)
+        else:
+            li = []
+            if target == EnumDevice.AIRCON:
+                li = Service._aircons
+            elif target == EnumDevice.NEWAIRCON:
+                li = Service._new_aircons
+            elif target == EnumDevice.BATHROOM:
+                li = Service._bathrooms
+            for i in li:
+                if i.unit_id == unit and i.room_id == room:
+                    i.status = status
+                    Service._none_stat_dev_cnt -= 1
+                    break
+
+    @staticmethod
+    def poll_aircon_status():
+        for i in Service._new_aircons:
+            p = AirConQueryStatusParam()
+            p.target = EnumDevice.NEWAIRCON
+            p.device = i
+            Service.send_msg(p)
 
     @staticmethod
     def update_aircon(target: EnumDevice, room: int, unit: int, **kwargs):
