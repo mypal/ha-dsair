@@ -29,8 +29,6 @@ class SocketClient:
             time.sleep(3)
         self._recv_thread = RecvThread(self)
         self._recv_thread.start()
-        self._heartbeat_thread = HeartBeatThread()
-        self._heartbeat_thread.start()
 
     def do_connect(self):
         self._s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -112,11 +110,13 @@ class Service:
     _ready = False  # type: bool
     _none_stat_dev_cnt = 0  # type: int
     _status_hook = []  # type: typing.List[(AirCon, types.FunctionType)]
+    _heartbeat_thread = HeartBeatThread()
 
     @staticmethod
     def init(host: str, port: int):
         Service._socket_client = SocketClient(host, port)
         Service._socket_client.send(HandShakeParam())
+        Service._heartbeat_thread.start()
         while Service._rooms is None or Service._aircons is None \
                 or Service._new_aircons is None or Service._bathrooms is None:
             time.sleep(1)
