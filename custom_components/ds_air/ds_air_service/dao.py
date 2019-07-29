@@ -84,11 +84,11 @@ class HD(Device):
 class Room:
     def __init__(self):
         self.air_con = AirCon()
-        self.alias: str
-        self.geothermic: Geothermic
-        self.hd_room: bool
-        self.icon: str
-        self.id: int
-        self.name: str
-        self.type: int
-        self.ventilation: Ventilation
+        self.alias: str = ''
+        self.geothermic: Geothermic = Geothermic()
+        self.hd_room: bool = False
+        self.icon: str = ''
+        self.id: int = 0
+        self.name: str = ''
+        self.type: int = 0
+        self.ventilation: Ventilation = Ventilation()
