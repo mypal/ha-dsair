@@ -95,9 +95,13 @@ class HeartBeatThread(Thread):
     def run(self) -> None:
         super().run()
         time.sleep(30)
+        cnt = 0
         while True:
             Service.send_msg(HeartbeatParam())
-            Service.poll_aircon_status()
+            cnt += 1
+            if cnt == 5:
+                cnt = 0
+                Service.poll_aircon_status()
             time.sleep(60)
 
 
