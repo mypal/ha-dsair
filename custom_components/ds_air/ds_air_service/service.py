@@ -15,8 +15,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _log(s: str):
-    for i in s.split('\n'):
-        _LOGGER.debug(i)
+    print(s)
+    # for i in s.split('\n'):
+    #     _LOGGER.debug(i)
 
 
 class SocketClient:
@@ -40,7 +41,7 @@ class SocketClient:
 
     def send(self, p: Param):
         self._locker.acquire()
-        _log('send:')
+        _log('\033[31msend:\033[0m')
         _log(display(p))
         done = False
         while not done:
@@ -81,7 +82,7 @@ class RecvThread(Thread):
         while True:
             res = self._sock.recv()
             for i in res:
-                _log('recv:')
+                _log('\033[31mrecv:\033[0m')
                 _log(display(i))
                 self._locker.acquire()
                 i.do()

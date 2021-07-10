@@ -1,4 +1,7 @@
-from .ctrl_enum import EnumOutDoorRunCond, EnumFanDirection, EnumFanVolume, EnumSwitch, EnumControl, EnumDevice
+import time
+
+from .ctrl_enum import EnumOutDoorRunCond, EnumFanDirection, EnumFanVolume, EnumSwitch, EnumControl, EnumDevice, \
+    EnumSensor
 
 
 class Device:
@@ -23,15 +26,15 @@ class AirConStatus:
                  fan_direction2: EnumControl.FanDirection = None,
                  humidity: EnumControl.Humidity = None,
                  mode: EnumControl.Mode = None):
-        self.current_temp = current_temp      # type: int
-        self.setted_temp = setted_temp        # type: int
-        self.switch = switch                  # type: EnumControl.Switch
-        self.air_flow = air_flow              # type: EnumControl.AirFlow
-        self.breathe = breathe                # type: EnumControl.Breathe
+        self.current_temp = current_temp  # type: int
+        self.setted_temp = setted_temp  # type: int
+        self.switch = switch  # type: EnumControl.Switch
+        self.air_flow = air_flow  # type: EnumControl.AirFlow
+        self.breathe = breathe  # type: EnumControl.Breathe
         self.fan_direction1 = fan_direction1  # type: EnumControl.FanDirection
         self.fan_direction2 = fan_direction2  # type: EnumControl.FanDirection
-        self.humidity = humidity              # type: EnumControl.Humidity
-        self.mode = mode                      # type: EnumControl.Mode
+        self.humidity = humidity  # type: EnumControl.Humidity
+        self.mode = mode  # type: EnumControl.Mode
 
 
 class AirCon(Device):
@@ -81,12 +84,46 @@ class HD(Device):
         self.switch: EnumSwitch
 
 
+class Sensor(Device):
+    def __init__(self):
+        Device.__init__(self)
+        self.mac: str = ''
+        self.type1: int = 0
+        self.type2: int = 0
+        self.start_time: int = 0
+        self.stop_time: int = 0
+        self.sensor_type: int = 0
+        self.temp: int = 0
+        self.humidity: int = 0
+        self.pm25: int = 0
+        self.co2: int = 0
+        self.voc: int = 0
+        self.tvoc: float = 0.0
+        self.hcho: float = 0.0
+        self.switch_on_off: bool = False
+        self.temp_upper: int = 0
+        self.temp_lower: int = 0
+        self.humidity_upper: int = 0
+        self.humidity_lower: int = 0
+        self.pm25_upper: int = 0
+        self.pm25_lower: int = 0
+        self.co2_upper: int = 0
+        self.co2_lower: int = 0
+        self.voc_lower: int = 0
+        self.tvoc_upper: float = 0.0
+        self.hcho_upper: float = 0.0
+        self.connected: bool = False
+        self.sleep_mode_count: int = 0
+        self.time_millis: float = time.time()
+
+
 class Room:
     def __init__(self):
-        self.air_con = AirCon()
+        self.air_con = None
         self.alias: str = ''
         self.geothermic: Geothermic = Geothermic()
         self.hd_room: bool = False
+        self.sensor_room: bool = False
         self.icon: str = ''
         self.id: int = 0
         self.name: str = ''
