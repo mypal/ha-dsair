@@ -7,9 +7,9 @@ https://home-assistant.io/components/demo/
 
 import logging
 from typing import Optional, List
-import voluptuous as vol
 
-from homeassistant.components.climate import ClimateDevice
+import voluptuous as vol
+from homeassistant.components.climate import ClimateEntity
 from homeassistant.components.climate import PLATFORM_SCHEMA
 from homeassistant.components.climate.const import (
     SUPPORT_TARGET_TEMPERATURE, SUPPORT_FAN_MODE,
@@ -64,7 +64,7 @@ def setup_platform(hass, config, add_entities, discovery_info=None):
     add_entities(climates)
 
 
-class DsAir(ClimateDevice):
+class DsAir(ClimateEntity):
     """Representation of a demo climate device."""
 
     def __init__(self, aircon: AirCon):

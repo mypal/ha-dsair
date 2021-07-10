@@ -32,8 +32,9 @@ class Encode:
         self._fmt += str(len(d))+'s'
         self._len += len(d)
 
-    def pack(self):
-        self._list[1] = self._len - 4
+    def pack(self, rewrite_length: bool = True):
+        if rewrite_length:
+            self._list[1] = self._len - 4
         return struct.pack(self._fmt, *self._list)
 
     @property
@@ -96,6 +97,11 @@ class HandShakeParam(SystemParam):
         SystemParam.__init__(self, EnumCmdType.SYS_HAND_SHAKE, True)
 
 
+class GetGWInfoParam(SystemParam):
+    def __init__(self):
+        SystemParam.__init__(self, EnumCmdType.SYS_GET_GW_INFO, True)
+
+
 class GetRoomInfoParam(SystemParam):
     def __init__(self):
         SystemParam.__init__(self, EnumCmdType.SYS_GET_ROOM_INFO, True)
@@ -113,6 +119,16 @@ class GetRoomInfoParam(SystemParam):
     @property
     def room_ids(self):
         return self._room_ids
+
+
+class Sensor2InfoParam(Param):
+    def __init__(self):
+        # todo: 未兼容固件低于02.04.00的网关
+        Param.__init__(self, EnumDevice.SENSOR, EnumCmdType.SENSOR2_INFO, True)
+        # self._sensor_type: int = 1
+
+    def generate_subbody(self, s):
+        s.write1(255)
 
 
 class AirconParam(Param):
