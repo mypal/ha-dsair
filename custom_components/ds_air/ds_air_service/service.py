@@ -6,7 +6,7 @@ import typing
 from threading import Thread, Lock
 
 from .ctrl_enum import EnumDevice
-from .dao import Room, AirCon, AirConStatus, get_device_by_aircon
+from .dao import Room, AirCon, AirConStatus, get_device_by_aircon, Sensor
 from .decoder import decoder, BaseResult
 from .display import display
 from .param import Param, HandShakeParam, HeartbeatParam, AirConControlParam, AirConQueryStatusParam
@@ -15,9 +15,9 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _log(s: str):
-    print(s)
-    # for i in s.split('\n'):
-    #     _LOGGER.debug(i)
+    s = str(s)
+    for i in s.split('\n'):
+        _LOGGER.debug(i)
 
 
 class SocketClient:
@@ -28,15 +28,24 @@ class SocketClient:
         self._s = None
         while not self.do_connect():
             time.sleep(3)
+        self._ready = True
         self._recv_thread = RecvThread(self)
         self._recv_thread.start()
+
+    def destroy(self):
+        self._ready = False
+        self._recv_thread.terminate()
+        self._s.close()
 
     def do_connect(self):
         self._s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self._s.connect((self._host, self._port))
+            _log('connected')
             return True
-        except Exception:
+        except socket.error as exc:
+            _log('connected error')
+            _log(str(exc))
             return False
 
     def send(self, p: Param):
@@ -63,6 +72,8 @@ class SocketClient:
                 data = self._s.recv(1024)
                 done = True
             except Exception:
+                if not self._ready:
+                    return []
                 time.sleep(3)
                 self.do_connect()
         while data:
@@ -77,9 +88,13 @@ class RecvThread(Thread):
         super().__init__()
         self._sock = sock
         self._locker = Lock()
+        self._running = True
+
+    def terminate(self):
+        self._running = False
 
     def run(self) -> None:
-        while True:
+        while self._running:
             res = self._sock.recv()
             for i in res:
                 _log('\033[31mrecv:\033[0m')
@@ -92,12 +107,16 @@ class RecvThread(Thread):
 class HeartBeatThread(Thread):
     def __init__(self):
         super().__init__()
+        self._running = True
+
+    def terminate(self):
+        self._running = False
 
     def run(self) -> None:
         super().run()
         time.sleep(30)
         cnt = 0
-        while True:
+        while self._running:
             Service.send_msg(HeartbeatParam())
             cnt += 1
             if cnt == 5:
@@ -115,12 +134,16 @@ class Service:
     _ready = False  # type: bool
     _none_stat_dev_cnt = 0  # type: int
     _status_hook = []  # type: typing.List[(AirCon, types.FunctionType)]
-    _heartbeat_thread = HeartBeatThread()
+    _heartbeat_thread = None
+    _sensors = []  # type: typing.List[Sensor]
 
     @staticmethod
     def init(host: str, port: int):
+        if Service._ready:
+            return
         Service._socket_client = SocketClient(host, port)
         Service._socket_client.send(HandShakeParam())
+        Service._heartbeat_thread = HeartBeatThread()
         Service._heartbeat_thread.start()
         while Service._rooms is None or Service._aircons is None \
                 or Service._new_aircons is None or Service._bathrooms is None:
@@ -144,6 +167,22 @@ class Service:
                     if i.unit_id:
                         i.alias += str(i.unit_id)
         Service._ready = True
+
+    @staticmethod
+    def destroy():
+        if Service._ready:
+            Service._heartbeat_thread.terminate()
+            Service._socket_client.destroy()
+            Service._socket_client = None
+            Service._rooms = None
+            Service._aircons = None
+            Service._new_aircons = None
+            Service._bathrooms = None
+            Service._none_stat_dev_cnt = 0
+            Service._status_hook = []
+            Service._heartbeat_thread = None
+            Service._sensors = []
+            Service._ready = False
 
     @staticmethod
     def get_new_aircons():

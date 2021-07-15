@@ -1,8 +1,10 @@
 {
   "domain": "ds_air",
   "name": "DS-AIR",
-  "documentation": "https://github.com/mypalg/ha-dsair",
+  "documentation": "https://github.com/mypal/ha-dsair",
   "dependencies": [],
   "codeowners": [],
-  "requirements": []
+  "requirements": [],
+  "version": "0.0.1",
+  "config_flow": true
 }
