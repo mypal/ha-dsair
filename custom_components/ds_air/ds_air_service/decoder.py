@@ -6,9 +6,8 @@ from .config import Config
 from .ctrl_enum import EnumDevice, EnumCmdType, EnumFanDirection, EnumOutDoorRunCond, EnumFanVolume, EnumControl, \
     EnumSensor, FreshAirHumidification, ThreeDFresh
 from .dao import Room, AirCon, Geothermic, Ventilation, HD, Device, AirConStatus, get_device_by_aircon, Sensor
-from .display import display
 from .param import GetRoomInfoParam, AirConRecommendedIndoorTempParam, AirConCapabilityQueryParam, \
-    AirConQueryStatusParam, GetGWInfoParam, Sensor2InfoParam
+    AirConQueryStatusParam, Sensor2InfoParam
 
 
 def decoder(b):
@@ -27,8 +26,6 @@ def decoder(b):
 
 def result_factory(data):
     r1, length, r2, r3, subbody_ver, r4, cnt, dev_type, dev_id, need_ack, cmd_type, subbody, r5 = data
-
-    print(length, subbody_ver, cnt, EnumDevice((dev_type, dev_id)), EnumCmdType(cmd_type))
 
     if dev_id == EnumDevice.SYSTEM.value[1]:
         if cmd_type == EnumCmdType.SYS_ACK.value:
@@ -185,6 +182,7 @@ class Sensor2InfoResult(BaseResult):
             sensor.unit_id = unit_id
             length = d.read1()
             sensor.alias = d.read_utf(length)
+            sensor.name = sensor.alias
             sensor.type1 = d.read1()
             sensor.type2 = d.read1()
             humidity = -10000
@@ -253,7 +251,8 @@ class Sensor2InfoResult(BaseResult):
             count = count - 1
 
     def do(self):
-        """ nothing """
+        from .service import Service
+        Service.set_sensors_status(self._sensors)
 
     @property
     def count(self):
@@ -463,6 +462,7 @@ class GetRoomInfoResult(BaseResult):
         from .service import Service
         Service.set_rooms(self.rooms)
         Service.send_msg(AirConRecommendedIndoorTempParam())
+        Service.set_sensors(self.sensors)
 
         aircons = []
         new_aircons = []
@@ -670,7 +670,6 @@ class AirConQueryStatusResult(BaseResult):
                 else:
                     if flag >> 7 & 1:
                         self.breathe = EnumControl.Breathe(d.read1())
-
 
     def do(self):
         from .service import Service

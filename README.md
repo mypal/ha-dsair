@@ -1,22 +1,27 @@
 # Daikin DS-AIR Custom Component For Home Assistant
 
-此项目是Home Assistant平台[DS-AIR](https://www.daikin-china.com.cn/newha/products/4/19/DS-AIR/)自定义组件的实现
+此项目是Home Assistant平台[DS-AIR](https://www.daikin-china.com.cn/newha/products/4/19/DS-AIR/)以及[金制空气](https://www.daikin-china.com.cn/newha/products/4/19/jzkq/)自定义组件的实现
 
-支持的网关设备型号为DTA117B611，其他网关的支持情况未知
+支持的网关设备型号为DTA117B611/DTA117C611，其他网关的支持情况未知
 
-由于家里只有中央空调，对于老款型号、浴室系列空调等等没有测试条件。理论上也能部分支持
+# 支持设备
+
+* 空调
+* 空气传感器
+
+# 不支持设备
+
+* 睡眠传感器
+* 晴天轮
+* 转角卫士
+* 金制家中用防护组件
+* 显示屏(黑奢系列)
 
 # 接入方法
 
-1. 将项目ha-air目录部署到自定义组件目录，一般路径为```~/.homeassistant/custom_components/``
-2. 在配置文件```~/.homeassistant/configuration.yaml``中添加配置  
-```yaml
-climate:
-  - platform: ds_air
-    host: 192.168.1.150  # 空调网关IP地址，默认：192.168.1.150
-    port: 8008           # 网关端口号，默认：8008
-```
-3. 重启HA服务
+1. 将项目ha-air目录部署到自定义组件目录，一般路径为```~/.homeassistant/custom_components/```  
+   或使用hacs载入自定义存储库，设置URL```https://github.com/mypal/ha-dsair``` ，类别 ```集成```
+2. 本集成已支持ha可视化配置，在配置-集成-添加集成中选择```DS-AIR``` ，依次填入网关IP、端口号、设备型号提交即可
 
 # TODO
 

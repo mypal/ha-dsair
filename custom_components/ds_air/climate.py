@@ -17,9 +17,13 @@ from homeassistant.components.climate.const import (
     SUPPORT_TARGET_HUMIDITY, HVAC_MODE_OFF, HVAC_MODE_HEAT, HVAC_MODE_COOL, HVAC_MODE_HEAT_COOL, HVAC_MODE_AUTO,
     HVAC_MODE_DRY,
     HVAC_MODE_FAN_ONLY)
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE, CONF_HOST, CONF_PORT
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .ds_air_service.config import Config
 from .ds_air_service.ctrl_enum import EnumControl
 from .ds_air_service.dao import AirCon, AirConStatus
 from .ds_air_service.display import display
@@ -34,9 +38,6 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
     vol.Optional(CONF_PORT): cv.port
 })
 
-DEFAULT_HOST = '192.168.1.150'
-DEFAULT_PORT = 8008
-
 _LOGGER = logging.getLogger(__name__)
 
 
@@ -45,23 +46,17 @@ def _log(s: str):
         _LOGGER.debug(i)
 
 
-def setup_platform(hass, config, add_entities, discovery_info=None):
+async def async_setup_entry(
+        hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
+) -> None:
     """Set up the Demo climate devices."""
 
-    host = config.get(CONF_HOST)
-    port = config.get(CONF_PORT)
-    if host is None:
-        host = DEFAULT_HOST
-    if port is None:
-        port = DEFAULT_PORT
-
-    _log('host:' + host + '\nport:' + str(port))
     from .ds_air_service.service import Service
-    Service.init(host, port)
     climates = []
     for aircon in Service.get_new_aircons():
         climates.append(DsAir(aircon))
-    add_entities(climates)
+    _log('async_setup_entry')
+    async_add_entities(climates)
 
 
 class DsAir(ClimateEntity):
@@ -168,7 +163,10 @@ class DsAir(ClimateEntity):
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        return self._device_info.status.current_temp / 10
+        if Config.is_c611:
+            return None
+        else:
+            return self._device_info.status.current_temp / 10
 
     @property
     def target_temperature(self):
@@ -309,6 +307,15 @@ class DsAir(ClimateEntity):
             from .ds_air_service.service import Service
             Service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
+
+    def set_preset_mode(self, preset_mode: str) -> None:
+        pass
+
+    def turn_aux_heat_on(self) -> None:
+        pass
+
+    def turn_aux_heat_off(self) -> None:
+        pass
 
     @property
     def supported_features(self) -> int:
