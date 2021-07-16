@@ -1,7 +1,6 @@
 import time
 
-from .ctrl_enum import EnumOutDoorRunCond, EnumFanDirection, EnumFanVolume, EnumSwitch, EnumControl, EnumDevice, \
-    EnumSensor
+from .ctrl_enum import EnumOutDoorRunCond, EnumFanDirection, EnumFanVolume, EnumSwitch, EnumControl, EnumDevice
 
 
 class Device:
@@ -85,6 +84,11 @@ class HD(Device):
 
 
 class Sensor(Device):
+    STATUS_ATTR = ["mac", "type1", "type2", "start_time", "stop_time", "sensor_type", "temp", "humidity", "pm25", "co2",
+                   "voc", "tvoc", "hcho", "switch_on_off", "temp_upper", "temp_lower", "humidity_upper",
+                   "humidity_lower", "pm25_upper", "pm25_lower", "co2_upper", "co2_lower", "voc_lower", "tvoc_upper",
+                   "hcho_upper", "connected", "sleep_mode_count", "time_millis"]
+
     def __init__(self):
         Device.__init__(self)
         self.mac: str = ''

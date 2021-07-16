@@ -12,10 +12,11 @@ from .const import CONF_GW, DEFAULT_HOST, DEFAULT_PORT, DEFAULT_GW
 from .ds_air_service.config import Config
 
 _LOGGER = logging.getLogger(__name__)
-PLATFORMS = ["climate"]
+PLATFORMS = ["climate", "sensor"]
 
 
 def _log(s: str):
+    s = str(s)
     for i in s.split("\n"):
         _LOGGER.debug(i)
 
