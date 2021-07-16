@@ -2,19 +2,20 @@
   "config": {
     "step": {
       "user": {
-        "title": "金制空气",
-        "description": "本插件支持大金DTA117B611/DTA117C611两款空调网关",
+        "title": "\u91d1\u5236\u7a7a\u6c14",
+        "description": "\u672c\u63d2\u4ef6\u652f\u6301\u5927\u91d1DTA117B611/DTA117C611\u4e24\u6b3e\u7a7a\u8c03\u7f51\u5173",
         "data": {
           "host": "host",
           "port": "port",
-          "gw": "网关型号"
+          "gw": "\u7f51\u5173\u578b\u53f7"
         }
       }
     },
     "error": {
     },
     "abort": {
-      "single_instance_allowed": "只允许创建一个"
-    }
+      "single_instance_allowed": "\u53ea\u5141\u8bb8\u521b\u5efa\u4e00\u4e2a"
+    },
+    "flow_title": "\u91d1\u5236\u7a7a\u6c14"
   }
 }
