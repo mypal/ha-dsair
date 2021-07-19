@@ -121,8 +121,6 @@ class HeartBeatThread(Thread):
             if cnt == 5:
                 cnt = 0
                 Service.poll_status()
-            p = Sensor2InfoParam()
-            Service.send_msg(p)
             time.sleep(60)
 
 
@@ -274,7 +272,6 @@ class Service:
                         func(newSensor)
                     except Exception as e:
                         _log(str(e))
-                    break
 
     @staticmethod
     def poll_status():

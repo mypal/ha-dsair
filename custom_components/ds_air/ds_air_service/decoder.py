@@ -185,24 +185,24 @@ class Sensor2InfoResult(BaseResult):
             sensor.name = sensor.alias
             sensor.type1 = d.read1()
             sensor.type2 = d.read1()
-            humidity = -10000
-            hcho = -1000
-            temp = -1000
+            humidity = Sensor.UNINITIALIZED_VALUE
+            hcho = Sensor.UNINITIALIZED_VALUE
+            temp = Sensor.UNINITIALIZED_VALUE
             if (sensor.type1 & 1) == 1:
                 temp = d.read2()
             if ((sensor.type1 >> 1) & 1) == 1:
                 humidity = d.read2()
-            pm25 = -1000
+            pm25 = Sensor.UNINITIALIZED_VALUE
             if (sensor.type1 >> 2) & 1 == 1:
                 pm25 = d.read2()
-            co2 = -1000
+            co2 = Sensor.UNINITIALIZED_VALUE
             if (sensor.type1 >> 3) & 1 == 1:
                 co2 = d.read2()
             voc = EnumSensor.Voc.STEP_UNUSE
             if (sensor.type1 >> 4) & 1 == 1:
                 f = d.read1()
                 voc = EnumSensor.Voc(f)
-            tvoc = -1000
+            tvoc = Sensor.UNINITIALIZED_VALUE
             if (sensor.type1 >> 5) & 1 == 1:
                 tvoc = d.read2()
             if (sensor.type1 >> 6) & 1 == 1:
