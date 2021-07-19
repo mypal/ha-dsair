@@ -5,10 +5,10 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import DOMAIN, CONF_GW, DEFAULT_HOST, DEFAULT_GW, DEFAULT_PORT
+from .const import DOMAIN, CONF_GW, DEFAULT_HOST, DEFAULT_GW, DEFAULT_PORT, GW_LIST
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -46,8 +46,9 @@ class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
-                vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
+                vol.Required(CONF_HOST): str,
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
-                vol.Optional(CONF_GW, default=DEFAULT_GW): str
+                vol.Optional(CONF_GW, default=DEFAULT_GW): vol.In(GW_LIST),
+                vol.Optional(CONF_SCAN_INTERVAL, default=5): vol.In([5])
             }), errors=errors
         )
