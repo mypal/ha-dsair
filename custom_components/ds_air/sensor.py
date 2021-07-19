@@ -96,7 +96,8 @@ class DsSensor(SensorEntity):
     def parse_data(self, device: Sensor, not_update: bool = False):
         """Parse data sent by gateway."""
         self._is_available = device.connected and device.switch_on_off
-        self._state = getattr(device, self._data_key) / SENSOR_TYPES.get(self._data_key)[3]
+        if Sensor.UNINITIALIZED_VALUE != getattr(device, self._data_key):
+            self._state = getattr(device, self._data_key) / SENSOR_TYPES.get(self._data_key)[3]
         if not not_update:
             self.schedule_update_ha_state()
         return True

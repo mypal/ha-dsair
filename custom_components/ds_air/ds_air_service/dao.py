@@ -89,6 +89,8 @@ class Sensor(Device):
                    "humidity_lower", "pm25_upper", "pm25_lower", "co2_upper", "co2_lower", "voc_lower", "tvoc_upper",
                    "hcho_upper", "connected", "sleep_mode_count", "time_millis"]
 
+    UNINITIALIZED_VALUE = -1000
+
     def __init__(self):
         Device.__init__(self)
         self.mac: str = ''
