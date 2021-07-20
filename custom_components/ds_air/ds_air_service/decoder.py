@@ -12,7 +12,7 @@ from .param import GetRoomInfoParam, AirConRecommendedIndoorTempParam, AirConCap
 
 def decoder(b):
     if b[0] != 2:
-        return None
+        return None, None
 
     length = struct.unpack('<H', b[1:3])[0]
     if length == 0 or len(b) - 4 < length or struct.unpack('<B', b[length + 3:length + 4])[0] != 3:
