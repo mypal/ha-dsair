@@ -55,6 +55,8 @@ async def async_setup_entry(
     climates = []
     for aircon in Service.get_new_aircons():
         climates.append(DsAir(aircon))
+    for aircon in Service.get_aircons():
+        climates.append(DsAir(hass, aircon))    
     _log('async_setup_entry')
     async_add_entities(climates)
 
@@ -149,7 +151,7 @@ class DsAir(ClimateEntity):
             li.append(HVAC_MODE_COOL)
         if aircon.heat_mode:
             li.append(HVAC_MODE_HEAT)
-        if aircon.auto_dry_mode:
+        if aircon.dry_mode:
             li.append(HVAC_MODE_DRY)
         if aircon.ventilation_mode:
             li.append(HVAC_MODE_FAN_ONLY)

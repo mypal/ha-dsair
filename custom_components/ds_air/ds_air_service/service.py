@@ -188,6 +188,10 @@ class Service:
     @staticmethod
     def get_new_aircons():
         return Service._new_aircons
+        
+    @staticmethod        
+    def get_new_aircons():
+        return Service._aircons
 
     @staticmethod
     def control(aircon: AirCon, status: AirConStatus):
@@ -261,13 +265,13 @@ class Service:
     def set_sensors_status(sensors: typing.List[Sensor]):
         for newSensor in sensors:
             for sensor in Service._sensors:
-                if sensor.name == newSensor.name:
+                if sensor.mac == newSensor.mac:
                     for attr in Sensor.STATUS_ATTR:
                         setattr(sensor, attr, getattr(newSensor, attr))
                     break
             for item in Service._sensor_hook:
-                name, func = item
-                if newSensor.name == name:
+                mac, func = item
+                if newSensor.mac == mac:
                     try:
                         func(newSensor)
                     except Exception as e:
@@ -279,6 +283,11 @@ class Service:
             p = AirConQueryStatusParam()
             p.target = EnumDevice.NEWAIRCON
             p.device = i
+            Service.send_msg(p)
+        for j in Service._aircons:
+            p = AirConQueryStatusParam()
+            p.target = EnumDevice.AIRCON
+            p.device = j
             Service.send_msg(p)
         p = Sensor2InfoParam()
         Service.send_msg(p)
