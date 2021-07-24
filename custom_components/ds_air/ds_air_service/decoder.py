@@ -12,7 +12,7 @@ from .param import GetRoomInfoParam, AirConRecommendedIndoorTempParam, AirConCap
 
 def decoder(b):
     if b[0] != 2:
-        return None
+        return None, None
 
     length = struct.unpack('<H', b[1:3])[0]
     if length == 0 or len(b) - 4 < length or struct.unpack('<B', b[length + 3:length + 4])[0] != 3:
@@ -436,17 +436,19 @@ class GetRoomInfoResult(BaseResult):
                     elif EnumDevice.GEOTHERMIC == device:
                         dev = Geothermic()
                         room.geothermic = dev
-                    elif EnumDevice.VENTILATION == device:
-                        dev = Ventilation()
-                        room.ventilation = dev
                     elif EnumDevice.HD == device:
                         dev = HD()
                         self.hds.append(dev)
                         room.hd_room = True
+                        room.hd = dev
                     elif EnumDevice.SENSOR == device:
                         dev = Sensor()
                         self.sensors.append(dev)
                         room.sensor_room = True
+                    elif EnumDevice.VENTILATION == device or EnumDevice.SMALL_VAM == device:
+                        dev = Ventilation()
+                        room.ventilation = dev
+                        dev.is_small_vam = EnumDevice.SMALL_VAM == device
                     else:
                         dev = Device()
                     dev.room_id = room.id
@@ -467,15 +469,15 @@ class GetRoomInfoResult(BaseResult):
         aircons = []
         new_aircons = []
         bathrooms = []
-        for i in Service.get_rooms():
-            if i.air_con is not None:
-                i.air_con.alias = i.alias
-                if i.air_con.new_air_con:
-                    new_aircons.append(i.air_con)
-                elif i.air_con.bath_room:
-                    bathrooms.append(i.air_con)
+        for room in Service.get_rooms():
+            if room.air_con is not None:
+                room.air_con.alias = room.alias
+                if room.air_con.new_air_con:
+                    new_aircons.append(room.air_con)
+                elif room.air_con.bath_room:
+                    bathrooms.append(room.air_con)
                 else:
-                    aircons.append(i.air_con)
+                    aircons.append(room.air_con)
 
         p = AirConCapabilityQueryParam()
         p.aircons = aircons
@@ -736,6 +738,9 @@ class AirConCapabilityQueryResult(BaseResult):
 
                     aircon.fan_dire_auto = flag >> 2 & 1
                     aircon.fan_volume_auto = flag >> 3 & 1
+                    aircon.temp_set = flag >> 4 & 1
+                    aircon.hum_fresh_air_allow = (flag >> 5 & 1) & (flag >> 6 & 1)
+                    aircon.three_d_fresh_allow = flag >> 7 & 1
 
                     flag = d.read1()
                     aircon.out_door_run_cond = EnumOutDoorRunCond(flag >> 6 & 3)

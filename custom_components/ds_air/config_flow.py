@@ -8,7 +8,7 @@ from homeassistant import config_entries
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import DOMAIN, CONF_GW, DEFAULT_HOST, DEFAULT_GW, DEFAULT_PORT, GW_LIST
+from .const import DOMAIN, CONF_GW, DEFAULT_GW, DEFAULT_PORT, GW_LIST
 
 _LOGGER = logging.getLogger(__name__)
 

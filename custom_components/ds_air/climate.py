@@ -21,8 +21,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE, CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import DOMAIN
 from .ds_air_service.config import Config
 from .ds_air_service.ctrl_enum import EnumControl
 from .ds_air_service.dao import AirCon, AirConStatus
@@ -53,7 +55,7 @@ async def async_setup_entry(
 
     from .ds_air_service.service import Service
     climates = []
-    for aircon in Service.get_new_aircons():
+    for aircon in Service.get_aircons():
         climates.append(DsAir(aircon))
     _log('async_setup_entry')
     async_add_entities(climates)
@@ -69,6 +71,7 @@ class DsAir(ClimateEntity):
         """Initialize the climate device."""
         self._name = aircon.alias
         self._device_info = aircon
+        self._unique_id = aircon.unique_id
         from .ds_air_service.service import Service
         Service.register_status_hook(aircon, self._status_change_hook)
 
@@ -147,13 +150,13 @@ class DsAir(ClimateEntity):
         aircon = self._device_info
         if aircon.cool_mode:
             li.append(HVAC_MODE_COOL)
-        if aircon.heat_mode:
+        if aircon.heat_mode or aircon.pre_heat_mode:
             li.append(HVAC_MODE_HEAT)
-        if aircon.auto_dry_mode:
+        if aircon.auto_dry_mode or aircon.dry_mode or aircon.more_dry_mode:
             li.append(HVAC_MODE_DRY)
         if aircon.ventilation_mode:
             li.append(HVAC_MODE_FAN_ONLY)
-        if aircon.relax_mode:
+        if aircon.relax_mode or aircon.auto_mode:
             li.append(HVAC_MODE_AUTO)
         if aircon.sleep_mode:
             li.append(HVAC_MODE_HEAT_COOL)
@@ -279,7 +282,8 @@ class DsAir(ClimateEntity):
 
     def set_hvac_mode(self, hvac_mode: str) -> None:
         """Set new target hvac mode."""
-        status = self._device_info.status
+        aircon = self._device_info
+        status = aircon.status
         new_status = AirConStatus()
         if hvac_mode == HVAC_MODE_OFF:
             status.switch = EnumControl.Switch.OFF
@@ -289,8 +293,33 @@ class DsAir(ClimateEntity):
         else:
             status.switch = EnumControl.Switch.ON
             new_status.switch = EnumControl.Switch.ON
-            status.mode = EnumControl.get_mode_enum(hvac_mode)
-            new_status.mode = EnumControl.get_mode_enum(hvac_mode)
+            m = EnumControl.Mode
+            mode = None
+            if hvac_mode == HVAC_MODE_COOL:
+                mode = m.COLD
+            elif hvac_mode == HVAC_MODE_HEAT:
+                if aircon.heat_mode:
+                    mode = m.HEAT
+                else:
+                    mode = m.PREHEAT
+            elif hvac_mode == HVAC_MODE_DRY:
+                if aircon.auto_dry_mode:
+                    mode = m.AUTODRY
+                elif aircon.more_dry_mode:
+                    mode = m.MOREDRY
+                else:
+                    mode = m.DRY
+            elif hvac_mode == HVAC_MODE_FAN_ONLY:
+                mode = m.VENTILATION
+            elif hvac_mode == HVAC_MODE_AUTO:
+                if aircon.auto_mode:
+                    mode = m.AUTO
+                else:
+                    mode = m.RELAX
+            elif hvac_mode == HVAC_MODE_HEAT_COOL:
+                mode = m.SLEEP
+            status.mode = mode
+            new_status.mode = mode
             from .ds_air_service.service import Service
             Service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
@@ -339,3 +368,15 @@ class DsAir(ClimateEntity):
     @property
     def max_humidity(self):
         return 3
+
+    @property
+    def device_info(self) -> Optional[DeviceInfo]:
+        return {
+            "identifiers": {(DOMAIN, self.unique_id)},
+            "name": "空调%s" % self._name,
+            "manufacturer": "DAIKIN INDUSTRIES, Ltd."
+        }
+
+    @property
+    def unique_id(self) -> Optional[str]:
+        return self._unique_id

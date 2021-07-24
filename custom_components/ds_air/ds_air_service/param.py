@@ -1,10 +1,11 @@
 import struct
 import typing
+from typing import Optional
 
 from .config import Config
 from .dao import AirCon, Device, get_device_by_aircon, AirConStatus
 from .base_bean import BaseBean
-from .ctrl_enum import EnumCmdType, EnumDevice, EnumControl
+from .ctrl_enum import EnumCmdType, EnumDevice, EnumControl, EnumFanDirection, EnumFanVolume
 
 
 class Encode:
@@ -29,7 +30,7 @@ class Encode:
         self._list.append(d)
 
     def writes(self, d):
-        self._fmt += str(len(d))+'s'
+        self._fmt += str(len(d)) + 's'
         self._len += len(d)
 
     def pack(self, rewrite_length: bool = True):
@@ -165,20 +166,35 @@ class AirConRecommendedIndoorTempParam(AirconParam):
 class AirConQueryStatusParam(AirconParam):
     def __init__(self):
         super().__init__(EnumCmdType.QUERY_STATUS, True)
-        self._device: Device = Device()
+        self._device = None  # type: Optional[AirCon]
 
     def generate_subbody(self, s):
         s.write1(self._device.room_id)
         s.write1(self._device.unit_id)
         t = EnumControl.Type
-        s.write1(t.SWITCH | t.MODE | t.AIR_FLOW | t.CURRENT_TEMP | t.SETTED_TEMP | t.FAN_DIRECTION | t.HUMIDITY)
+        flag = t.SWITCH | t.MODE | t.SETTED_TEMP
+        dev = self.device
+        if dev is not None:
+            if dev.fan_volume != EnumFanVolume.NO:
+                flag = flag | t.AIR_FLOW
+            if Config.is_new_version:
+                if dev.fan_direction1 != EnumFanDirection.FIX and dev.fan_direction2 != EnumFanDirection.FIX:
+                    flag = flag | t.FAN_DIRECTION
+                if dev.bath_room:
+                    flag = flag | t.BREATHE
+                elif dev.three_d_fresh_allow:
+                    flag = flag | t.BREATHE
+                flag = flag | t.HUMIDITY
+            if dev.hum_fresh_air_allow:
+                flag = flag | t.FRESH_AIR_HUMIDIFICATION
+        s.write1(flag)
 
     @property
     def device(self):
         return self._device
 
     @device.setter
-    def device(self, v):
+    def device(self, v: AirCon):
         self._device = v
 
 

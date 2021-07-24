@@ -61,7 +61,7 @@ class SocketClient:
                 self.do_connect()
         self._locker.release()
 
-    def recv(self) -> typing.List[BaseResult]:
+    def recv(self) -> (typing.List[BaseResult], bytes):
         res = []
         done = False
         data = None
@@ -72,14 +72,15 @@ class SocketClient:
                 done = True
             except Exception:
                 if not self._ready:
-                    return []
+                    return [], None
                 time.sleep(3)
                 self.do_connect()
+        d = data
         while data:
             r, b = decoder(data)
             res.append(r)
             data = b
-        return res
+        return res, d
 
 
 class RecvThread(Thread):
@@ -94,7 +95,9 @@ class RecvThread(Thread):
 
     def run(self) -> None:
         while self._running:
-            res = self._sock.recv()
+            res, data = self._sock.recv()
+            if data is not None:
+                _log("hex: 0x"+data.hex())
             for i in res:
                 _log('\033[31mrecv:\033[0m')
                 _log(display(i))
@@ -121,6 +124,9 @@ class HeartBeatThread(Thread):
             if cnt == 5:
                 cnt = 0
                 Service.poll_status()
+            p = Sensor2InfoParam()
+            Service.send_msg(p)
+
             time.sleep(60)
 
 
@@ -186,8 +192,8 @@ class Service:
             Service._ready = False
 
     @staticmethod
-    def get_new_aircons():
-        return Service._new_aircons
+    def get_aircons():
+        return Service._new_aircons+Service._aircons+Service._bathrooms
 
     @staticmethod
     def control(aircon: AirCon, status: AirConStatus):
@@ -199,8 +205,8 @@ class Service:
         Service._status_hook.append((device, hook))
 
     @staticmethod
-    def register_sensor_hook(name: str, hook: typing.Callable):
-        Service._sensor_hook.append((name, hook))
+    def register_sensor_hook(unique_id: str, hook: typing.Callable):
+        Service._sensor_hook.append((unique_id, hook))
 
     # ----split line---- above for component, below for inner call
 
@@ -261,13 +267,13 @@ class Service:
     def set_sensors_status(sensors: typing.List[Sensor]):
         for newSensor in sensors:
             for sensor in Service._sensors:
-                if sensor.name == newSensor.name:
+                if sensor.name == newSensor.name or sensor.alias == newSensor.alias:
                     for attr in Sensor.STATUS_ATTR:
                         setattr(sensor, attr, getattr(newSensor, attr))
                     break
             for item in Service._sensor_hook:
-                name, func = item
-                if newSensor.name == name:
+                unique_id, func = item
+                if newSensor.unique_id == unique_id:
                     try:
                         func(newSensor)
                     except Exception as e:

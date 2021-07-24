@@ -1,15 +1,24 @@
 import time
+from typing import Optional
 
 from .ctrl_enum import EnumOutDoorRunCond, EnumFanDirection, EnumFanVolume, EnumSwitch, EnumControl, EnumDevice
 
 
 class Device:
     def __init__(self):
-        self.alias: str = ''
+        self.alias: str = ""
         self.id: int = 0
-        self.name: str = ''
+        self.name: str = ""
         self.room_id: int = 0
         self.unit_id: int = 0
+        self.mac: str = ""
+
+    @property
+    def unique_id(self):
+        if self.mac is not None and len(self.mac):
+            return "%s" % (self.mac)
+        else:
+            return "%s_%d_%d" % (self.alias, self.room_id, self.unit_id)
 
 
 def _nothing():
@@ -39,25 +48,28 @@ class AirConStatus:
 class AirCon(Device):
     def __init__(self):
         super().__init__()
-        self.auto_dry_mode: int = 0
-        self.auto_mode: int = 0
-        self.bath_room: bool = False
-        self.new_air_con: bool = False
-        self.cool_mode: int = 0
-        self.dry_mode: int = 0
-        self.fan_dire_auto: bool = False
-        self.fan_direction1: EnumFanDirection = EnumFanDirection.FIX
-        self.fan_direction2: EnumFanDirection = EnumFanDirection.FIX
-        self.fan_volume: EnumFanVolume = EnumFanVolume.FIX
-        self.fan_volume_auto: bool = False
-        self.heat_mode: int = 0
-        self.more_dry_mode: int = 0
-        self.out_door_run_cond: EnumOutDoorRunCond = EnumOutDoorRunCond.VENT
-        self.pre_heat_mode: int = 0
-        self.relax_mode: int = 0
-        self.sleep_mode: int = 0
-        self.ventilation_mode: int = 0
-        self.status: AirConStatus = AirConStatus()
+        self.auto_dry_mode = 0  # type: int
+        self.auto_mode = 0  # type: int
+        self.bath_room = False  # type: bool
+        self.new_air_con = False  # type: bool
+        self.cool_mode = 0  # type: int
+        self.dry_mode = 0  # type: int
+        self.fan_dire_auto = False  # type: bool
+        self.fan_direction1 = EnumFanDirection.FIX  # type: EnumFanDirection
+        self.fan_direction2 = EnumFanDirection.FIX  # type: EnumFanDirection
+        self.fan_volume = EnumFanVolume.FIX  # type: EnumFanVolume
+        self.fan_volume_auto = False  # type: bool
+        self.temp_set = False  # type: bool
+        self.hum_fresh_air_allow = False  # type: bool
+        self.three_d_fresh_allow = False  # type: bool
+        self.heat_mode = 0  # type: int
+        self.more_dry_mode = 0  # type: int
+        self.out_door_run_cond = EnumOutDoorRunCond.VENT  # type: EnumOutDoorRunCond
+        self.pre_heat_mode = 0  # type: int
+        self.relax_mode = 0  # type: int
+        self.sleep_mode = 0  # type: int
+        self.ventilation_mode = 0  # type: int
+        self.status = AirConStatus()  # type: AirConStatus
 
 
 def get_device_by_aircon(aircon: AirCon):
@@ -74,7 +86,9 @@ class Geothermic(Device):
 
 
 class Ventilation(Device):
-    """do nothing"""
+    def __init__(self):
+        Device.__init__(self)
+        self.is_small_vam = False  # type: bool
 
 
 class HD(Device):
@@ -126,12 +140,13 @@ class Sensor(Device):
 class Room:
     def __init__(self):
         self.air_con = None
-        self.alias: str = ''
-        self.geothermic: Geothermic = Geothermic()
-        self.hd_room: bool = False
-        self.sensor_room: bool = False
-        self.icon: str = ''
-        self.id: int = 0
-        self.name: str = ''
-        self.type: int = 0
-        self.ventilation: Ventilation = Ventilation()
+        self.alias = ''  # type: str
+        self.geothermic = None  # type: Optional[Geothermic]
+        self.hd = None  # type: Optional[HD]
+        self.hd_room = False  # type: bool
+        self.sensor_room = False  # type: bool
+        self.icon = ''  # type: str
+        self.id = 0  # type: int
+        self.name = ''  # type: str
+        self.type = 0  # type: int
+        self.ventilation = Ventilation()  # type: Optional[Ventilation]
