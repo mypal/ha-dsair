@@ -124,6 +124,9 @@ class HeartBeatThread(Thread):
             if cnt == 5:
                 cnt = 0
                 Service.poll_status()
+            p = Sensor2InfoParam()
+            Service.send_msg(p)
+
             time.sleep(60)
 
 
@@ -189,8 +192,8 @@ class Service:
             Service._ready = False
 
     @staticmethod
-    def get_new_aircons():
-        return Service._new_aircons
+    def get_aircons():
+        return Service._new_aircons+Service._aircons+Service._bathrooms
 
     @staticmethod
     def control(aircon: AirCon, status: AirConStatus):
@@ -202,8 +205,8 @@ class Service:
         Service._status_hook.append((device, hook))
 
     @staticmethod
-    def register_sensor_hook(name: str, hook: typing.Callable):
-        Service._sensor_hook.append((name, hook))
+    def register_sensor_hook(unique_id: str, hook: typing.Callable):
+        Service._sensor_hook.append((unique_id, hook))
 
     # ----split line---- above for component, below for inner call
 
@@ -264,13 +267,13 @@ class Service:
     def set_sensors_status(sensors: typing.List[Sensor]):
         for newSensor in sensors:
             for sensor in Service._sensors:
-                if sensor.name == newSensor.name:
+                if sensor.name == newSensor.name or sensor.alias == newSensor.alias:
                     for attr in Sensor.STATUS_ATTR:
                         setattr(sensor, attr, getattr(newSensor, attr))
                     break
             for item in Service._sensor_hook:
-                name, func = item
-                if newSensor.name == name:
+                unique_id, func = item
+                if newSensor.unique_id == unique_id:
                     try:
                         func(newSensor)
                     except Exception as e:

@@ -193,7 +193,6 @@ class EnumDevice(Enum):
     SMART_HCHO = (8, 50)
 
 
-
 class EnumFanDirection(IntEnum):
     FIX = 0
     STEP_1 = 1
@@ -302,14 +301,18 @@ class Switch(IntEnum):
 
 
 class Type(IntEnum):
-    SWITCH = 1
-    MODE = 2
-    AIR_FLOW = 4
+    SWITCH = 1  # 0
+    MODE = 2  # 1
+    AIR_FLOW = 4  # 2
     CURRENT_TEMP = 8
-    SETTED_TEMP = 16
-    FAN_DIRECTION = 32
-    HUMIDITY = 64
-    BREATHE = 128
+    FRESH_AIR_HUMIDIFICATION = 8  # 3
+    SETTED_TEMP = 16  # 4
+    FAN_DIRECTION = 32  # 5
+    HUMIDITY = 64  # 6
+    BREATHE = 128  # 7
+    FAN_DIRECTION_FB = 254  # 8
+    FAN_DIRECTION_LR = 255  # 9
+    SCENE_STATE = 253  # 10
 
 
 class EnumControl:
@@ -357,4 +360,3 @@ class EnumSensor:
         STEP_3 = 4
         STEP_4 = 8
         STEP_UNUSE = 127
-

@@ -1,4 +1,5 @@
 """Support for Xiaomi Aqara sensors."""
+from typing import Optional
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import (
@@ -9,7 +10,9 @@ from homeassistant.const import (
     TEMP_CELSIUS, CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, CONCENTRATION_PARTS_PER_MILLION,
     CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER, DEVICE_CLASS_CO2,
 )
+from homeassistant.helpers.entity import DeviceInfo
 
+from .const import DOMAIN
 from .ds_air_service.dao import Sensor
 from .ds_air_service.service import Service
 
@@ -34,26 +37,31 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 class DsSensor(SensorEntity):
     """Representation of a XiaomiSensor."""
 
-    def __init__(self, device, data_key):
+    def __init__(self, device: Sensor, data_key):
         """Initialize the XiaomiSensor."""
         self._data_key = data_key
-        self._name = device.name
+        self._name = device.alias
+        self._unique_id = device.unique_id
         self._is_available = False
         self._state = 0
         self.parse_data(device, True)
-        Service.register_sensor_hook(self._name, self.parse_data)
+        Service.register_sensor_hook(device.unique_id, self.parse_data)
 
     @property
     def name(self):
-        return "%s_%s" % (self._data_key, self._name)
+        return "%s_%s" % (self._data_key, self._unique_id)
 
     @property
     def unique_id(self):
-        return "%s_%s" % (self._data_key, self._name)
+        return "%s_%s" % (self._data_key, self._unique_id)
 
     @property
-    def device_id(self):
-        return "%s_%s" % (self._data_key, self._name)
+    def device_info(self) -> Optional[DeviceInfo]:
+        return {
+            "identifiers": {(DOMAIN, self._unique_id)},
+            "name": "传感器%s" % self._name,
+            "manufacturer": "DAIKIN INDUSTRIES, Ltd."
+        }
 
     @property
     def available(self):

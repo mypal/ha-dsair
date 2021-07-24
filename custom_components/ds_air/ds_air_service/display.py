@@ -14,7 +14,7 @@ def display(o, d='') -> str:
         return st
     else:
         li = dir(o)
-        st = o.__class__.__name__ + ' {'
+        st = ("\033[31m%s:\033[0m"%o.__class__.__name__) + ' {'
         for i in li:
             if (not i.startswith('_')) and (not callable(o.__getattribute__(i))):
                 st += '\n' + d + i + ': ' + display(o.__getattribute__(i), d + '    ')
