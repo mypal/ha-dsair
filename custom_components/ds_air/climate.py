@@ -84,7 +84,8 @@ async def async_setup_entry(
     hass.data[DOMAIN]["listener"] = remove_listener
     for entity_id in sensor_map.keys():
         state = hass.states.get(entity_id)
-        sensor_map[entity_id].update_cur_temp(state.state)
+        if state is not None:
+            sensor_map[entity_id].update_cur_temp(state.state)
 
 
 class DsAir(ClimateEntity):
