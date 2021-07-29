@@ -15,10 +15,7 @@ class Device:
 
     @property
     def unique_id(self):
-        if self.mac is not None and len(self.mac):
-            return "%s" % (self.mac)
-        else:
-            return "%s_%d_%d" % (self.alias, self.room_id, self.unit_id)
+        return "daikin_%d_%d" % (self.room_id, self.unit_id)
 
 
 def _nothing():
