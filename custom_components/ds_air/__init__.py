@@ -34,15 +34,9 @@ async def async_setup_entry(
 ):
     _log("********async_setup_entry")
     hass.data.setdefault(DOMAIN, {})
-    host = hass.data[DOMAIN].get(CONF_HOST)
-    port = hass.data[DOMAIN].get(CONF_PORT)
-    gw = hass.data[DOMAIN].get(CONF_GW)
-    if entry.data[CONF_HOST] is not None:
-        host = entry.data[CONF_HOST]
-    if entry.data[CONF_PORT] is not None:
-        port = entry.data[CONF_PORT]
-    if entry.data[CONF_GW] is not None:
-        gw = entry.data[CONF_GW]
+    host = entry.data[CONF_HOST]
+    port = entry.data[CONF_PORT]
+    gw = entry.data[CONF_GW]
 
     if host is None:
         host = DEFAULT_HOST
@@ -71,6 +65,9 @@ async def async_setup_entry(
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     _log("********async_unload_entry")
+    if hass.data[DOMAIN].get("listener") is not None:
+        _log("*****remove listener")
+        hass.data[DOMAIN].get("listener")()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     from .ds_air_service.service import Service
     Service.destroy()

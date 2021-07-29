@@ -80,8 +80,8 @@ async def async_setup_entry(
         _log(event.data.get("new_state").state)
         sensor_map[event.data.get("entity_id")].update_cur_temp(event.data.get("new_state").state)
 
-    # hass.bus.async_listen("state_changed", listener)
-    async_track_state_change_event(hass, list(sensor_map.keys()), listener)
+    remove_listener = async_track_state_change_event(hass, list(sensor_map.keys()), listener)
+    hass.data[DOMAIN]["listener"] = remove_listener
 
 
 class DsAir(ClimateEntity):
