@@ -19,10 +19,11 @@ from homeassistant.components.climate.const import (
     HVAC_MODE_FAN_ONLY)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE, CONF_HOST, CONF_PORT
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, Event
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import DOMAIN
 from .ds_air_service.config import Config
@@ -44,7 +45,8 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def _log(s: str):
-    for i in s.split('\n'):
+    s = str(s)
+    for i in s.split("\n"):
         _LOGGER.debug(i)
 
 
@@ -57,8 +59,29 @@ async def async_setup_entry(
     climates = []
     for aircon in Service.get_aircons():
         climates.append(DsAir(aircon))
-    _log('async_setup_entry')
     async_add_entities(climates)
+    _log(entry.options.get("link"))
+    link = entry.options.get("link")
+    sensor_map = {}
+    if link is not None:
+        for i in link:
+            if i.get("sensor") is not None:
+                climate = None
+                for j in climates:
+                    if i.get("climate") == j.name:
+                        climate = j
+                        break
+                sensor_map[i.get("sensor")] = climate
+
+    async def listener(event: Event):
+        _log("****event")
+        _log(event)
+        _log(event.data.get("new_state"))
+        _log(event.data.get("new_state").state)
+        sensor_map[event.data.get("entity_id")].update_cur_temp(event.data.get("new_state").state)
+
+    # hass.bus.async_listen("state_changed", listener)
+    async_track_state_change_event(hass, list(sensor_map.keys()), listener)
 
 
 class DsAir(ClimateEntity):
@@ -72,6 +95,8 @@ class DsAir(ClimateEntity):
         self._name = aircon.alias
         self._device_info = aircon
         self._unique_id = aircon.unique_id
+        self._link_cur_temp = False
+        self._cur_temp = None
         from .ds_air_service.service import Service
         Service.register_status_hook(aircon, self._status_change_hook)
 
@@ -105,6 +130,11 @@ class DsAir(ClimateEntity):
             if new_status.breathe is not None:
                 status.breathe = new_status.breathe
             _log(display(self._device_info.status))
+        self.schedule_update_ha_state()
+
+    def update_cur_temp(self, value):
+        self._link_cur_temp = value is not None
+        self._cur_temp = float(value)
         self.schedule_update_ha_state()
 
     @property
@@ -166,10 +196,13 @@ class DsAir(ClimateEntity):
     @property
     def current_temperature(self):
         """Return the current temperature."""
-        if Config.is_c611:
-            return None
+        if self._link_cur_temp:
+            return self._cur_temp
         else:
-            return self._device_info.status.current_temp / 10
+            if Config.is_c611:
+                return None
+            else:
+                return self._device_info.status.current_temp / 10
 
     @property
     def target_temperature(self):

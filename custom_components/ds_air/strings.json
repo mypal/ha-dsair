@@ -18,5 +18,17 @@
       "single_instance_allowed": "\u53ea\u5141\u8bb8\u521b\u5efa\u4e00\u4e2a"
     },
     "flow_title": "\u91d1\u5236\u7a7a\u6c14"
+  },
+  "options": {
+    "step": {
+      "user": {
+        "title": "\u6e29\u5ea6\u4f20\u611f\u5668\u5173\u8054",
+        "description": "\u53ef\u4ee5\u4e3a\u7a7a\u8c03\u5173\u8054\u6e29\u5ea6\u4f20\u611f\u5668",
+        "data": {
+          "climate": "climate entity_id",
+          "sensor": "sensor entity_id"
+        }
+      }
+    }
   }
 }
