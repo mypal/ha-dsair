@@ -71,21 +71,26 @@ async def async_setup_entry(
                     if i.get("climate") == j.name:
                         climate = j
                         break
-                sensor_map[i.get("sensor")] = climate
+                if sensor_map.get(i.get("sensor")) is not None:
+                    sensor_map[i.get("sensor")].append(climate)
+                else:
+                    sensor_map[i.get("sensor")] = [climate]
 
     async def listener(event: Event):
         _log("****event")
         _log(event)
         _log(event.data.get("new_state"))
         _log(event.data.get("new_state").state)
-        sensor_map[event.data.get("entity_id")].update_cur_temp(event.data.get("new_state").state)
+        for climate in sensor_map[event.data.get("entity_id")]:
+            climate.update_cur_temp(event.data.get("new_state").state)
 
     remove_listener = async_track_state_change_event(hass, list(sensor_map.keys()), listener)
     hass.data[DOMAIN]["listener"] = remove_listener
     for entity_id in sensor_map.keys():
         state = hass.states.get(entity_id)
         if state is not None:
-            sensor_map[entity_id].update_cur_temp(state.state)
+            for climate in sensor_map[entity_id]:
+                climate.update_cur_temp(state.state)
 
 
 class DsAir(ClimateEntity):
