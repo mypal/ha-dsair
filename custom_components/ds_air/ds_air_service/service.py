@@ -121,7 +121,8 @@ class HeartBeatThread(Thread):
         while self._running:
             Service.send_msg(HeartbeatParam())
             cnt += 1
-            if cnt == 5:
+            if cnt == Service.get_scan_interval():
+                _log("poll_status")
                 cnt = 0
                 Service.poll_status()
 
@@ -140,11 +141,13 @@ class Service:
     _sensor_hook = []  # type: typing.List[(str, typing.Callable)]
     _heartbeat_thread = None
     _sensors = []  # type: typing.List[Sensor]
+    _scan_interval = 5  # type: int
 
     @staticmethod
-    def init(host: str, port: int):
+    def init(host: str, port: int, scan_interval: int):
         if Service._ready:
             return
+        Service._scan_interval = scan_interval
         Service._socket_client = SocketClient(host, port)
         Service._socket_client.send(HandShakeParam())
         Service._heartbeat_thread = HeartBeatThread()
@@ -298,3 +301,7 @@ class Service:
                 except Exception as e:
                     _log('hook error!!')
                     _log(str(e))
+
+    @staticmethod
+    def get_scan_interval():
+        return Service._scan_interval

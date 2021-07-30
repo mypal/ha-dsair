@@ -60,7 +60,6 @@ async def async_setup_entry(
     for aircon in Service.get_aircons():
         climates.append(DsAir(aircon))
     async_add_entities(climates)
-    _log(entry.options.get("link"))
     link = entry.options.get("link")
     sensor_map = {}
     if link is not None:
@@ -77,10 +76,6 @@ async def async_setup_entry(
                     sensor_map[i.get("sensor")] = [climate]
 
     async def listener(event: Event):
-        _log("****event")
-        _log(event)
-        _log(event.data.get("new_state"))
-        _log(event.data.get("new_state").state)
         for climate in sensor_map[event.data.get("entity_id")]:
             climate.update_cur_temp(event.data.get("new_state").state)
 
@@ -143,7 +138,10 @@ class DsAir(ClimateEntity):
 
     def update_cur_temp(self, value):
         self._link_cur_temp = value is not None
-        self._cur_temp = float(value)
+        try:
+            self._cur_temp = float(value)
+        except ValueError:
+            """Ignore"""
         self.schedule_update_ha_state()
 
     @property

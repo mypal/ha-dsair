@@ -2,27 +2,11 @@
 from typing import Optional
 
 from homeassistant.components.sensor import SensorEntity
-from homeassistant.const import (
-    DEVICE_CLASS_HUMIDITY,
-    DEVICE_CLASS_PRESSURE,
-    DEVICE_CLASS_TEMPERATURE,
-    PERCENTAGE,
-    TEMP_CELSIUS, CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, CONCENTRATION_PARTS_PER_MILLION,
-    CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER, DEVICE_CLASS_CO2,
-)
 from homeassistant.helpers.entity import DeviceInfo
 
-from .const import DOMAIN
+from .const import DOMAIN, SENSOR_TYPES
 from .ds_air_service.dao import Sensor
 from .ds_air_service.service import Service
-
-SENSOR_TYPES = {
-    "temp": [TEMP_CELSIUS, None, DEVICE_CLASS_TEMPERATURE, 10],
-    "humidity": [PERCENTAGE, None, DEVICE_CLASS_HUMIDITY, 10],
-    "pm25": [CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, None, None, 1],
-    "co2": [CONCENTRATION_PARTS_PER_MILLION, None, DEVICE_CLASS_CO2, 1],
-    "tvoc": [CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER, None, DEVICE_CLASS_PRESSURE, 100],
-}
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -30,7 +14,8 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     entities = []
     for device in Service.get_sensors():
         for key in SENSOR_TYPES:
-            entities.append(DsSensor(device, key))
+            if config_entry.data.get(key):
+                entities.append(DsSensor(device, key))
     async_add_entities(entities)
 
 
@@ -105,7 +90,11 @@ class DsSensor(SensorEntity):
         """Parse data sent by gateway."""
         self._is_available = device.connected and device.switch_on_off
         if Sensor.UNINITIALIZED_VALUE != getattr(device, self._data_key):
-            self._state = getattr(device, self._data_key) / SENSOR_TYPES.get(self._data_key)[3]
+            if type(SENSOR_TYPES.get(self._data_key)[3]) != int:
+                self._state = str(getattr(device, self._data_key))
+            else:
+                self._state = getattr(device, self._data_key) / SENSOR_TYPES.get(self._data_key)[3]
+
         if not not_update:
             self.schedule_update_ha_state()
         return True

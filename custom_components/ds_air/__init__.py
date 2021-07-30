@@ -5,7 +5,7 @@ https://www.daikin-china.com.cn/newha/products/4/19/DS-AIR/
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 
 from .hass_inst import GetHass
@@ -23,7 +23,6 @@ def _log(s: str):
 
 
 def setup(hass, config):
-    _log("********setup")
     hass.data[DOMAIN] = {}
     GetHass.set_hass(hass)
     return True
@@ -32,30 +31,23 @@ def setup(hass, config):
 async def async_setup_entry(
         hass: HomeAssistant, entry: ConfigEntry
 ):
-    _log("********async_setup_entry")
     hass.data.setdefault(DOMAIN, {})
     host = entry.data[CONF_HOST]
     port = entry.data[CONF_PORT]
     gw = entry.data[CONF_GW]
+    scan_interval = entry.data[CONF_SCAN_INTERVAL]
 
-    if host is None:
-        host = DEFAULT_HOST
-    if port is None:
-        port = DEFAULT_PORT
-    if gw is None:
-        gw = DEFAULT_GW
-
-    _log(f"{host}:{port} {gw}")
+    _log(f"{host}:{port} {gw} {scan_interval}")
 
     hass.data[DOMAIN][CONF_HOST] = host
     hass.data[DOMAIN][CONF_PORT] = port
     hass.data[DOMAIN][CONF_GW] = gw
+    hass.data[DOMAIN][CONF_SCAN_INTERVAL] = scan_interval
 
     Config.is_c611 = gw == DEFAULT_GW
 
-    _log("host:" + host + "\nport:" + str(port))
     from .ds_air_service.service import Service
-    await hass.async_add_executor_job(Service.init, host, port)
+    await hass.async_add_executor_job(Service.init, host, port, scan_interval)
     hass.config_entries.async_setup_platforms(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
@@ -64,9 +56,7 @@ async def async_setup_entry(
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    _log("********async_unload_entry")
     if hass.data[DOMAIN].get("listener") is not None:
-        _log("*****remove listener")
         hass.data[DOMAIN].get("listener")()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     from .ds_air_service.service import Service
@@ -76,6 +66,5 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
-    _log("********listener")
     await hass.config_entries.async_reload(entry.entry_id)
     return True
