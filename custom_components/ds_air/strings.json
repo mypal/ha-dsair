@@ -8,7 +8,15 @@
           "host": "host",
           "port": "port",
           "gw": "\u7f51\u5173\u578b\u53f7",
-          "scan_interval": "\u4f20\u611f\u5668\u66f4\u65b0\u9891\u7387\uff08\u5355\u4f4d\uff1a\u5206\u949f\uff09"
+          "scan_interval": "\u4f20\u611f\u5668\u66f4\u65b0\u9891\u7387\uff08\u5355\u4f4d\uff1a\u5206\u949f\uff09",
+          "sensors": "\u662f\u5426\u6709\u4f20\u611f\u5668",
+          "temp": "\u521b\u5efatemperature\u5b9e\u4f53",
+          "humidity": "\u521b\u5efahumidity\u5b9e\u4f53",
+          "pm25": "\u521b\u5efapm25\u5b9e\u4f53",
+          "co2": "\u521b\u5efaco2\u5b9e\u4f53",
+          "tvoc": "\u521b\u5efatvoc\u5b9e\u4f53",
+          "voc": "\u521b\u5efavoc\u5b9e\u4f53",
+          "hcho": "\u521b\u5efahcho\u5b9e\u4f53"
         }
       }
     },
@@ -25,7 +33,7 @@
         "title": "\u6e29\u5ea6\u4f20\u611f\u5668\u5173\u8054",
         "description": "\u53ef\u4ee5\u4e3a\u7a7a\u8c03\u5173\u8054\u6e29\u5ea6\u4f20\u611f\u5668",
         "data": {
-          "climate": "climate entity_id",
+          "climate": "climate name",
           "sensor": "sensor entity_id"
         }
       }

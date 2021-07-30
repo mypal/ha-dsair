@@ -360,3 +360,15 @@ class EnumSensor:
         STEP_3 = 4
         STEP_4 = 8
         STEP_UNUSE = 127
+
+        def __str__(self):
+            if self.value == EnumSensor.Voc.STEP_UNUSE:
+                return "不可用"
+            elif self.value == EnumSensor.Voc.STEP_1:
+                return "优"
+            elif self.value == EnumSensor.Voc.STEP_2:
+                return "低"
+            elif self.value == EnumSensor.Voc.STEP_3:
+                return "中"
+            elif self.value == EnumSensor.Voc.STEP_4:
+                return "高"

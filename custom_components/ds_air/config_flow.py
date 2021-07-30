@@ -6,13 +6,12 @@ from typing import Any
 import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL
+from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, CONF_SENSORS
 from homeassistant.core import callback, HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 
-from .ds_air_service.display import display
+from .const import DOMAIN, CONF_GW, DEFAULT_GW, DEFAULT_PORT, GW_LIST, DEFAULT_HOST
 from .ds_air_service.service import Service
-from .const import DOMAIN, CONF_GW, DEFAULT_GW, DEFAULT_PORT, GW_LIST
 from .hass_inst import GetHass
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,6 +30,8 @@ class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.host = None
         self.port = None
         self.gw = None
+        self.sensor_check = {}
+        self.user_input = {}
 
     async def async_step_user(
             self, user_input: dict[str, Any] | None = None
@@ -41,20 +42,33 @@ class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         errors = {}
         if user_input is not None:
-            _log(user_input[CONF_HOST])
-            _log(user_input[CONF_PORT])
-            _log(user_input[CONF_GW])
-            return self.async_create_entry(
-                title="金制空气", data=user_input
-            )
+            self.user_input.update(user_input)
+            if user_input.get(CONF_SENSORS) == False or user_input.get("temp") is not None:
+                return self.async_create_entry(
+                    title="金制空气", data=self.user_input
+                )
+            else:
+                return self.async_show_form(
+                    step_id="user",
+                    data_schema=vol.Schema({
+                        vol.Required("temp", default=True): bool,
+                        vol.Required("humidity", default=True): bool,
+                        vol.Required("pm25", default=True): bool,
+                        vol.Required("co2", default=True): bool,
+                        vol.Required("tvoc", default=True): bool,
+                        vol.Required("voc", default=False): bool,
+                        vol.Required("hcho", default=False): bool,
+                    }), errors=errors
+                )
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema({
-                vol.Required(CONF_HOST): str,
+                vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
                 vol.Required(CONF_PORT, default=DEFAULT_PORT): int,
-                vol.Optional(CONF_GW, default=DEFAULT_GW): vol.In(GW_LIST),
-                vol.Optional(CONF_SCAN_INTERVAL, default=5): vol.In([5])
+                vol.Required(CONF_GW, default=DEFAULT_GW): vol.In(GW_LIST),
+                vol.Required(CONF_SCAN_INTERVAL, default=5): int,
+                vol.Required(CONF_SENSORS, default=True): bool
             }), errors=errors
         )
 
@@ -80,10 +94,6 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
         sensors = hass.states.async_all("sensor")
         self._sensors = list(map(lambda state: state.entity_id,
                                  filter(lambda state: state.attributes.get("device_class") == "temperature", sensors)))
-        # self._sensors = []
-        # for s in sensors:
-        #     if s.attributes.get("device_class") == "temperature":
-        #         self._sensors.append(s.entity_id)
         self._config_data = []
 
     async def async_step_init(
@@ -103,8 +113,6 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
                 "climate": user_input.get("climate"),
                 "sensor": user_input.get("sensor")
             })
-            _log(user_input.get("climate"))
-            _log(user_input.get("sensor"))
         if self._cur == self._len:
             return self.async_create_entry(title="", data={"link": self._config_data})
 
