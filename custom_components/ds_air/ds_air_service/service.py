@@ -105,7 +105,11 @@ class RecvThread(Thread):
                 _log('\033[31mrecv:\033[0m')
                 _log(display(i))
                 self._locker.acquire()
-                i.do()
+                try:
+                    if i is not None:
+                        i.do()
+                except Exception as e:
+                    _log(e)
                 self._locker.release()
 
 
@@ -269,17 +273,17 @@ class Service:
 
     @staticmethod
     def set_sensors_status(sensors: typing.List[Sensor]):
-        for newSensor in sensors:
+        for new_sensor in sensors:
             for sensor in Service._sensors:
-                if sensor.name == newSensor.name or sensor.alias == newSensor.alias:
+                if sensor.unique_id == new_sensor.unique_id:
                     for attr in STATUS_ATTR:
-                        setattr(sensor, attr, getattr(newSensor, attr))
+                        setattr(sensor, attr, getattr(new_sensor, attr))
                     break
             for item in Service._sensor_hook:
                 unique_id, func = item
-                if newSensor.unique_id == unique_id:
+                if new_sensor.unique_id == unique_id:
                     try:
-                        func(newSensor)
+                        func(new_sensor)
                     except Exception as e:
                         _log(str(e))
 
