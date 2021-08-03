@@ -78,9 +78,13 @@ class SocketClient:
         if data is not None:
             _log("hex: 0x"+data.hex())
         while data:
-            r, b = decoder(data)
-            res.append(r)
-            data = b
+            try:
+                r, b = decoder(data)
+                res.append(r)
+                data = b
+            except Exception as e:
+                _log(e)
+                data = None
         return res
 
 
