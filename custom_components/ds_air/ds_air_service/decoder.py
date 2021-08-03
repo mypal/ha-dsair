@@ -5,7 +5,8 @@ from .base_bean import BaseBean
 from .config import Config
 from .ctrl_enum import EnumDevice, EnumCmdType, EnumFanDirection, EnumOutDoorRunCond, EnumFanVolume, EnumControl, \
     EnumSensor, FreshAirHumidification, ThreeDFresh
-from .dao import Room, AirCon, Geothermic, Ventilation, HD, Device, AirConStatus, get_device_by_aircon, Sensor
+from .dao import Room, AirCon, Geothermic, Ventilation, HD, Device, AirConStatus, get_device_by_aircon, Sensor, \
+    UNINITIALIZED_VALUE
 from .param import GetRoomInfoParam, AirConRecommendedIndoorTempParam, AirConCapabilityQueryParam, \
     AirConQueryStatusParam, Sensor2InfoParam
 
@@ -167,13 +168,13 @@ class Sensor2InfoResult(BaseResult):
         self._sensors: typing.List[Sensor] = []
 
     def load_bytes(self, b):
-        d = Decode(b)
-        self._mode = d.read1()
-        count = d.read1()
+        data = Decode(b)
+        self._mode = data.read1()
+        count = data.read1()
         self._count = count
         while count > 0:
-            self._room_id = d.read1()
-            d = Decode(d.read(d.read1()))
+            self._room_id = data.read1()
+            d = Decode(data.read(data.read1()))
             self._sensor_type = d.read1()
             unit_id = d.read1()
             sensor = Sensor()
@@ -185,24 +186,24 @@ class Sensor2InfoResult(BaseResult):
             sensor.name = sensor.alias
             sensor.type1 = d.read1()
             sensor.type2 = d.read1()
-            humidity = Sensor.UNINITIALIZED_VALUE
-            hcho = Sensor.UNINITIALIZED_VALUE
-            temp = Sensor.UNINITIALIZED_VALUE
+            humidity = UNINITIALIZED_VALUE
+            hcho = UNINITIALIZED_VALUE
+            temp = UNINITIALIZED_VALUE
             if (sensor.type1 & 1) == 1:
                 temp = d.read2()
             if ((sensor.type1 >> 1) & 1) == 1:
                 humidity = d.read2()
-            pm25 = Sensor.UNINITIALIZED_VALUE
+            pm25 = UNINITIALIZED_VALUE
             if (sensor.type1 >> 2) & 1 == 1:
                 pm25 = d.read2()
-            co2 = Sensor.UNINITIALIZED_VALUE
+            co2 = UNINITIALIZED_VALUE
             if (sensor.type1 >> 3) & 1 == 1:
                 co2 = d.read2()
             voc = EnumSensor.Voc.STEP_UNUSE
             if (sensor.type1 >> 4) & 1 == 1:
                 f = d.read1()
                 voc = EnumSensor.Voc(f)
-            tvoc = Sensor.UNINITIALIZED_VALUE
+            tvoc = UNINITIALIZED_VALUE
             if (sensor.type1 >> 5) & 1 == 1:
                 tvoc = d.read2()
             if (sensor.type1 >> 6) & 1 == 1:

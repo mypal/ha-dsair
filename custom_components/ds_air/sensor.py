@@ -5,7 +5,7 @@ from homeassistant.components.sensor import SensorEntity
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN, SENSOR_TYPES
-from .ds_air_service.dao import Sensor
+from .ds_air_service.dao import Sensor, UNINITIALIZED_VALUE
 from .ds_air_service.service import Service
 
 
@@ -89,7 +89,7 @@ class DsSensor(SensorEntity):
     def parse_data(self, device: Sensor, not_update: bool = False):
         """Parse data sent by gateway."""
         self._is_available = device.connected and device.switch_on_off
-        if Sensor.UNINITIALIZED_VALUE != getattr(device, self._data_key):
+        if UNINITIALIZED_VALUE != getattr(device, self._data_key):
             if type(SENSOR_TYPES.get(self._data_key)[3]) != int:
                 self._state = str(getattr(device, self._data_key))
             else:

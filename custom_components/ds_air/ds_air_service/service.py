@@ -5,7 +5,7 @@ import typing
 from threading import Thread, Lock
 
 from .ctrl_enum import EnumDevice
-from .dao import Room, AirCon, AirConStatus, get_device_by_aircon, Sensor
+from .dao import Room, AirCon, AirConStatus, get_device_by_aircon, Sensor, STATUS_ATTR
 from .decoder import decoder, BaseResult
 from .display import display
 from .param import Param, HandShakeParam, HeartbeatParam, AirConControlParam, AirConQueryStatusParam, Sensor2InfoParam
@@ -272,7 +272,7 @@ class Service:
         for newSensor in sensors:
             for sensor in Service._sensors:
                 if sensor.name == newSensor.name or sensor.alias == newSensor.alias:
-                    for attr in Sensor.STATUS_ATTR:
+                    for attr in STATUS_ATTR:
                         setattr(sensor, attr, getattr(newSensor, attr))
                     break
             for item in Service._sensor_hook:

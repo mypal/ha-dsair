@@ -94,13 +94,15 @@ class HD(Device):
         self.switch: EnumSwitch
 
 
-class Sensor(Device):
-    STATUS_ATTR = ["mac", "type1", "type2", "start_time", "stop_time", "sensor_type", "temp", "humidity", "pm25", "co2",
-                   "voc", "tvoc", "hcho", "switch_on_off", "temp_upper", "temp_lower", "humidity_upper",
-                   "humidity_lower", "pm25_upper", "pm25_lower", "co2_upper", "co2_lower", "voc_lower", "tvoc_upper",
-                   "hcho_upper", "connected", "sleep_mode_count", "time_millis"]
+STATUS_ATTR = ["mac", "type1", "type2", "start_time", "stop_time", "sensor_type", "temp", "humidity", "pm25", "co2",
+               "voc", "tvoc", "hcho", "switch_on_off", "temp_upper", "temp_lower", "humidity_upper",
+               "humidity_lower", "pm25_upper", "pm25_lower", "co2_upper", "co2_lower", "voc_lower", "tvoc_upper",
+               "hcho_upper", "connected", "sleep_mode_count", "time_millis"]
 
-    UNINITIALIZED_VALUE = -1000
+UNINITIALIZED_VALUE = -1000
+
+
+class Sensor(Device):
 
     def __init__(self):
         Device.__init__(self)
