@@ -75,12 +75,13 @@ class SocketClient:
                     return [], None
                 time.sleep(3)
                 self.do_connect()
-        d = data
+        if data is not None:
+            _log("hex: 0x"+data.hex())
         while data:
             r, b = decoder(data)
             res.append(r)
             data = b
-        return res, d
+        return res
 
 
 class RecvThread(Thread):
@@ -95,9 +96,7 @@ class RecvThread(Thread):
 
     def run(self) -> None:
         while self._running:
-            res, data = self._sock.recv()
-            if data is not None:
-                _log("hex: 0x"+data.hex())
+            res = self._sock.recv()
             for i in res:
                 _log('\033[31mrecv:\033[0m')
                 _log(display(i))
