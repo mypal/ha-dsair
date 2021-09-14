@@ -88,7 +88,7 @@ class DsSensor(SensorEntity):
 
     def parse_data(self, device: Sensor, not_update: bool = False):
         """Parse data sent by gateway."""
-        self._is_available = device.connected and device.switch_on_off
+        self._is_available = device.connected
         if UNINITIALIZED_VALUE != getattr(device, self._data_key):
             if type(SENSOR_TYPES.get(self._data_key)[3]) != int:
                 self._state = str(getattr(device, self._data_key))
