@@ -5,7 +5,7 @@ import typing
 from threading import Thread, Lock
 
 from .ctrl_enum import EnumDevice
-from .dao import Room, AirCon, AirConStatus, get_device_by_aircon, Sensor
+from .dao import Room, AirCon, AirConStatus, get_device_by_aircon, Sensor, STATUS_ATTR
 from .decoder import decoder, BaseResult
 from .display import display
 from .param import Param, HandShakeParam, HeartbeatParam, AirConControlParam, AirConQueryStatusParam, Sensor2InfoParam
@@ -75,12 +75,17 @@ class SocketClient:
                     return [], None
                 time.sleep(3)
                 self.do_connect()
-        d = data
+        if data is not None:
+            _log("hex: 0x"+data.hex())
         while data:
-            r, b = decoder(data)
-            res.append(r)
-            data = b
-        return res, d
+            try:
+                r, b = decoder(data)
+                res.append(r)
+                data = b
+            except Exception as e:
+                _log(e)
+                data = None
+        return res
 
 
 class RecvThread(Thread):
@@ -95,14 +100,16 @@ class RecvThread(Thread):
 
     def run(self) -> None:
         while self._running:
-            res, data = self._sock.recv()
-            if data is not None:
-                _log("hex: 0x"+data.hex())
+            res = self._sock.recv()
             for i in res:
                 _log('\033[31mrecv:\033[0m')
                 _log(display(i))
                 self._locker.acquire()
-                i.do()
+                try:
+                    if i is not None:
+                        i.do()
+                except Exception as e:
+                    _log(e)
                 self._locker.release()
 
 
@@ -266,17 +273,17 @@ class Service:
 
     @staticmethod
     def set_sensors_status(sensors: typing.List[Sensor]):
-        for newSensor in sensors:
+        for new_sensor in sensors:
             for sensor in Service._sensors:
-                if sensor.name == newSensor.name or sensor.alias == newSensor.alias:
-                    for attr in Sensor.STATUS_ATTR:
-                        setattr(sensor, attr, getattr(newSensor, attr))
+                if sensor.unique_id == new_sensor.unique_id:
+                    for attr in STATUS_ATTR:
+                        setattr(sensor, attr, getattr(new_sensor, attr))
                     break
             for item in Service._sensor_hook:
                 unique_id, func = item
-                if newSensor.unique_id == unique_id:
+                if new_sensor.unique_id == unique_id:
                     try:
-                        func(newSensor)
+                        func(new_sensor)
                     except Exception as e:
                         _log(str(e))
 
