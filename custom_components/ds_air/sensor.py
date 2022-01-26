@@ -1,4 +1,4 @@
-"""Support for Xiaomi Aqara sensors."""
+"""Support for Daikin sensors."""
 from typing import Optional
 
 from homeassistant.components.sensor import SensorEntity
@@ -20,10 +20,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
 
 
 class DsSensor(SensorEntity):
-    """Representation of a XiaomiSensor."""
+    """Representation of a DaikinSensor."""
 
     def __init__(self, device: Sensor, data_key):
-        """Initialize the XiaomiSensor."""
+        """Initialize the DaikinSensor."""
         self._data_key = data_key
         self._name = device.alias
         self._unique_id = device.unique_id
@@ -80,6 +80,11 @@ class DsSensor(SensorEntity):
             if self._data_key in SENSOR_TYPES
             else None
         )
+    
+    @property
+    def state_class(self):
+        """Return the state class of this entity."""
+        return SENSOR_TYPES.SensorStateClass.MEASUREMENT
 
     @property
     def state(self):
