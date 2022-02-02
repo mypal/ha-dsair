@@ -10,7 +10,7 @@ from .ds_air_service.service import Service
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Perform the setup for Xiaomi devices."""
+    """Perform the setup for Daikin devices."""
     entities = []
     for device in Service.get_sensors():
         for key in SENSOR_TYPES:
@@ -84,7 +84,7 @@ class DsSensor(SensorEntity):
     @property
     def state_class(self):
         """Return the state class of this entity."""
-        return SENSOR_TYPES.SensorStateClass.MEASUREMENT
+        return SensorEnity.SensorStateClass.MEASUREMENT
 
     @property
     def state(self):
