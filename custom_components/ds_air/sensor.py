@@ -1,7 +1,7 @@
 """Support for Daikin sensors."""
 from typing import Optional
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN, SENSOR_TYPES
@@ -84,7 +84,7 @@ class DsSensor(SensorEntity):
     @property
     def state_class(self):
         """Return the state class of this entity."""
-        return SensorEnity.SensorStateClass.MEASUREMENT
+        return SensorStateClass.MEASUREMENT
 
     @property
     def state(self):
