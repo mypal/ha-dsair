@@ -27,8 +27,6 @@ def decoder(b):
 
 def result_factory(data):
     r1, length, r2, r3, subbody_ver, r4, cnt, dev_type, dev_id, need_ack, cmd_type, subbody, r5 = data
-    print('**************')
-    print(cmd_type)
     if dev_id == EnumDevice.SYSTEM.value[1]:
         if cmd_type == EnumCmdType.SYS_ACK.value:
             result = AckResult(cnt, EnumDevice.SYSTEM)
@@ -419,12 +417,8 @@ class GetRoomInfoResult(BaseResult):
         for i in range(room_count):
             room = Room()
             room.id = d.read2()
-            print("subver")
-            print(self.subbody_ver)
             if self.subbody_ver == 1:
                 ver_flag = d.read1()
-                print("version")
-                print(ver_flag)
             if ver_flag != 2:
                 length = d.read1()
                 room.name = d.read_utf(length)
