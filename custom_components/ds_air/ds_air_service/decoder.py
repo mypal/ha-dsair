@@ -27,7 +27,6 @@ def decoder(b):
 
 def result_factory(data):
     r1, length, r2, r3, subbody_ver, r4, cnt, dev_type, dev_id, need_ack, cmd_type, subbody, r5 = data
-
     if dev_id == EnumDevice.SYSTEM.value[1]:
         if cmd_type == EnumCmdType.SYS_ACK.value:
             result = AckResult(cnt, EnumDevice.SYSTEM)
@@ -123,7 +122,10 @@ class Decode:
 
     def read_utf(self, l):
         pos = self._pos
-        s = self._b[pos:pos + l].decode('utf-8')
+        try:
+            s = self._b[pos:pos + l].decode('utf-8')
+        except UnicodeDecodeError:
+            s = None
         pos += l
         self._pos = pos
         return s
@@ -454,11 +456,13 @@ class GetRoomInfoResult(BaseResult):
                         dev = Device()
                     dev.room_id = room.id
                     dev.unit_id = unit_id
-                    if ver_flag != 1:
+                    if ver_flag > 2:
                         length = d.read1()
                         dev.name = d.read_utf(length)
                         length = d.read1()
                         dev.alias = d.read_utf(length)
+                        if dev.alias is None:
+                            dev.alias = room.alias
             self.rooms.append(room)
 
     def do(self):
