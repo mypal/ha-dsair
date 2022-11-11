@@ -49,6 +49,7 @@ class SocketClient:
 
     def send(self, p: Param):
         self._locker.acquire()
+        _log("send hex: 0x"+p.to_string().hex())
         _log('\033[31msend:\033[0m')
         _log(display(p))
         done = False
@@ -76,7 +77,7 @@ class SocketClient:
                 time.sleep(3)
                 self.do_connect()
         if data is not None:
-            _log("hex: 0x"+data.hex())
+            _log("recv hex: 0x"+data.hex())
         while data:
             try:
                 r, b = decoder(data)
