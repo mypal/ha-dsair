@@ -77,23 +77,25 @@ class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     def async_get_options_flow(
             config_entry: ConfigEntry,
     ) -> DsAirOptionsFlowHandler:
-        """Options callback for AccuWeather."""
+        """Options callback for DS-AIR."""
         return DsAirOptionsFlowHandler(config_entry)
 
 
 class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
-    """Config flow options for AccuWeather."""
+    """Config flow options for sensors binding."""
 
     def __init__(self, entry: ConfigEntry) -> None:
-        """Initialize AccuWeather options flow."""
+        """Initialize DSAir options flow."""
         self.config_entry = entry
         self._len = 3
         self._cur = 0
         hass: HomeAssistant = GetHass.get_hash()
         self._climates = list(map(lambda state: state.alias, Service.get_aircons()))
         sensors = hass.states.async_all("sensor")
-        self._sensors = list(map(lambda state: state.entity_id,
+        self._sensors_temp = list(map(lambda state: state.entity_id,
                                  filter(lambda state: state.attributes.get("device_class") == "temperature", sensors)))
+        self._sensors_humi = list(map(lambda state: state.entity_id,
+                                 filter(lambda state: state.attributes.get("device_class") == "humidity", sensors)))
         self._config_data = []
 
     async def async_step_init(
@@ -111,7 +113,8 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
         if user_input is not None:
             self._config_data.append({
                 "climate": user_input.get("climate"),
-                "sensor": user_input.get("sensor")
+                "sensor_temp": user_input.get("sensor_temp"),
+                "sensor_humi": user_input.get("sensor_humi")
             })
         if self._cur == self._len:
             return self.async_create_entry(title="", data={"link": self._config_data})
@@ -124,7 +127,8 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
                         "climate",
                         default=self._climates[self._cur]
                     ): vol.In([self._climates[self._cur]]),
-                    vol.Optional("sensor"): vol.In(self._sensors)
+                    vol.Optional("sensor_temp"): vol.In(self._sensors_temp),
+                    vol.Optional("sensor_humi"): vol.In(self._sensors_humi)
                 }
             )
         )

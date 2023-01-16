@@ -1,7 +1,8 @@
 from enum import Enum, IntEnum
 
 from homeassistant.components.climate.const import \
-    HVAC_MODE_COOL, HVAC_MODE_FAN_ONLY, HVAC_MODE_HEAT, HVAC_MODE_DRY, HVAC_MODE_AUTO, HVAC_MODE_HEAT_COOL
+    HVAC_MODE_COOL, HVAC_MODE_FAN_ONLY, HVAC_MODE_HEAT, HVAC_MODE_DRY, HVAC_MODE_AUTO, HVAC_MODE_HEAT_COOL, \
+    FAN_AUTO, FAN_LOW, FAN_MEDIUM, FAN_HIGH
 
 
 class EnumCmdType(IntEnum):
@@ -235,8 +236,8 @@ class AirFlow(IntEnum):
     AUTO = 5
 
 
-_AIR_FLOW_NAME_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
-
+#_AIR_FLOW_NAME_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
+_AIR_FLOW_NAME_LIST = [FAN_LOW, '稍弱', FAN_MEDIUM, '稍强', FAN_HIGH, FAN_AUTO]
 
 class Breathe(IntEnum):
     CLOSE = 0

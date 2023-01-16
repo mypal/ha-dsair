@@ -21,7 +21,6 @@ def _log(s: str):
     for i in s.split("\n"):
         _LOGGER.debug(i)
 
-
 def setup(hass, config):
     hass.data[DOMAIN] = {}
     GetHass.set_hass(hass)
