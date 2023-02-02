@@ -37,15 +37,15 @@ class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
 
-        if self._async_current_entries():
-            return self.async_abort(reason="single_instance_allowed")
+        #if self._async_current_entries():
+        #    return self.async_abort(reason="single_instance_allowed")
 
         errors = {}
         if user_input is not None:
             self.user_input.update(user_input)
             if user_input.get(CONF_SENSORS) == False or user_input.get("temp") is not None:
                 return self.async_create_entry(
-                    title="金制空气", data=self.user_input
+                    title="网关"+user_input.get(CONF_HOST), data=self.user_input
                 )
             else:
                 return self.async_show_form(
