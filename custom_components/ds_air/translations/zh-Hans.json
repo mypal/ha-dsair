@@ -23,7 +23,7 @@
     "error": {
     },
     "abort": {
-      "single_instance_allowed": "只允许创建一个实例"
+      "already_configured": "实例已经创建过"
     },
     "flow_title": "金制空气"
   },

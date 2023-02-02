@@ -23,7 +23,7 @@
     "error": {
     },
     "abort": {
-      "single_instance_allowed": "Only one instance is allowed."
+      "already_configured": "Device is already configured."
     },
     "flow_title": "DS-AIR"
   },

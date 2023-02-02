@@ -42,6 +42,8 @@ class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
         errors = {}
         if user_input is not None:
+            await self.async_set_unique_id(user_input.get(CONF_HOST))
+            self._abort_if_unique_id_configured()
             self.user_input.update(user_input)
             if user_input.get(CONF_SENSORS) == False or user_input.get("temp") is not None:
                 return self.async_create_entry(
