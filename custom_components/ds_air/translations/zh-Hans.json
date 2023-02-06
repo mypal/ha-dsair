@@ -1,0 +1,43 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "金制空气",
+        "description": "本插件支持大金DTA117B611/DTA117C611两款空调网关",
+        "data": {
+          "host": "网关IP",
+          "port": "网关端口",
+          "gw": "网关型号",
+          "scan_interval": "传感器更新频率（单位：分钟）",
+          "sensors": "是否有传感器",
+          "temp": "创建温度实体",
+          "humidity": "创建湿度实体",
+          "pm25": "创建PM2.5实体",
+          "co2": "创建CO2实体",
+          "tvoc": "创建tvoc实体",
+          "voc": "创建voc实体",
+          "hcho": "创建hcho实体"
+        }
+      }
+    },
+    "error": {
+    },
+    "abort": {
+      "single_instance_allowed": "只允许创建一个实例"
+    },
+    "flow_title": "金制空气"
+  },
+  "options": {
+    "step": {
+      "user": {
+        "title": "传感器关联",
+        "description": "为空调关联温湿度传感器",
+        "data": {
+          "climate": "空调名称",
+          "sensor_temp": "温度传感器实体ID",
+          "sensor_humi": "湿度传感器实体ID"
+        }
+      }
+    }
+  }
+}

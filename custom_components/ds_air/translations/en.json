@@ -2,39 +2,40 @@
   "config": {
     "step": {
       "user": {
-        "title": "\u91d1\u5236\u7a7a\u6c14",
-        "description": "\u672c\u63d2\u4ef6\u652f\u6301\u5927\u91d1DTA117B611/DTA117C611\u4e24\u6b3e\u7a7a\u8c03\u7f51\u5173",
+        "title": "DS-AIR",
+        "description": "Support DTA117B611/DTA117C611",
         "data": {
-          "host": "host",
-          "port": "port",
-          "gw": "\u7f51\u5173\u578b\u53f7",
-          "scan_interval": "\u4f20\u611f\u5668\u66f4\u65b0\u9891\u7387\uff08\u5355\u4f4d\uff1a\u5206\u949f\uff09",
-          "sensors": "\u662f\u5426\u6709\u4f20\u611f\u5668",
-          "temp": "\u521b\u5efatemperature\u5b9e\u4f53",
-          "humidity": "\u521b\u5efahumidity\u5b9e\u4f53",
-          "pm25": "\u521b\u5efapm25\u5b9e\u4f53",
-          "co2": "\u521b\u5efaco2\u5b9e\u4f53",
-          "tvoc": "\u521b\u5efatvoc\u5b9e\u4f53",
-          "voc": "\u521b\u5efavoc\u5b9e\u4f53",
-          "hcho": "\u521b\u5efahcho\u5b9e\u4f53"
+          "host": "Host",
+          "port": "Port",
+          "gw": "Gateway model",
+          "scan_interval": "Sensor update frequency (minutes)",
+          "sensors": "Has sensor",
+          "temp": "Create Temperature entity",
+          "humidity": "Create Humidity entity",
+          "pm25": "Create PM2.5 entity",
+          "co2": "Create CO2 entity",
+          "tvoc": "Create TVOC entity",
+          "voc": "Create VOC entity",
+          "hcho": "Create HCHO entity"
         }
       }
     },
     "error": {
     },
     "abort": {
-      "single_instance_allowed": "\u53ea\u5141\u8bb8\u521b\u5efa\u4e00\u4e2a"
+      "single_instance_allowed": "Only one instance is allowed."
     },
-    "flow_title": "\u91d1\u5236\u7a7a\u6c14"
+    "flow_title": "DS-AIR"
   },
   "options": {
     "step": {
       "user": {
-        "title": "\u6e29\u5ea6\u4f20\u611f\u5668\u5173\u8054",
-        "description": "\u53ef\u4ee5\u4e3a\u7a7a\u8c03\u5173\u8054\u6e29\u5ea6\u4f20\u611f\u5668",
+        "title": "Binding sensors",
+        "description": "Bind sensors to climate",
         "data": {
-          "climate": "climate name",
-          "sensor": "sensor entity_id"
+          "climate": "Climate name",
+          "sensor_temp": "Temperature sensor entity_id",
+          "sensor_humi": "Humidity sensor entity_id"
         }
       }
     }

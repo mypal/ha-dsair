@@ -21,7 +21,6 @@ def _log(s: str):
     for i in s.split("\n"):
         _LOGGER.debug(i)
 
-
 def setup(hass, config):
     hass.data[DOMAIN] = {}
     GetHass.set_hass(hass)
@@ -48,7 +47,7 @@ async def async_setup_entry(
 
     from .ds_air_service.service import Service
     await hass.async_add_executor_job(Service.init, host, port, scan_interval)
-    hass.config_entries.async_setup_platforms(entry, PLATFORMS)
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
     return True

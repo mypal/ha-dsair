@@ -16,7 +16,8 @@ from homeassistant.components.climate.const import (
     SUPPORT_SWING_MODE,
     SUPPORT_TARGET_HUMIDITY, HVAC_MODE_OFF, HVAC_MODE_HEAT, HVAC_MODE_COOL, HVAC_MODE_HEAT_COOL, HVAC_MODE_AUTO,
     HVAC_MODE_DRY,
-    HVAC_MODE_FAN_ONLY)
+    HVAC_MODE_FAN_ONLY,
+    FAN_AUTO, FAN_LOW, FAN_MEDIUM, FAN_HIGH)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE, CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant, Event
@@ -33,7 +34,8 @@ from .ds_air_service.display import display
 
 SUPPORT_FLAGS = SUPPORT_TARGET_TEMPERATURE | SUPPORT_FAN_MODE | SUPPORT_SWING_MODE \
                 | SUPPORT_SWING_MODE | SUPPORT_TARGET_HUMIDITY
-FAN_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
+#FAN_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
+FAN_LIST = [FAN_LOW, '稍弱', FAN_MEDIUM, '稍强', FAN_HIGH, FAN_AUTO]
 SWING_LIST = ['➡️', '↘️', '⬇️', '↙️', '⬅️', '↔️', '🔄']
 
 PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
@@ -43,17 +45,15 @@ PLATFORM_SCHEMA = PLATFORM_SCHEMA.extend({
 
 _LOGGER = logging.getLogger(__name__)
 
-
 def _log(s: str):
     s = str(s)
     for i in s.split("\n"):
         _LOGGER.debug(i)
 
-
 async def async_setup_entry(
         hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
-    """Set up the Demo climate devices."""
+    """Set up the climate devices."""
 
     from .ds_air_service.service import Service
     climates = []
@@ -61,32 +61,51 @@ async def async_setup_entry(
         climates.append(DsAir(aircon))
     async_add_entities(climates)
     link = entry.options.get("link")
-    sensor_map = {}
+    sensor_temp_map = {}
+    sensor_humi_map = {}
     if link is not None:
         for i in link:
-            if i.get("sensor") is not None:
+            if i.get("sensor_temp") is not None:
                 climate = None
                 for j in climates:
                     if i.get("climate") == j.name:
                         climate = j
                         break
-                if sensor_map.get(i.get("sensor")) is not None:
-                    sensor_map[i.get("sensor")].append(climate)
+                if sensor_temp_map.get(i.get("sensor_temp")) is not None:
+                    sensor_temp_map[i.get("sensor_temp")].append(climate)
                 else:
-                    sensor_map[i.get("sensor")] = [climate]
+                    sensor_temp_map[i.get("sensor_temp")] = [climate]
+            if i.get("sensor_humi") is not None:
+                climate = None
+                for j in climates:
+                    if i.get("climate") == j.name:
+                        climate = j
+                        break
+                if sensor_humi_map.get(i.get("sensor_humi")) is not None:
+                    sensor_humi_map[i.get("sensor_humi")].append(climate)
+                else:
+                    sensor_humi_map[i.get("sensor_humi")] = [climate]
 
-    async def listener(event: Event):
-        for climate in sensor_map[event.data.get("entity_id")]:
-            climate.update_cur_temp(event.data.get("new_state").state)
+    async def listner(event: Event):
+        if event.data.get("entity_id") in sensor_temp_map:
+            for climate in sensor_temp_map[event.data.get("entity_id")]:
+                climate.update_cur_temp(event.data.get("new_state").state)
+        elif event.data.get("entity_id") in sensor_humi_map:
+            for climate in sensor_humi_map[event.data.get("entity_id")]:
+                climate.update_cur_humi(event.data.get("new_state").state)
 
-    remove_listener = async_track_state_change_event(hass, list(sensor_map.keys()), listener)
+    remove_listener = async_track_state_change_event(hass, list(sensor_temp_map.keys()) + list(sensor_humi_map.keys()), listner)
     hass.data[DOMAIN]["listener"] = remove_listener
-    for entity_id in sensor_map.keys():
+    for entity_id in sensor_temp_map.keys():
         state = hass.states.get(entity_id)
         if state is not None:
-            for climate in sensor_map[entity_id]:
+            for climate in sensor_temp_map[entity_id]:
                 climate.update_cur_temp(state.state)
-
+    for entity_id in sensor_humi_map.keys():
+        state = hass.states.get(entity_id)
+        if state is not None:
+            for climate in sensor_humi_map[entity_id]:
+                climate.update_cur_humi(state.state)
 
 class DsAir(ClimateEntity):
     """Representation of a demo climate device."""
@@ -100,7 +119,9 @@ class DsAir(ClimateEntity):
         self._device_info = aircon
         self._unique_id = aircon.unique_id
         self._link_cur_temp = False
+        self._link_cur_humi = False
         self._cur_temp = None
+        self._cur_humi = None
         from .ds_air_service.service import Service
         Service.register_status_hook(aircon, self._status_change_hook)
 
@@ -140,6 +161,14 @@ class DsAir(ClimateEntity):
         self._link_cur_temp = value is not None
         try:
             self._cur_temp = float(value)
+        except ValueError:
+            """Ignore"""
+        self.schedule_update_ha_state()
+
+    def update_cur_humi(self, value):
+        self._link_cur_humi = value is not None
+        try:
+            self._cur_humi = int(float(value))
         except ValueError:
             """Ignore"""
         self.schedule_update_ha_state()
@@ -234,7 +263,10 @@ class DsAir(ClimateEntity):
     @property
     def current_humidity(self):
         """Return the current humidity."""
-        return None
+        if self._link_cur_humi:
+            return self._cur_humi
+        else:
+            return None
 
     @property
     def preset_mode(self) -> Optional[str]:
