@@ -163,7 +163,7 @@ class DsAir(ClimateEntity):
             self._cur_temp = float(value)
         except ValueError:
             """Ignore"""
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
     def update_cur_humi(self, value):
         self._link_cur_humi = value is not None
@@ -171,7 +171,7 @@ class DsAir(ClimateEntity):
             self._cur_humi = int(float(value))
         except ValueError:
             """Ignore"""
-        self.schedule_update_ha_state()
+        self.async_schedule_update_ha_state()
 
     @property
     def should_poll(self):
