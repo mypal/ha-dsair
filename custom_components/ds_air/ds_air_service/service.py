@@ -202,7 +202,14 @@ class Service:
 
     @staticmethod
     def get_aircons():
-        return Service._new_aircons+Service._aircons+Service._bathrooms
+        aircons = []
+        if Service._new_aircons is not None:
+            aircons += Service._new_aircons
+        if Service._aircons is not None:
+            aircons += Service._aircons
+        if Service._bathrooms is not None:
+            aircons += Service._bathrooms
+        return aircons
 
     @staticmethod
     def control(aircon: AirCon, status: AirConStatus):
