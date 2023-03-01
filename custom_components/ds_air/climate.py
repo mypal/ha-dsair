@@ -61,51 +61,31 @@ async def async_setup_entry(
         climates.append(DsAir(aircon))
     async_add_entities(climates)
     link = entry.options.get("link")
-    sensor_temp_map = {}
-    sensor_humi_map = {}
+    sensor_temp_map: dict[str, list[DsAir]] = {}
+    sensor_humi_map: dict[str, list[DsAir]] = {}
     if link is not None:
         for i in link:
-            if i.get("sensor_temp") is not None:
-                climate = None
-                for j in climates:
-                    if i.get("climate") == j.name:
-                        climate = j
-                        break
-                if sensor_temp_map.get(i.get("sensor_temp")) is not None:
-                    sensor_temp_map[i.get("sensor_temp")].append(climate)
-                else:
-                    sensor_temp_map[i.get("sensor_temp")] = [climate]
-            if i.get("sensor_humi") is not None:
-                climate = None
-                for j in climates:
-                    if i.get("climate") == j.name:
-                        climate = j
-                        break
-                if sensor_humi_map.get(i.get("sensor_humi")) is not None:
-                    sensor_humi_map[i.get("sensor_humi")].append(climate)
-                else:
-                    sensor_humi_map[i.get("sensor_humi")] = [climate]
+            climate_name = i.get("climate")
+            if climate := next(c for c in climates if c.name == climate_name):
+                if temp_entity_id := i.get("sensor_temp"):
+                    sensor_temp_map.setdefault(temp_entity_id, []).append(climate)
+                    climate.linked_temp_entity_id = temp_entity_id
+                if humi_entity_id := i.get("sensor_humi"):
+                    sensor_humi_map.setdefault(humi_entity_id, []).append(climate)
+                    climate.linked_humi_entity_id = humi_entity_id
 
-    async def listner(event: Event):
-        if event.data.get("entity_id") in sensor_temp_map:
-            for climate in sensor_temp_map[event.data.get("entity_id")]:
+    async def listener(event: Event):
+        sensor_id = event.data.get("entity_id")
+        if sensor_id in sensor_temp_map:
+            for climate in sensor_temp_map[sensor_id]:
                 climate.update_cur_temp(event.data.get("new_state").state)
-        elif event.data.get("entity_id") in sensor_humi_map:
-            for climate in sensor_humi_map[event.data.get("entity_id")]:
+        elif sensor_id in sensor_humi_map:
+            for climate in sensor_humi_map[sensor_id]:
                 climate.update_cur_humi(event.data.get("new_state").state)
 
-    remove_listener = async_track_state_change_event(hass, list(sensor_temp_map.keys()) + list(sensor_humi_map.keys()), listner)
+    remove_listener = async_track_state_change_event(hass, list(sensor_temp_map.keys()) + list(sensor_humi_map.keys()), listener)
     hass.data[DOMAIN]["listener"] = remove_listener
-    for entity_id in sensor_temp_map.keys():
-        state = hass.states.get(entity_id)
-        if state is not None:
-            for climate in sensor_temp_map[entity_id]:
-                climate.update_cur_temp(state.state)
-    for entity_id in sensor_humi_map.keys():
-        state = hass.states.get(entity_id)
-        if state is not None:
-            for climate in sensor_humi_map[entity_id]:
-                climate.update_cur_humi(state.state)
+
 
 class DsAir(ClimateEntity):
     """Representation of a demo climate device."""
@@ -118,12 +98,22 @@ class DsAir(ClimateEntity):
         self._name = aircon.alias
         self._device_info = aircon
         self._unique_id = aircon.unique_id
+        self.linked_temp_entity_id: str | None = None
+        self.linked_humi_entity_id: str | None = None
         self._link_cur_temp = False
         self._link_cur_humi = False
         self._cur_temp = None
         self._cur_humi = None
         from .ds_air_service.service import Service
         Service.register_status_hook(aircon, self._status_change_hook)
+
+    async def async_added_to_hass(self) -> None:
+        if self.linked_temp_entity_id:
+            if state := self.hass.states.get(self.linked_temp_entity_id):
+                self.update_cur_temp(state.state)
+        if self.linked_humi_entity_id:
+            if state := self.hass.states.get(self.linked_humi_entity_id):
+                self.update_cur_humi(state.state)
 
     def _status_change_hook(self, **kwargs):
         _log('hook:')
