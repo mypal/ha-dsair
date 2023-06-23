@@ -244,7 +244,7 @@ class DsAir(ClimateEntity):
     @property
     def target_temperature_step(self):
         """Return the supported step of target temperature."""
-        return 1
+        return 0.5
 
     @property
     def target_temperature_high(self):
@@ -326,8 +326,8 @@ class DsAir(ClimateEntity):
             new_status = AirConStatus()
             if status.switch == EnumControl.Switch.ON \
                     and status.mode not in [EnumControl.Mode.VENTILATION, EnumControl.Mode.MOREDRY]:
-                status.setted_temp = round(kwargs.get(ATTR_TEMPERATURE)) * 10
-                new_status.setted_temp = round(kwargs.get(ATTR_TEMPERATURE)) * 10
+                status.setted_temp = round(kwargs.get(ATTR_TEMPERATURE) * 10.0)
+                new_status.setted_temp = round(kwargs.get(ATTR_TEMPERATURE) * 10.0)
                 from .ds_air_service.service import Service
                 Service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
