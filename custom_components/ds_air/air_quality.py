@@ -1,4 +1,4 @@
-"""Demo platform that offers fake air quality data."""
+"""Offers Daikin air quality data."""
 from homeassistant.components.air_quality import AirQualityEntity
 
 
