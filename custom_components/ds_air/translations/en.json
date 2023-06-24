@@ -29,13 +29,24 @@
   },
   "options": {
     "step": {
-      "user": {
-        "title": "Binding sensors",
-        "description": "Bind sensors to climate",
+      "init": {
+        "title": "金制空气",
+        "menu_options": {
+            "adjust_config": "调整设置",
+            "bind_sensors": "关联传感器"
+        }
+      },
+      "bind_sensors": {
+        "title": "传感器关联",
+        "description": "为空调关联温湿度传感器",
         "data": {
-          "climate": "Climate name",
-          "sensor_temp": "Temperature sensor entity_id",
-          "sensor_humi": "Humidity sensor entity_id"
+          "climate": "空调名称",
+          "sensor_temp": "温度传感器实体ID",
+          "sensor_humi": "湿度传感器实体ID"
+        },
+        "empty": {
+          "title": "无数据",
+          "description": "没有可操作的空调"
         }
       }
     }
