@@ -417,26 +417,22 @@ class DsAir(ClimateEntity):
         aircon = self._device_info
         status = aircon.status
         new_status = AirConStatus()
+        m = EnumControl.Mode
+        mode = None
         if preset_mode == PRESET_NONE:
-            if aircon.relax_mode:
-                mode = EnumControl.Mode.RELAX
+            if aircon.auto_mode:
+                mode = m.AUTO
+            elif aircon.relax_mode:
+                mode = m.RELAX
             else:
-                mode = EnumControl.Mode.COLD
-            status.mode = mode
-            new_status.mode = mode
-            from .ds_air_service.service import Service
-            Service.control(self._device_info, new_status)
+                mode = m.COLD
         else:
-            status.switch = EnumControl.Switch.ON
-            new_status.switch = EnumControl.Switch.ON
-            m = EnumControl.Mode
-            mode = None
             if preset_mode == PRESET_SLEEP:
                 mode = m.SLEEP
-            status.mode = mode
-            new_status.mode = mode
-            from .ds_air_service.service import Service
-            Service.control(self._device_info, new_status)
+        status.mode = mode
+        new_status.mode = mode
+        from .ds_air_service.service import Service
+        Service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
 
     def turn_aux_heat_on(self) -> None:
