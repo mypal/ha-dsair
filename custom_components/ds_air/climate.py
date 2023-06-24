@@ -1,5 +1,5 @@
 """
-Demo platform that offers a fake climate device.
+Daikin platform that offers climate devices.
 
 For more details about this platform, please refer to the documentation
 https://home-assistant.io/components/demo/
@@ -477,7 +477,7 @@ class DsAir(ClimateEntity):
         return {
             "identifiers": {(DOMAIN, self.unique_id)},
             "name": "空调%s" % self._name,
-            "manufacturer": "DAIKIN INDUSTRIES, Ltd."
+            "manufacturer": " Daikin Industries, Ltd."
         }
 
     @property
