@@ -479,7 +479,7 @@ class DsAir(ClimateEntity):
         return {
             "identifiers": {(DOMAIN, self.unique_id)},
             "name": "空调%s" % self._name,
-            "manufacturer": " Daikin Industries, Ltd."
+            "manufacturer": "Daikin Industries, Ltd."
         }
 
     @property
