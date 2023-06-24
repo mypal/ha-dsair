@@ -390,8 +390,10 @@ class DsAir(ClimateEntity):
             elif hvac_mode == HVACMode.AUTO:
                 if aircon.auto_mode:
                     mode = m.AUTO
-                else:
+                elif aircon.relax_mode:
                     mode = m.RELAX
+                else:
+                    mode = m.SLEEP
             status.mode = mode
             new_status.mode = mode
             from .ds_air_service.service import Service
