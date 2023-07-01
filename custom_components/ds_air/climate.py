@@ -24,7 +24,7 @@ from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
     HVACMode,
-    PRESET_NONE, PRESET_SLEEP,
+    PRESET_NONE, PRESET_SLEEP, PRESET_COMFORT,
     FAN_AUTO, FAN_LOW, FAN_MEDIUM, FAN_HIGH
 )
 from homeassistant.config_entries import ConfigEntry
@@ -272,6 +272,8 @@ class DsAir(ClimateEntity):
         """
         if self._device_info.status.mode == EnumControl.Mode.SLEEP:
             return PRESET_SLEEP
+        elif self._device_info.status.mode == EnumControl.Mode.RELAX:
+            return PRESET_COMFORT
         else:
             return PRESET_NONE
 
@@ -285,6 +287,8 @@ class DsAir(ClimateEntity):
         aircon = self._device_info
         if aircon.sleep_mode:
             result.append(PRESET_SLEEP)
+        if aircon.relax_mode:
+            result.append(PRESET_COMFORT)
         result.append(PRESET_NONE)
         return result
 
@@ -429,6 +433,8 @@ class DsAir(ClimateEntity):
         else:
             if preset_mode == PRESET_SLEEP:
                 mode = m.SLEEP
+            elif preset_mode == PRESET_COMFORT:
+                mode = m.RELAX
         status.mode = mode
         new_status.mode = mode
         from .ds_air_service.service import Service
