@@ -45,7 +45,7 @@ class DsSensor(SensorEntity):
         return {
             "identifiers": {(DOMAIN, self._unique_id)},
             "name": "传感器%s" % self._name,
-            "manufacturer": "DAIKIN INDUSTRIES, Ltd."
+            "manufacturer": "Daikin Industries, Ltd."
         }
 
     @property

@@ -80,15 +80,13 @@ class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         """Options callback for DS-AIR."""
         return DsAirOptionsFlowHandler(config_entry)
 
-
 class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
-    """Config flow options for sensors binding."""
-
-    def __init__(self, entry: ConfigEntry) -> None:
-        """Initialize DSAir options flow."""
-        self.config_entry = entry
-        self._len = 3
-        self._cur = 0
+    """Config flow options for intergration"""
+    
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
+        self._config_data = []
         hass: HomeAssistant = GetHass.get_hash()
         self._climates = list(map(lambda state: state.alias, Service.get_aircons()))
         sensors = hass.states.async_all("sensor")
@@ -96,31 +94,86 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
                                  filter(lambda state: state.attributes.get("device_class") == "temperature", sensors)))
         self._sensors_humi = list(map(lambda state: state.entity_id,
                                  filter(lambda state: state.attributes.get("device_class") == "humidity", sensors)))
-        self._config_data = []
-
+        self._len = len(self._climates)
+        self._cur = -1
+        self.host = CONF_HOST
+        self.port = CONF_PORT
+        self.gw = CONF_GW
+        self.sensor_check = CONF_SENSORS
+        self.user_input = {}
+    
     async def async_step_init(
-            self, user_input: dict[str, Any] | None = None
+        self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options."""
-        self._len = len(self._climates)
-        self._cur = 0
-        return await self.async_step_user()
+        return self.async_show_menu(
+            step_id="init",
+            menu_options=[
+                "adjust_config",
+                "bind_sensors"
+            ],
+        ) 
 
-    async def async_step_user(
+    async def async_step_adjust_config(
             self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle a flow initialized by the user."""
+
+        errors = {}
+        if user_input is not None:
+            self.user_input.update(user_input)
+            if self.user_input.get('_invaild'):
+                self.user_input['_invaild'] = False
+                self.hass.config_entries.async_update_entry(self.config_entry, data=self.user_input)
+                return self.async_create_entry(title='', data={})
+        else:
+            self.user_input['_invaild'] = True
+            if CONF_SENSORS:
+                return self.async_show_form(
+                    step_id="adjust_config",
+                    data_schema=vol.Schema({
+                        vol.Required(CONF_HOST, default=self.config_entry.data[CONF_HOST]): str,
+                        vol.Required(CONF_PORT, default=self.config_entry.data[CONF_PORT]): int,
+                        vol.Required(CONF_GW, default=self.config_entry.data[CONF_GW]): vol.In(GW_LIST),
+                        vol.Required(CONF_SCAN_INTERVAL, default=self.config_entry.data[CONF_SCAN_INTERVAL]): int,
+                        vol.Required(CONF_SENSORS, default=True): bool,
+                        vol.Required("temp", default=self.config_entry.data["temp"]): bool,
+                        vol.Required("humidity", default=self.config_entry.data["humidity"]): bool,
+                        vol.Required("pm25", default=self.config_entry.data["pm25"]): bool,
+                        vol.Required("co2", default=self.config_entry.data["co2"]): bool,
+                        vol.Required("tvoc", default=self.config_entry.data["tvoc"]): bool,
+                        vol.Required("voc", default=self.config_entry.data["voc"]): bool,
+                        vol.Required("hcho", default=self.config_entry.data["hcho"]): bool,
+                    }), errors=errors
+                )
+            else:
+                return self.async_show_form(
+                    step_id="adjust_config",
+                    data_schema=vol.Schema({
+                        vol.Required(CONF_HOST, default=self.config_entry.data[CONF_HOST]): str,
+                        vol.Required(CONF_PORT, default=self.config_entry.data[CONF_PORT]): int,
+                        vol.Required(CONF_GW, default=self.config_entry.data[CONF_GW]): vol.In(GW_LIST),
+                        vol.Required(CONF_SCAN_INTERVAL, default=self.config_entry.data[CONF_SCAN_INTERVAL]): int,
+                        vol.Required(CONF_SENSORS, default=False): bool
+                    }), errors=errors
+                )
+    
+    async def async_step_bind_sensors(
+            self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle bind flow."""
+        if self._len == 0:
+            return self.async_show_form(step_id="empty", last_step=False)
         if user_input is not None:
             self._config_data.append({
                 "climate": user_input.get("climate"),
                 "sensor_temp": user_input.get("sensor_temp"),
                 "sensor_humi": user_input.get("sensor_humi")
             })
-        if self._cur == self._len:
+        self._cur = self._cur + 1
+        if self._cur > (self._len - 1):
             return self.async_create_entry(title="", data={"link": self._config_data})
-
-        form = self.async_show_form(
-            step_id="user",
+        return self.async_show_form(
+            step_id="bind_sensors",
             data_schema=vol.Schema(
                 {
                     vol.Required(
@@ -133,6 +186,8 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
             )
         )
 
-        self._cur = self._cur + 1
-
-        return form
+    async def async_step_empty(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """No AC found."""
+        return await self.async_step_init(user_input)
