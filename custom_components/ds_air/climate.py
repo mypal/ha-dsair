@@ -23,7 +23,7 @@ from homeassistant.components.climate import PLATFORM_SCHEMA
 from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityFeature,
-    HVACMode,
+    HVACMode, HVACAction,
     PRESET_NONE, PRESET_SLEEP, PRESET_COMFORT,
     FAN_AUTO, FAN_LOW, FAN_MEDIUM, FAN_HIGH
 )
@@ -194,7 +194,10 @@ class DsAir(ClimateEntity):
     @property
     def hvac_action(self):
         """Return current operation ie. heat, cool, idle."""
-        return None
+        if self._device_info.status.switch == EnumControl.Switch.OFF:
+            return HVACAction.OFF
+        else:
+            return EnumControl.get_action_name(self._device_info.status.mode.value)
 
     @property
     def hvac_mode(self) -> str:
