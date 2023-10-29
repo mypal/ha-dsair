@@ -1,8 +1,20 @@
-from homeassistant.const import UnitOfTemperature, PERCENTAGE, CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, \
-    CONCENTRATION_PARTS_PER_MILLION, CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER
-from homeassistant.components.sensor import SensorDeviceClass
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
-from .ds_air_service.ctrl_enum import EnumSensor
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntityDescription,
+    SensorStateClass,
+)
+from homeassistant.const import (
+    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+    CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
+    CONCENTRATION_PARTS_PER_MILLION,
+    MAJOR_VERSION,
+    PERCENTAGE,
+    UnitOfTemperature,
+)
 
 DOMAIN = "ds_air"
 CONF_GW = "gw"
@@ -10,12 +22,57 @@ DEFAULT_HOST = "192.168.1."
 DEFAULT_PORT = 8008
 DEFAULT_GW = "DTA117C611"
 GW_LIST = ["DTA117C611", "DTA117B611"]
-SENSOR_TYPES = {
-    "temp": [UnitOfTemperature.CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
-    "humidity": [PERCENTAGE, None, SensorDeviceClass.HUMIDITY, 10],
-    "pm25": [CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, None, SensorDeviceClass.PM25, 1],
-    "co2": [CONCENTRATION_PARTS_PER_MILLION, None, SensorDeviceClass.CO2, 1],
-    "tvoc": [CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, None, SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS, 0.1],
-    "voc": [None, None, SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS_PARTS, EnumSensor.Voc],
-    "hcho": [CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER, None, None, 100],
+
+FROZEN = MAJOR_VERSION >= 2024
+
+
+@dataclass(frozen=FROZEN, kw_only=True)
+class DsSensorEntityDescription(SensorEntityDescription):
+    has_entity_name: bool = True
+    state_class: SensorStateClass = SensorStateClass.MEASUREMENT
+    value_fn: Callable[[Any], Any] | None = lambda x: x
+
+
+SENSOR_DESCRIPTORS = {
+    "temp": DsSensorEntityDescription(
+        key="temp",
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        device_class=SensorDeviceClass.TEMPERATURE,
+        value_fn=lambda x: x / 10,
+    ),
+    "humidity": DsSensorEntityDescription(
+        key="humidity",
+        native_unit_of_measurement=PERCENTAGE,
+        device_class=SensorDeviceClass.HUMIDITY,
+        value_fn=lambda x: x / 10,
+    ),
+    "pm25": DsSensorEntityDescription(
+        key="pm25",
+        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        device_class=SensorDeviceClass.PM25,
+    ),
+    "co2": DsSensorEntityDescription(
+        key="co2",
+        native_unit_of_measurement=CONCENTRATION_PARTS_PER_MILLION,
+        device_class=SensorDeviceClass.CO2,
+    ),
+    "tvoc": DsSensorEntityDescription(
+        key="tvoc",
+        name="TVOC",
+        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        device_class=SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS,
+        suggested_display_precision=0,
+        value_fn=lambda x: x * 10,
+    ),
+    "voc": DsSensorEntityDescription(
+        key="voc",
+        device_class=SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS_PARTS,
+        value_fn=lambda x: str(x),  # EnumSensor.Voc
+    ),
+    "hcho": DsSensorEntityDescription(
+        key="hcho",
+        name="HCHO",
+        native_unit_of_measurement=CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
+        value_fn=lambda x: x / 100,
+    ),
 }
