@@ -1,9 +1,13 @@
 from enum import Enum, IntEnum
 
-from homeassistant.components.climate.const import \
-    HVAC_MODE_COOL, HVAC_MODE_FAN_ONLY, HVAC_MODE_HEAT, HVAC_MODE_DRY, HVAC_MODE_AUTO, HVAC_MODE_HEAT_COOL, \
-    FAN_AUTO, FAN_LOW, FAN_MEDIUM, FAN_HIGH, \
-    HVACAction
+from homeassistant.components.climate.const import (
+    FAN_AUTO,
+    FAN_HIGH,
+    FAN_LOW,
+    FAN_MEDIUM,
+    HVACAction,
+    HVACMode,
+)
 
 
 class EnumCmdType(IntEnum):
@@ -293,11 +297,11 @@ class Mode(IntEnum):
     MOREDRY = 9
 
 # Legacy Mode Mapping
-#_MODE_NAME_LIST = [HVAC_MODE_COOL, HVAC_MODE_DRY, HVAC_MODE_FAN_ONLY, HVAC_MODE_AUTO, HVAC_MODE_HEAT,
-#                   HVAC_MODE_DRY, HVAC_MODE_AUTO, HVAC_MODE_HEAT_COOL, HVAC_MODE_HEAT, HVAC_MODE_DRY]
+#_MODE_NAME_LIST = [HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO, HVACMode.HEAT,
+#                   HVACMode.DRY, HVACMode.AUTO, HVACMode.HEAT_COOL, HVACMode.HEAT, HVACMode.DRY]
 
-_MODE_NAME_LIST = [HVAC_MODE_COOL, HVAC_MODE_DRY, HVAC_MODE_FAN_ONLY, HVAC_MODE_AUTO, HVAC_MODE_HEAT,
-                   HVAC_MODE_DRY, HVAC_MODE_AUTO, HVAC_MODE_AUTO, HVAC_MODE_HEAT, HVAC_MODE_DRY]
+_MODE_NAME_LIST = [HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO, HVACMode.HEAT,
+                   HVACMode.DRY, HVACMode.AUTO, HVACMode.AUTO, HVACMode.HEAT, HVACMode.DRY]
 _MODE_ACTION_LIST = [HVACAction.COOLING, HVACAction.DRYING, HVACAction.FAN, None, HVACAction.HEATING,
                    HVACAction.DRYING, None, None, HVACAction.PREHEATING, HVACAction.DRYING]
 
@@ -333,7 +337,7 @@ class EnumControl:
     @staticmethod
     def get_mode_name(idx):
         return _MODE_NAME_LIST[idx]
-    
+
     def get_action_name(idx):
         return _MODE_ACTION_LIST[idx]
 
