@@ -1,4 +1,4 @@
-from homeassistant.const import TEMP_CELSIUS, PERCENTAGE, CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, \
+from homeassistant.const import UnitOfTemperature, PERCENTAGE, CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, \
     CONCENTRATION_PARTS_PER_MILLION, CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER
 from homeassistant.components.sensor import SensorDeviceClass
 
@@ -11,7 +11,7 @@ DEFAULT_PORT = 8008
 DEFAULT_GW = "DTA117C611"
 GW_LIST = ["DTA117C611", "DTA117B611"]
 SENSOR_TYPES = {
-    "temp": [TEMP_CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
+    "temp": [UnitOfTemperature.CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
     "humidity": [PERCENTAGE, None, SensorDeviceClass.HUMIDITY, 10],
     "pm25": [CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, None, SensorDeviceClass.PM25, 1],
     "co2": [CONCENTRATION_PARTS_PER_MILLION, None, SensorDeviceClass.CO2, 1],

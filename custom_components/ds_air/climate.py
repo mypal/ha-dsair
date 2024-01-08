@@ -9,18 +9,8 @@ import logging
 from typing import Optional, List
 
 import voluptuous as vol
-from homeassistant.components.climate import ClimateEntity
-from homeassistant.components.climate import PLATFORM_SCHEMA
-""" from homeassistant.components.climate.const import (
-    SUPPORT_TARGET_TEMPERATURE,
-    SUPPORT_FAN_MODE,
-    SUPPORT_SWING_MODE,
-    SUPPORT_TARGET_HUMIDITY,
-    HVAC_MODE_OFF, HVAC_MODE_HEAT, HVAC_MODE_COOL, HVAC_MODE_HEAT_COOL, HVAC_MODE_AUTO,
-    HVAC_MODE_DRY,
-    HVAC_MODE_FAN_ONLY,
-    FAN_AUTO, FAN_LOW, FAN_MEDIUM, FAN_HIGH) """
 from homeassistant.components.climate import (
+    PLATFORM_SCHEMA,
     ClimateEntity,
     ClimateEntityFeature,
     HVACMode, HVACAction,
@@ -28,7 +18,7 @@ from homeassistant.components.climate import (
     FAN_AUTO, FAN_LOW, FAN_MEDIUM, FAN_HIGH
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import TEMP_CELSIUS, ATTR_TEMPERATURE, CONF_HOST, CONF_PORT
+from homeassistant.const import UnitOfTemperature, ATTR_TEMPERATURE, CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant, Event
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity import DeviceInfo
@@ -184,7 +174,7 @@ class DsAir(ClimateEntity):
     @property
     def temperature_unit(self):
         """Return the unit of measurement."""
-        return TEMP_CELSIUS
+        return UnitOfTemperature.CELSIUS
 
     @property
     def target_humidity(self):
