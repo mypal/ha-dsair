@@ -18,7 +18,7 @@ from homeassistant.components.climate import (
     FAN_AUTO, FAN_LOW, FAN_MEDIUM, FAN_HIGH
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import UnitOfTemperature, ATTR_TEMPERATURE, CONF_HOST, CONF_PORT
+from homeassistant.const import MAJOR_VERSION, MINOR_VERSION, UnitOfTemperature, ATTR_TEMPERATURE, CONF_HOST, CONF_PORT
 from homeassistant.core import HomeAssistant, Event
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity import DeviceInfo
@@ -33,6 +33,9 @@ from .ds_air_service.display import display
 
 _SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.PRESET_MODE
 #                | ClimateEntityFeature.SWING_MODE | ClimateEntityFeature.TARGET_HUMIDITY
+if (MAJOR_VERSION, MINOR_VERSION) >= (2024, 2):
+    _SUPPORT_FLAGS |= ClimateEntityFeature.TURN_ON | ClimateEntityFeature.TURN_OFF
+
 FAN_LIST = [ FAN_LOW, '稍弱', FAN_MEDIUM, '稍强', FAN_HIGH, FAN_AUTO]
 SWING_LIST = ['➡️', '↘️', '⬇️', '↙️', '⬅️', '↔️', '🔄']
 
@@ -87,6 +90,8 @@ async def async_setup_entry(
 
 class DsAir(ClimateEntity):
     """Representation of a Daikin climate device."""
+
+    _enable_turn_on_off_backwards_compatibility = False  # used in 2024.2~2024.12
 
     def __init__(self, aircon: AirCon):
         _log('create aircon:')
