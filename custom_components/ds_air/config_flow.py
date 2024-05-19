@@ -5,8 +5,16 @@ from typing import Any
 
 import voluptuous as vol
 from homeassistant import config_entries
+from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, CONF_SENSORS
+from homeassistant.const import (
+    ATTR_DEVICE_CLASS,
+    ATTR_FRIENDLY_NAME,
+    CONF_HOST,
+    CONF_PORT,
+    CONF_SCAN_INTERVAL,
+    CONF_SENSORS,
+)
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
@@ -90,18 +98,16 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
         hass: HomeAssistant = GetHass.get_hash()
         self._climates = list(map(lambda state: state.alias, Service.get_aircons()))
         sensors = hass.states.async_all("sensor")
-        self._sensors_temp = list(
-            map(
-                lambda state: state.entity_id,
-                filter(lambda state: state.attributes.get("device_class") == "temperature", sensors),
-            )
-        )
-        self._sensors_humi = list(
-            map(
-                lambda state: state.entity_id,
-                filter(lambda state: state.attributes.get("device_class") == "humidity", sensors),
-            )
-        )
+        self._sensors_temp = {
+            state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
+            for state in sensors
+            if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.TEMPERATURE
+        }
+        self._sensors_humi = {
+            state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
+            for state in sensors
+            if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.HUMIDITY
+        }
         self._len = len(self._climates)
         self._cur = -1
         self.host = CONF_HOST
@@ -178,13 +184,18 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
         self._cur = self._cur + 1
         if self._cur > (self._len - 1):
             return self.async_create_entry(title="", data={"link": self._config_data})
+        cur_climate: str = self._climates[self._cur]
+        cur_links = self.config_entry.options.get("link", [])
+        cur_link = next(link for link in cur_links if link["climate"] == cur_climate)
+        cur_sensor_temp = cur_link.get("sensor_temp") if cur_link else None
+        cur_sensor_humi = cur_link.get("sensor_humi") if cur_link else None
         return self.async_show_form(
             step_id="bind_sensors",
             data_schema=vol.Schema(
                 {
-                    vol.Required("climate", default=self._climates[self._cur]): vol.In([self._climates[self._cur]]),
-                    vol.Optional("sensor_temp"): vol.In(self._sensors_temp),
-                    vol.Optional("sensor_humi"): vol.In(self._sensors_humi),
+                    vol.Required("climate", default=cur_climate): vol.In([cur_climate]),
+                    vol.Optional("sensor_temp", default=cur_sensor_temp): vol.In(self._sensors_temp),
+                    vol.Optional("sensor_humi", default=cur_sensor_humi): vol.In(self._sensors_humi),
                 }
             ),
         )
