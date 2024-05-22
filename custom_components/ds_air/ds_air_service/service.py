@@ -1,7 +1,7 @@
 import logging
 import socket
 import time
-import typing
+from collections.abc import Callable
 from threading import Lock, Thread
 
 from .ctrl_enum import EnumDevice
@@ -69,7 +69,7 @@ class SocketClient:
                 self.do_connect()
         self._locker.release()
 
-    def recv(self) -> (typing.List[BaseResult], bytes):
+    def recv(self) -> (list[BaseResult], bytes):
         res = []
         done = False
         data = None
@@ -146,16 +146,16 @@ class HeartBeatThread(Thread):
 
 class Service:
     _socket_client: SocketClient = None
-    _rooms: typing.List[Room] = None
-    _aircons: typing.List[AirCon] = None
-    _new_aircons: typing.List[AirCon] = None
-    _bathrooms: typing.List[AirCon] = None
+    _rooms: list[Room] = None
+    _aircons: list[AirCon] = None
+    _new_aircons: list[AirCon] = None
+    _bathrooms: list[AirCon] = None
     _ready: bool = False
     _none_stat_dev_cnt: int = 0
-    _status_hook: typing.List[(AirCon, typing.Callable)] = []
-    _sensor_hook: typing.List[(str, typing.Callable)] = []
+    _status_hook: list[(AirCon, Callable)] = []
+    _sensor_hook: list[(str, Callable)] = []
     _heartbeat_thread = None
-    _sensors: typing.List[Sensor] = []
+    _sensors: list[Sensor] = []
     _scan_interval: int = 5
 
     @staticmethod
@@ -228,11 +228,11 @@ class Service:
         Service.send_msg(p)
 
     @staticmethod
-    def register_status_hook(device: AirCon, hook: typing.Callable):
+    def register_status_hook(device: AirCon, hook: Callable):
         Service._status_hook.append((device, hook))
 
     @staticmethod
-    def register_sensor_hook(unique_id: str, hook: typing.Callable):
+    def register_sensor_hook(unique_id: str, hook: Callable):
         Service._sensor_hook.append((unique_id, hook))
 
     # ----split line---- above for component, below for inner call
@@ -251,7 +251,7 @@ class Service:
         return Service._rooms
 
     @staticmethod
-    def set_rooms(v: typing.List[Room]):
+    def set_rooms(v: list[Room]):
         Service._rooms = v
 
     @staticmethod
@@ -263,7 +263,7 @@ class Service:
         Service._sensors = sensors
 
     @staticmethod
-    def set_device(t: EnumDevice, v: typing.List[AirCon]):
+    def set_device(t: EnumDevice, v: list[AirCon]):
         Service._none_stat_dev_cnt += len(v)
         if t == EnumDevice.AIRCON:
             Service._aircons = v
@@ -293,7 +293,7 @@ class Service:
                     break
 
     @staticmethod
-    def set_sensors_status(sensors: typing.List[Sensor]):
+    def set_sensors_status(sensors: list[Sensor]):
         for new_sensor in sensors:
             for sensor in Service._sensors:
                 if sensor.unique_id == new_sensor.unique_id:

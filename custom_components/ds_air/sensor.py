@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, DsSensorEntityDescription, SENSOR_DESCRIPTORS
+from .const import DOMAIN, DsSensorEntityDescription, MANUFACTURER, SENSOR_DESCRIPTORS
 from .ds_air_service import Sensor, Service, UNINITIALIZED_VALUE
 
 
@@ -39,7 +39,7 @@ class DsSensor(SensorEntity):
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device.unique_id)},
             name=device.alias,
-            manufacturer="Daikin Industries, Ltd.",
+            manufacturer=MANUFACTURER,
         )
 
         self._attr_unique_id = f"{self._data_key}_{device.unique_id}"

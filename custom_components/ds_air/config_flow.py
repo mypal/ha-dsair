@@ -4,9 +4,8 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant import config_entries
 from homeassistant.components.sensor import SensorDeviceClass
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigFlow, OptionsFlow
 from homeassistant.const import (
     ATTR_DEVICE_CLASS,
     ATTR_FRIENDLY_NAME,
@@ -15,12 +14,11 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
     CONF_SENSORS,
 )
-from homeassistant.core import HomeAssistant, callback
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import CONF_GW, DEFAULT_GW, DEFAULT_HOST, DEFAULT_PORT, DOMAIN, GW_LIST
 from .ds_air_service import Service
-from .hass_inst import GetHass
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -31,14 +29,10 @@ def _log(s: str) -> None:
         _LOGGER.debug(i)
 
 
-class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
+class DsAirFlowHandler(ConfigFlow, domain=DOMAIN):
     VERSION = 1
 
     def __init__(self):
-        self.host = None
-        self.port = None
-        self.gw = None
-        self.sensor_check = {}
         self.user_input = {}
 
     async def async_step_user(
@@ -51,7 +45,7 @@ class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self.user_input.update(user_input)
             if (
-                user_input.get(CONF_SENSORS) == False
+                not user_input.get(CONF_SENSORS)
                 or user_input.get("temp") is not None
             ):
                 return self.async_create_entry(title="金制空气", data=self.user_input)
@@ -93,16 +87,25 @@ class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         return DsAirOptionsFlowHandler(config_entry)
 
 
-class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
+class DsAirOptionsFlowHandler(OptionsFlow):
     """Config flow options for integration"""
 
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+    def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
         self.config_entry = config_entry
         self._config_data = []
-        hass: HomeAssistant = GetHass.get_hash()
         self._climates = list(map(lambda state: state.alias, Service.get_aircons()))
-        sensors = hass.states.async_all("sensor")
+        self._sensors_temp = {}
+        self._sensors_humi = {}
+        self._len = len(self._climates)
+        self._cur = -1
+        self.user_input = {}
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options."""
+        sensors = self.hass.states.async_all("sensor")
         self._sensors_temp = {
             None: 'None',
             **{
@@ -119,18 +122,7 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
                 if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.HUMIDITY
             }
         }
-        self._len = len(self._climates)
-        self._cur = -1
-        self.host = CONF_HOST
-        self.port = CONF_PORT
-        self.gw = CONF_GW
-        self.sensor_check = CONF_SENSORS
-        self.user_input = {}
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Manage the options."""
         return self.async_show_menu(
             step_id="init",
             menu_options=["adjust_config", "bind_sensors"],
