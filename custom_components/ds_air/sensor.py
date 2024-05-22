@@ -1,4 +1,5 @@
 """Support for Daikin sensors."""
+
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -6,8 +7,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, DsSensorEntityDescription, SENSOR_DESCRIPTORS
-from .ds_air_service import Sensor, UNINITIALIZED_VALUE
-from .ds_air_service import Service
+from .ds_air_service import Sensor, Service, UNINITIALIZED_VALUE
 
 
 async def async_setup_entry(

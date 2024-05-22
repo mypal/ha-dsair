@@ -41,14 +41,19 @@ class DsAirFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
         self.sensor_check = {}
         self.user_input = {}
 
-    async def async_step_user(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_user(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         if self._async_current_entries():
             return self.async_abort(reason="single_instance_allowed")
 
         errors = {}
         if user_input is not None:
             self.user_input.update(user_input)
-            if user_input.get(CONF_SENSORS) == False or user_input.get("temp") is not None:
+            if (
+                user_input.get(CONF_SENSORS) == False
+                or user_input.get("temp") is not None
+            ):
                 return self.async_create_entry(title="金制空气", data=self.user_input)
             else:
                 return self.async_show_form(
@@ -122,20 +127,26 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
         self.sensor_check = CONF_SENSORS
         self.user_input = {}
 
-    async def async_step_init(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Manage the options."""
         return self.async_show_menu(
             step_id="init",
             menu_options=["adjust_config", "bind_sensors"],
         )
 
-    async def async_step_adjust_config(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_adjust_config(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         errors = {}
         if user_input is not None:
             self.user_input.update(user_input)
             if self.user_input.get("_invaild"):
                 self.user_input["_invaild"] = False
-                self.hass.config_entries.async_update_entry(self.config_entry, data=self.user_input)
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry, data=self.user_input
+                )
                 return self.async_create_entry(title="", data={})
         else:
             self.user_input["_invaild"] = True
@@ -144,18 +155,41 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
                     step_id="adjust_config",
                     data_schema=vol.Schema(
                         {
-                            vol.Required(CONF_HOST, default=self.config_entry.data[CONF_HOST]): str,
-                            vol.Required(CONF_PORT, default=self.config_entry.data[CONF_PORT]): int,
-                            vol.Required(CONF_GW, default=self.config_entry.data[CONF_GW]): vol.In(GW_LIST),
-                            vol.Required(CONF_SCAN_INTERVAL, default=self.config_entry.data[CONF_SCAN_INTERVAL]): int,
+                            vol.Required(
+                                CONF_HOST, default=self.config_entry.data[CONF_HOST]
+                            ): str,
+                            vol.Required(
+                                CONF_PORT, default=self.config_entry.data[CONF_PORT]
+                            ): int,
+                            vol.Required(
+                                CONF_GW, default=self.config_entry.data[CONF_GW]
+                            ): vol.In(GW_LIST),
+                            vol.Required(
+                                CONF_SCAN_INTERVAL,
+                                default=self.config_entry.data[CONF_SCAN_INTERVAL],
+                            ): int,
                             vol.Required(CONF_SENSORS, default=True): bool,
-                            vol.Required("temp", default=self.config_entry.data["temp"]): bool,
-                            vol.Required("humidity", default=self.config_entry.data["humidity"]): bool,
-                            vol.Required("pm25", default=self.config_entry.data["pm25"]): bool,
-                            vol.Required("co2", default=self.config_entry.data["co2"]): bool,
-                            vol.Required("tvoc", default=self.config_entry.data["tvoc"]): bool,
-                            vol.Required("voc", default=self.config_entry.data["voc"]): bool,
-                            vol.Required("hcho", default=self.config_entry.data["hcho"]): bool,
+                            vol.Required(
+                                "temp", default=self.config_entry.data["temp"]
+                            ): bool,
+                            vol.Required(
+                                "humidity", default=self.config_entry.data["humidity"]
+                            ): bool,
+                            vol.Required(
+                                "pm25", default=self.config_entry.data["pm25"]
+                            ): bool,
+                            vol.Required(
+                                "co2", default=self.config_entry.data["co2"]
+                            ): bool,
+                            vol.Required(
+                                "tvoc", default=self.config_entry.data["tvoc"]
+                            ): bool,
+                            vol.Required(
+                                "voc", default=self.config_entry.data["voc"]
+                            ): bool,
+                            vol.Required(
+                                "hcho", default=self.config_entry.data["hcho"]
+                            ): bool,
                         }
                     ),
                     errors=errors,
@@ -165,17 +199,28 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
                     step_id="adjust_config",
                     data_schema=vol.Schema(
                         {
-                            vol.Required(CONF_HOST, default=self.config_entry.data[CONF_HOST]): str,
-                            vol.Required(CONF_PORT, default=self.config_entry.data[CONF_PORT]): int,
-                            vol.Required(CONF_GW, default=self.config_entry.data[CONF_GW]): vol.In(GW_LIST),
-                            vol.Required(CONF_SCAN_INTERVAL, default=self.config_entry.data[CONF_SCAN_INTERVAL]): int,
+                            vol.Required(
+                                CONF_HOST, default=self.config_entry.data[CONF_HOST]
+                            ): str,
+                            vol.Required(
+                                CONF_PORT, default=self.config_entry.data[CONF_PORT]
+                            ): int,
+                            vol.Required(
+                                CONF_GW, default=self.config_entry.data[CONF_GW]
+                            ): vol.In(GW_LIST),
+                            vol.Required(
+                                CONF_SCAN_INTERVAL,
+                                default=self.config_entry.data[CONF_SCAN_INTERVAL],
+                            ): int,
                             vol.Required(CONF_SENSORS, default=False): bool,
                         }
                     ),
                     errors=errors,
                 )
 
-    async def async_step_bind_sensors(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_bind_sensors(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """Handle bind flow."""
         if self._len == 0:
             return self.async_show_form(step_id="empty", last_step=False)
@@ -200,12 +245,18 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     vol.Required("climate", default=cur_climate): vol.In([cur_climate]),
-                    vol.Optional("sensor_temp", default=cur_sensor_temp): vol.In(self._sensors_temp),
-                    vol.Optional("sensor_humi", default=cur_sensor_humi): vol.In(self._sensors_humi),
+                    vol.Optional("sensor_temp", default=cur_sensor_temp): vol.In(
+                        self._sensors_temp
+                    ),
+                    vol.Optional("sensor_humi", default=cur_sensor_humi): vol.In(
+                        self._sensors_humi
+                    ),
                 }
             ),
         )
 
-    async def async_step_empty(self, user_input: dict[str, Any] | None = None) -> FlowResult:
+    async def async_step_empty(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
         """No AC found."""
         return await self.async_step_init(user_input)

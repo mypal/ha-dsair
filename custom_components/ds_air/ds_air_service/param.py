@@ -2,35 +2,41 @@ import struct
 import typing
 from typing import Optional
 
-from .config import Config
-from .dao import AirCon, Device, get_device_by_aircon, AirConStatus
 from .base_bean import BaseBean
-from .ctrl_enum import EnumCmdType, EnumDevice, EnumControl, EnumFanDirection, EnumFanVolume
+from .config import Config
+from .ctrl_enum import (
+    EnumCmdType,
+    EnumControl,
+    EnumDevice,
+    EnumFanDirection,
+    EnumFanVolume,
+)
+from .dao import AirCon, AirConStatus, get_device_by_aircon
 
 
 class Encode:
     def __init__(self):
-        self._fmt = '<'
+        self._fmt = "<"
         self._len = 0
         self._list = []
 
     def write1(self, d):
-        self._fmt += 'B'
+        self._fmt += "B"
         self._len += 1
         self._list.append(d)
 
     def write2(self, d):
-        self._fmt += 'H'
+        self._fmt += "H"
         self._len += 2
         self._list.append(d)
 
     def write4(self, d):
-        self._fmt += 'I'
+        self._fmt += "I"
         self._len += 4
         self._list.append(d)
 
     def writes(self, d):
-        self._fmt += str(len(d)) + 's'
+        self._fmt += str(len(d)) + "s"
         self._len += len(d)
 
     def pack(self, rewrite_length: bool = True):
@@ -46,7 +52,9 @@ class Encode:
 class Param(BaseBean):
     cnt = 0
 
-    def __init__(self, device_type: EnumDevice, cmd_type: EnumCmdType, has_result: bool):
+    def __init__(
+        self, device_type: EnumDevice, cmd_type: EnumCmdType, has_result: bool
+    ):
         Param.cnt += 1
         BaseBean.__init__(self, Param.cnt, device_type, cmd_type)
         self._has_result = has_result
@@ -166,7 +174,7 @@ class AirConRecommendedIndoorTempParam(AirconParam):
 class AirConQueryStatusParam(AirconParam):
     def __init__(self):
         super().__init__(EnumCmdType.QUERY_STATUS, True)
-        self._device = None  # type: Optional[AirCon]
+        self._device: Optional[AirCon] = None
 
     def generate_subbody(self, s):
         s.write1(self._device.room_id)
@@ -178,7 +186,10 @@ class AirConQueryStatusParam(AirconParam):
             if dev.fan_volume != EnumFanVolume.NO:
                 flag = flag | t.AIR_FLOW
             if Config.is_new_version:
-                if dev.fan_direction1 != EnumFanDirection.FIX and dev.fan_direction2 != EnumFanDirection.FIX:
+                if (
+                    dev.fan_direction1 != EnumFanDirection.FIX
+                    and dev.fan_direction2 != EnumFanDirection.FIX
+                ):
                     flag = flag | t.FAN_DIRECTION
                 if dev.bath_room:
                     flag = flag | t.BREATHE

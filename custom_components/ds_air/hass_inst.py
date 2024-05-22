@@ -1,4 +1,3 @@
-
 class GetHass:
     HASS = None
 

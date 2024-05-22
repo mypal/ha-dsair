@@ -241,8 +241,9 @@ class AirFlow(IntEnum):
     AUTO = 5
 
 
-#_AIR_FLOW_NAME_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
-_AIR_FLOW_NAME_LIST = [FAN_LOW, '稍弱', FAN_MEDIUM, '稍强', FAN_HIGH, FAN_AUTO]
+# _AIR_FLOW_NAME_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
+_AIR_FLOW_NAME_LIST = [FAN_LOW, "稍弱", FAN_MEDIUM, "稍强", FAN_HIGH, FAN_AUTO]
+
 
 class Breathe(IntEnum):
     CLOSE = 0
@@ -261,7 +262,7 @@ class FanDirection(IntEnum):
     SWING = 7
 
 
-_FAN_DIRECTION_LIST = ['INVALID', '➡️', '↘️', '⬇️', '↙️', '⬅️', '↔️', '🔄']
+_FAN_DIRECTION_LIST = ["INVALID", "➡️", "↘️", "⬇️", "↙️", "⬅️", "↔️", "🔄"]
 
 
 class Humidity(IntEnum):
@@ -296,14 +297,36 @@ class Mode(IntEnum):
     PREHEAT = 8
     MOREDRY = 9
 
+
 # Legacy Mode Mapping
-#_MODE_NAME_LIST = [HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO, HVACMode.HEAT,
+# _MODE_NAME_LIST = [HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO, HVACMode.HEAT,
 #                   HVACMode.DRY, HVACMode.AUTO, HVACMode.HEAT_COOL, HVACMode.HEAT, HVACMode.DRY]
 
-_MODE_NAME_LIST = [HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO, HVACMode.HEAT,
-                   HVACMode.DRY, HVACMode.AUTO, HVACMode.AUTO, HVACMode.HEAT, HVACMode.DRY]
-_MODE_ACTION_LIST = [HVACAction.COOLING, HVACAction.DRYING, HVACAction.FAN, None, HVACAction.HEATING,
-                   HVACAction.DRYING, None, None, HVACAction.PREHEATING, HVACAction.DRYING]
+_MODE_NAME_LIST = [
+    HVACMode.COOL,
+    HVACMode.DRY,
+    HVACMode.FAN_ONLY,
+    HVACMode.AUTO,
+    HVACMode.HEAT,
+    HVACMode.DRY,
+    HVACMode.AUTO,
+    HVACMode.AUTO,
+    HVACMode.HEAT,
+    HVACMode.DRY,
+]
+_MODE_ACTION_LIST = [
+    HVACAction.COOLING,
+    HVACAction.DRYING,
+    HVACAction.FAN,
+    None,
+    HVACAction.HEATING,
+    HVACAction.DRYING,
+    None,
+    None,
+    HVACAction.PREHEATING,
+    HVACAction.DRYING,
+]
+
 
 class Switch(IntEnum):
     OFF = 0

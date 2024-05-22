@@ -3,30 +3,74 @@ import typing
 
 from .base_bean import BaseBean
 from .config import Config
-from .ctrl_enum import EnumDevice, EnumCmdType, EnumFanDirection, EnumOutDoorRunCond, EnumFanVolume, EnumControl, \
-    EnumSensor, FreshAirHumidification, ThreeDFresh
-from .dao import Room, AirCon, Geothermic, Ventilation, HD, Device, AirConStatus, get_device_by_aircon, Sensor, \
-    UNINITIALIZED_VALUE
-from .param import GetRoomInfoParam, AirConRecommendedIndoorTempParam, AirConCapabilityQueryParam, \
-    AirConQueryStatusParam, Sensor2InfoParam
+from .ctrl_enum import (
+    EnumCmdType,
+    EnumControl,
+    EnumDevice,
+    EnumFanDirection,
+    EnumFanVolume,
+    EnumOutDoorRunCond,
+    EnumSensor,
+    FreshAirHumidification,
+    ThreeDFresh,
+)
+from .dao import (
+    AirCon,
+    AirConStatus,
+    Device,
+    Geothermic,
+    HD,
+    Room,
+    Sensor,
+    UNINITIALIZED_VALUE,
+    Ventilation,
+    get_device_by_aircon,
+)
+from .param import (
+    AirConCapabilityQueryParam,
+    AirConQueryStatusParam,
+    AirConRecommendedIndoorTempParam,
+    GetRoomInfoParam,
+    Sensor2InfoParam,
+)
 
 
 def decoder(b):
     if b[0] != 2:
         return None, None
 
-    length = struct.unpack('<H', b[1:3])[0]
-    if length == 0 or len(b) - 4 < length or struct.unpack('<B', b[length + 3:length + 4])[0] != 3:
+    length = struct.unpack("<H", b[1:3])[0]
+    if (
+        length == 0
+        or len(b) - 4 < length
+        or struct.unpack("<B", b[length + 3 : length + 4])[0] != 3
+    ):
         if length == 0:
             return HeartbeatResult(), None
         else:
             return None, None
 
-    return result_factory(struct.unpack('<BHBBBBIBIBH' + str(length - 16) + 'sB', b[:length + 4])), b[length + 4:]
+    return result_factory(
+        struct.unpack("<BHBBBBIBIBH" + str(length - 16) + "sB", b[: length + 4])
+    ), b[length + 4 :]
 
 
 def result_factory(data):
-    r1, length, r2, r3, subbody_ver, r4, cnt, dev_type, dev_id, need_ack, cmd_type, subbody, r5 = data
+    (
+        r1,
+        length,
+        r2,
+        r3,
+        subbody_ver,
+        r4,
+        cnt,
+        dev_type,
+        dev_id,
+        need_ack,
+        cmd_type,
+        subbody,
+        r5,
+    ) = data
     if dev_id == EnumDevice.SYSTEM.value[1]:
         if cmd_type == EnumCmdType.SYS_ACK.value:
             result = AckResult(cnt, EnumDevice.SYSTEM)
@@ -60,8 +104,12 @@ def result_factory(data):
             result = Sensor2InfoResult(cnt, EnumDevice.SYSTEM)
         else:
             result = UnknownResult(cnt, EnumDevice.SYSTEM, cmd_type)
-    elif dev_id == EnumDevice.NEWAIRCON.value[1] or dev_id == EnumDevice.AIRCON.value[1] \
-            or dev_id == EnumDevice.BATHROOM.value[1] or dev_id == EnumDevice.SENSOR.value[1]:
+    elif (
+        dev_id == EnumDevice.NEWAIRCON.value[1]
+        or dev_id == EnumDevice.AIRCON.value[1]
+        or dev_id == EnumDevice.BATHROOM.value[1]
+        or dev_id == EnumDevice.SENSOR.value[1]
+    ):
         device = EnumDevice((8, dev_id))
         if cmd_type == EnumCmdType.STATUS_CHANGED.value:
             result = AirConStatusChangedResult(cnt, device)
@@ -94,28 +142,28 @@ class Decode:
 
     def read1(self):
         pos = self._pos
-        s = struct.unpack('<B', self._b[pos:pos + 1])[0]
+        s = struct.unpack("<B", self._b[pos : pos + 1])[0]
         pos += 1
         self._pos = pos
         return s
 
     def read2(self):
         pos = self._pos
-        s = struct.unpack('<H', self._b[pos:pos + 2])[0]
+        s = struct.unpack("<H", self._b[pos : pos + 2])[0]
         pos += 2
         self._pos = pos
         return s
 
     def read4(self):
         pos = self._pos
-        s = struct.unpack('<I', self._b[pos:pos + 4])[0]
+        s = struct.unpack("<I", self._b[pos : pos + 4])[0]
         pos += 4
         self._pos = pos
         return s
 
     def read(self, l):
         pos = self._pos
-        s = self._b[pos:pos + l]
+        s = self._b[pos : pos + l]
         pos += l
         self._pos = pos
         return s
@@ -123,7 +171,7 @@ class Decode:
     def read_utf(self, l):
         pos = self._pos
         try:
-            s = self._b[pos:pos + l].decode('utf-8')
+            s = self._b[pos : pos + l].decode("utf-8")
         except UnicodeDecodeError:
             s = None
         pos += l
@@ -152,7 +200,7 @@ class AckResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
 
     def load_bytes(self, b):
-        Config.is_new_version = struct.unpack('<B', b)[0] == 2
+        Config.is_new_version = struct.unpack("<B", b)[0] == 2
 
 
 class ScheduleQueryVersionV3Result(BaseResult):
@@ -255,6 +303,7 @@ class Sensor2InfoResult(BaseResult):
 
     def do(self):
         from .service import Service
+
         Service.set_sensors_status(self._sensors)
 
     @property
@@ -285,7 +334,7 @@ class CmdRspResult(BaseResult):
         self._code = None
 
     def load_bytes(self, b):
-        self._cmdId, self._code = struct.unpack('<IB', b)
+        self._cmdId, self._code = struct.unpack("<IB", b)
 
     @property
     def cmd_id(self):
@@ -302,7 +351,7 @@ class TimeSyncResult(BaseResult):
         self._time = None
 
     def load_bytes(self, b):
-        self._time = struct.unpack('<I', b)[0]
+        self._time = struct.unpack("<I", b)[0]
 
     @property
     def time(self):
@@ -318,11 +367,11 @@ class ErrCodeResult(BaseResult):
         self._unit = None
 
     def load_bytes(self, b):
-        dev_id, room, unit = struct.unpack('<iBB', b[:6])
+        dev_id, room, unit = struct.unpack("<iBB", b[:6])
         self._device = EnumDevice((8, dev_id))
         self._room = room
         self._unit = unit
-        self._code = b[6:].decode('ASCII')
+        self._code = b[6:].decode("ASCII")
 
     @property
     def code(self):
@@ -351,8 +400,13 @@ class GetWeatherResult(BaseResult):
         self._wind_speed = None
 
     def load_bytes(self, b):
-        self._condition, self._humidity, self._temp, self._wind_dire, self._wind_speed \
-            = struct.unpack('<BBHBB', b)
+        (
+            self._condition,
+            self._humidity,
+            self._temp,
+            self._wind_dire,
+            self._wind_speed,
+        ) = struct.unpack("<BBHBB", b)
 
     @property
     def condition(self):
@@ -381,7 +435,7 @@ class LoginResult(BaseResult):
         self._status = None
 
     def load_bytes(self, b):
-        self._status = struct.unpack('<BB', b)[1]
+        self._status = struct.unpack("<BB", b)[1]
 
     @property
     def status(self):
@@ -394,7 +448,7 @@ class ChangePWResult(BaseResult):
         self._status = None
 
     def load_bytes(self, b):
-        self._status = struct.unpack('<B', b)[0]
+        self._status = struct.unpack("<B", b)[0]
 
     @property
     def status(self):
@@ -431,7 +485,11 @@ class GetRoomInfoResult(BaseResult):
                 device = EnumDevice((8, d.read4()))
                 device_count = d.read2()
                 for unit_id in range(device_count):
-                    if EnumDevice.AIRCON == device or EnumDevice.NEWAIRCON == device or EnumDevice.BATHROOM == device:
+                    if (
+                        EnumDevice.AIRCON == device
+                        or EnumDevice.NEWAIRCON == device
+                        or EnumDevice.BATHROOM == device
+                    ):
                         dev = AirCon()
                         room.air_con = dev
                         dev.new_air_con = EnumDevice.NEWAIRCON == device
@@ -448,7 +506,10 @@ class GetRoomInfoResult(BaseResult):
                         dev = Sensor()
                         self.sensors.append(dev)
                         room.sensor_room = True
-                    elif EnumDevice.VENTILATION == device or EnumDevice.SMALL_VAM == device:
+                    elif (
+                        EnumDevice.VENTILATION == device
+                        or EnumDevice.SMALL_VAM == device
+                    ):
                         dev = Ventilation()
                         room.ventilation = dev
                         dev.is_small_vam = EnumDevice.SMALL_VAM == device
@@ -467,6 +528,7 @@ class GetRoomInfoResult(BaseResult):
 
     def do(self):
         from .service import Service
+
         Service.set_rooms(self.rooms)
         Service.send_msg(AirConRecommendedIndoorTempParam())
         Service.set_sensors(self.sensors)
@@ -516,7 +578,9 @@ class GetRoomInfoResult(BaseResult):
 
 class QueryScheduleSettingResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_SETTING)
+        BaseResult.__init__(
+            self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_SETTING
+        )
 
     def load_bytes(self, b):
         """todo"""
@@ -533,7 +597,7 @@ class QueryScheduleIDResult(BaseResult):
 class HandShakeResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_HAND_SHAKE)
-        self._time: str = ''
+        self._time: str = ""
 
     def load_bytes(self, b):
         d = Decode(b)
@@ -541,8 +605,9 @@ class HandShakeResult(BaseResult):
 
     def do(self):
         p = GetRoomInfoParam()
-        p.room_ids.append(0xffff)
+        p.room_ids.append(0xFFFF)
         from .service import Service
+
         Service.send_msg(p)
         Service.send_msg(Sensor2InfoParam())
 
@@ -550,7 +615,7 @@ class HandShakeResult(BaseResult):
 class GetGWInfoResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_HAND_SHAKE)
-        self._time: str = ''
+        self._time: str = ""
 
     def load_bytes(self, b):
         """todo"""
@@ -578,9 +643,9 @@ class QueryScheduleFinish(BaseResult):
 class AirConStatusChangedResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.STATUS_CHANGED)
-        self._room = 0  # type: int
-        self._unit = 0  # type: int
-        self._status = AirConStatus()  # type: AirConStatus
+        self._room: int = 0
+        self._unit: int = 0
+        self._status: AirConStatus = AirConStatus()
 
     def load_bytes(self, b):
         d = Decode(b)
@@ -606,6 +671,7 @@ class AirConStatusChangedResult(BaseResult):
 
     def do(self):
         from .service import Service
+
         Service.update_aircon(self.target, self._room, self._unit, status=self._status)
 
 
@@ -651,8 +717,8 @@ class AirConQueryStatusResult(BaseResult):
             if Config.is_new_version:
                 if flag >> 5 & 1:
                     b = d.read1()
-                    self.fan_direction1 = EnumControl.FanDirection(b & 0xf)
-                    self.fan_direction2 = EnumControl.FanDirection(b >> 4 & 0xf)
+                    self.fan_direction1 = EnumControl.FanDirection(b & 0xF)
+                    self.fan_direction2 = EnumControl.FanDirection(b >> 4 & 0xF)
                 if flag >> 6 & 1:
                     self.humidity = EnumControl.Humidity(d.read1())
                 if self.target == EnumDevice.BATHROOM:
@@ -669,8 +735,8 @@ class AirConQueryStatusResult(BaseResult):
             if Config.is_new_version:
                 if flag >> 5 & 1:
                     b = d.read1()
-                    self.fan_direction1 = EnumControl.FanDirection(b & 0xf)
-                    self.fan_direction2 = EnumControl.FanDirection(b >> 4 & 0xf)
+                    self.fan_direction1 = EnumControl.FanDirection(b & 0xF)
+                    self.fan_direction2 = EnumControl.FanDirection(b >> 4 & 0xF)
                 if self.target == EnumDevice.NEWAIRCON:
                     if flag >> 6 & 1:
                         self.humidity = EnumControl.Humidity(d.read1())
@@ -680,14 +746,26 @@ class AirConQueryStatusResult(BaseResult):
 
     def do(self):
         from .service import Service
-        status = AirConStatus(self.current_temp, self.setted_temp, self.switch, self.air_flow, self.breathe,
-                              self.fan_direction1, self.fan_direction2, self.humidity, self.mode)
+
+        status = AirConStatus(
+            self.current_temp,
+            self.setted_temp,
+            self.switch,
+            self.air_flow,
+            self.breathe,
+            self.fan_direction1,
+            self.fan_direction2,
+            self.humidity,
+            self.mode,
+        )
         Service.set_aircon_status(self.target, self.room, self.unit, status)
 
 
 class AirConRecommendedIndoorTempResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.AIR_RECOMMENDED_INDOOR_TEMP)
+        BaseResult.__init__(
+            self, cmd_id, target, EnumCmdType.AIR_RECOMMENDED_INDOOR_TEMP
+        )
         self._temp: int = 0
         self._outdoor_temp: int = 0
 
@@ -760,16 +838,20 @@ class AirConCapabilityQueryResult(BaseResult):
 
     def do(self):
         from .service import Service
+
         if Service.is_ready():
             if len(self._air_cons):
                 for i in self._air_cons:
-                    Service.update_aircon(get_device_by_aircon(i), i.room_id, i.unit_id, aircon=i)
+                    Service.update_aircon(
+                        get_device_by_aircon(i), i.room_id, i.unit_id, aircon=i
+                    )
         else:
             for i in self._air_cons:
                 p = AirConQueryStatusParam()
                 p.target = self.target
                 p.device = i
                 from .service import Service
+
                 Service.send_msg(p)
             Service.set_device(self.target, self._air_cons)
 
@@ -789,10 +871,10 @@ class AirConQueryScenarioSettingResult(BaseResult):
 class UnknownResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice, cmd_type: EnumCmdType):
         BaseResult.__init__(self, cmd_id, target, cmd_type)
-        self._subbody = ''
+        self._subbody = ""
 
     def load_bytes(self, b):
-        self._subbody = struct.pack('<' + str(len(b)) + 's', b).hex()
+        self._subbody = struct.pack("<" + str(len(b)) + "s", b).hex()
 
     @property
     def subbody(self):

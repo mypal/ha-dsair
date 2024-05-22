@@ -2,20 +2,27 @@ import logging
 import socket
 import time
 import typing
-from threading import Thread, Lock
+from threading import Lock, Thread
 
 from .ctrl_enum import EnumDevice
-from .dao import Room, AirCon, AirConStatus, get_device_by_aircon, Sensor, STATUS_ATTR
-from .decoder import decoder, BaseResult
+from .dao import AirCon, AirConStatus, Room, STATUS_ATTR, Sensor, get_device_by_aircon
+from .decoder import BaseResult, decoder
 from .display import display
-from .param import Param, HandShakeParam, HeartbeatParam, AirConControlParam, AirConQueryStatusParam, Sensor2InfoParam
+from .param import (
+    AirConControlParam,
+    AirConQueryStatusParam,
+    HandShakeParam,
+    HeartbeatParam,
+    Param,
+    Sensor2InfoParam,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
 
 def _log(s: str):
     s = str(s)
-    for i in s.split('\n'):
+    for i in s.split("\n"):
         _LOGGER.debug(i)
 
 
@@ -40,17 +47,17 @@ class SocketClient:
         self._s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self._s.connect((self._host, self._port))
-            _log('connected')
+            _log("connected")
             return True
         except socket.error as exc:
-            _log('connected error')
+            _log("connected error")
             _log(str(exc))
             return False
 
     def send(self, p: Param):
         self._locker.acquire()
-        _log("send hex: 0x"+p.to_string().hex())
-        _log('\033[31msend:\033[0m')
+        _log("send hex: 0x" + p.to_string().hex())
+        _log("\033[31msend:\033[0m")
         _log(display(p))
         done = False
         while not done:
@@ -77,7 +84,7 @@ class SocketClient:
                 time.sleep(3)
                 self.do_connect()
         if data is not None:
-            _log("recv hex: 0x"+data.hex())
+            _log("recv hex: 0x" + data.hex())
         while data:
             try:
                 r, b = decoder(data)
@@ -103,7 +110,7 @@ class RecvThread(Thread):
         while self._running:
             res = self._sock.recv()
             for i in res:
-                _log('\033[31mrecv:\033[0m')
+                _log("\033[31mrecv:\033[0m")
                 _log(display(i))
                 self._locker.acquire()
                 try:
@@ -138,18 +145,18 @@ class HeartBeatThread(Thread):
 
 
 class Service:
-    _socket_client = None  # type: SocketClient
-    _rooms = None  # type: typing.List[Room]
-    _aircons = None  # type: typing.List[AirCon]
-    _new_aircons = None  # type: typing.List[AirCon]
-    _bathrooms = None  # type: typing.List[AirCon]
-    _ready = False  # type: bool
-    _none_stat_dev_cnt = 0  # type: int
-    _status_hook = []  # type: typing.List[(AirCon, typing.Callable)]
-    _sensor_hook = []  # type: typing.List[(str, typing.Callable)]
+    _socket_client: SocketClient = None
+    _rooms: typing.List[Room] = None
+    _aircons: typing.List[AirCon] = None
+    _new_aircons: typing.List[AirCon] = None
+    _bathrooms: typing.List[AirCon] = None
+    _ready: bool = False
+    _none_stat_dev_cnt: int = 0
+    _status_hook: typing.List[(AirCon, typing.Callable)] = []
+    _sensor_hook: typing.List[(str, typing.Callable)] = []
     _heartbeat_thread = None
-    _sensors = []  # type: typing.List[Sensor]
-    _scan_interval = 5  # type: int
+    _sensors: typing.List[Sensor] = []
+    _scan_interval: int = 5
 
     @staticmethod
     def init(host: str, port: int, scan_interval: int):
@@ -160,8 +167,12 @@ class Service:
         Service._socket_client.send(HandShakeParam())
         Service._heartbeat_thread = HeartBeatThread()
         Service._heartbeat_thread.start()
-        while Service._rooms is None or Service._aircons is None \
-                or Service._new_aircons is None or Service._bathrooms is None:
+        while (
+            Service._rooms is None
+            or Service._aircons is None
+            or Service._new_aircons is None
+            or Service._bathrooms is None
+        ):
             time.sleep(1)
         for i in Service._aircons:
             for j in Service._rooms:
@@ -262,7 +273,9 @@ class Service:
             Service._bathrooms = v
 
     @staticmethod
-    def set_aircon_status(target: EnumDevice, room: int, unit: int, status: AirConStatus):
+    def set_aircon_status(
+        target: EnumDevice, room: int, unit: int, status: AirConStatus
+    ):
         if Service._ready:
             Service.update_aircon(target, room, unit, status=status)
         else:
@@ -310,11 +323,15 @@ class Service:
         li = Service._status_hook
         for item in li:
             i, func = item
-            if i.unit_id == unit and i.room_id == room and get_device_by_aircon(i) == target:
+            if (
+                i.unit_id == unit
+                and i.room_id == room
+                and get_device_by_aircon(i) == target
+            ):
                 try:
                     func(**kwargs)
                 except Exception as e:
-                    _log('hook error!!')
+                    _log("hook error!!")
                     _log(str(e))
 
     @staticmethod

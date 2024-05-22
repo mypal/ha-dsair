@@ -2,6 +2,7 @@
 Platform for DS-AIR of Daikin
 https://www.daikin-china.com.cn/newha/products/4/19/DS-AIR/
 """
+
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -9,9 +10,9 @@ from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .hass_inst import GetHass
-from .const import CONF_GW, DEFAULT_HOST, DEFAULT_PORT, DEFAULT_GW, DOMAIN
+from .const import CONF_GW, DEFAULT_GW, DEFAULT_HOST, DEFAULT_PORT, DOMAIN
 from .ds_air_service import Config
+from .hass_inst import GetHass
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["climate", "sensor"]
@@ -22,15 +23,14 @@ def _log(s: str):
     for i in s.split("\n"):
         _LOGGER.debug(i)
 
+
 def setup(hass, config):
     hass.data[DOMAIN] = {}
     GetHass.set_hass(hass)
     return True
 
 
-async def async_setup_entry(
-        hass: HomeAssistant, entry: ConfigEntry
-):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data.setdefault(DOMAIN, {})
     host = entry.data[CONF_HOST]
     port = entry.data[CONF_PORT]
@@ -47,6 +47,7 @@ async def async_setup_entry(
     Config.is_c611 = gw == DEFAULT_GW
 
     from .ds_air_service import Service
+
     await hass.async_add_executor_job(Service.init, host, port, scan_interval)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(update_listener))
@@ -60,6 +61,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass.data[DOMAIN].get("listener")()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     from .ds_air_service import Service
+
     Service.destroy()
 
     return unload_ok
@@ -70,6 +72,8 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry):
     return True
 
 
-async def async_remove_config_entry_device(hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry) -> bool:
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
+) -> bool:
     # reference: https://developers.home-assistant.io/docs/device_registry_index/#removing-devices
     return True
