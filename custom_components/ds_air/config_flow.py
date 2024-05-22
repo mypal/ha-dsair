@@ -19,7 +19,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import CONF_GW, DEFAULT_GW, DEFAULT_HOST, DEFAULT_PORT, DOMAIN, GW_LIST
-from .ds_air_service.service import Service
+from .ds_air_service import Service
 from .hass_inst import GetHass
 
 _LOGGER = logging.getLogger(__name__)

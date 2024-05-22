@@ -26,10 +26,10 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import DOMAIN
-from .ds_air_service.config import Config
-from .ds_air_service.ctrl_enum import EnumControl
-from .ds_air_service.dao import AirCon, AirConStatus
-from .ds_air_service.display import display
+from .ds_air_service import Config
+from .ds_air_service import EnumControl
+from .ds_air_service import AirCon, AirConStatus
+from .ds_air_service import display
 
 _SUPPORT_FLAGS = ClimateEntityFeature.TARGET_TEMPERATURE | ClimateEntityFeature.FAN_MODE | ClimateEntityFeature.PRESET_MODE
 #                | ClimateEntityFeature.SWING_MODE | ClimateEntityFeature.TARGET_HUMIDITY
@@ -56,7 +56,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the climate devices."""
 
-    from .ds_air_service.service import Service
+    from .ds_air_service import Service
     climates = []
     for aircon in Service.get_aircons():
         climates.append(DsAir(aircon))
@@ -107,7 +107,7 @@ class DsAir(ClimateEntity):
         self._link_cur_humi = False
         self._cur_temp = None
         self._cur_humi = None
-        from .ds_air_service.service import Service
+        from .ds_air_service import Service
         Service.register_status_hook(aircon, self._status_change_hook)
 
     async def async_added_to_hass(self) -> None:
@@ -330,7 +330,7 @@ class DsAir(ClimateEntity):
                     and status.mode not in [EnumControl.Mode.VENTILATION, EnumControl.Mode.MOREDRY]:
                 status.setted_temp = round(kwargs.get(ATTR_TEMPERATURE) * 10.0)
                 new_status.setted_temp = round(kwargs.get(ATTR_TEMPERATURE) * 10.0)
-                from .ds_air_service.service import Service
+                from .ds_air_service import Service
                 Service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
 
@@ -342,7 +342,7 @@ class DsAir(ClimateEntity):
                 and status.mode in [EnumControl.Mode.RELAX, EnumControl.Mode.SLEEP]:
             status.humidity = EnumControl.Humidity(humidity)
             new_status.humidity = EnumControl.Humidity(humidity)
-            from .ds_air_service.service import Service
+            from .ds_air_service import Service
             Service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
 
@@ -354,7 +354,7 @@ class DsAir(ClimateEntity):
                 and status.mode not in [EnumControl.Mode.MOREDRY, EnumControl.Mode.SLEEP]:
             status.air_flow = EnumControl.get_air_flow_enum(fan_mode)
             new_status.air_flow = EnumControl.get_air_flow_enum(fan_mode)
-            from .ds_air_service.service import Service
+            from .ds_air_service import Service
             Service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
 
@@ -366,7 +366,7 @@ class DsAir(ClimateEntity):
         if hvac_mode == HVACMode.OFF:
             status.switch = EnumControl.Switch.OFF
             new_status.switch = EnumControl.Switch.OFF
-            from .ds_air_service.service import Service
+            from .ds_air_service import Service
             Service.control(self._device_info, new_status)
         else:
             status.switch = EnumControl.Switch.ON
@@ -398,7 +398,7 @@ class DsAir(ClimateEntity):
                     mode = m.SLEEP
             status.mode = mode
             new_status.mode = mode
-            from .ds_air_service.service import Service
+            from .ds_air_service import Service
             Service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
 
@@ -411,7 +411,7 @@ class DsAir(ClimateEntity):
             new_status.fan_direction1 = self._device_info.status.fan_direction1
             status.fan_direction2 = EnumControl.get_fan_direction_enum(swing_mode)
             new_status.fan_direction2 = EnumControl.get_fan_direction_enum(swing_mode)
-            from .ds_air_service.service import Service
+            from .ds_air_service import Service
             Service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
 
@@ -435,7 +435,7 @@ class DsAir(ClimateEntity):
                 mode = m.RELAX
         status.mode = mode
         new_status.mode = mode
-        from .ds_air_service.service import Service
+        from .ds_air_service import Service
         Service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
 

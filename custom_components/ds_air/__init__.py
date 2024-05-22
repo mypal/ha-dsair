@@ -11,7 +11,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 
 from .hass_inst import GetHass
 from .const import CONF_GW, DEFAULT_HOST, DEFAULT_PORT, DEFAULT_GW, DOMAIN
-from .ds_air_service.config import Config
+from .ds_air_service import Config
 
 _LOGGER = logging.getLogger(__name__)
 PLATFORMS = ["climate", "sensor"]
@@ -46,7 +46,7 @@ async def async_setup_entry(
 
     Config.is_c611 = gw == DEFAULT_GW
 
-    from .ds_air_service.service import Service
+    from .ds_air_service import Service
     await hass.async_add_executor_job(Service.init, host, port, scan_interval)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(update_listener))
@@ -59,7 +59,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if hass.data[DOMAIN].get("listener") is not None:
         hass.data[DOMAIN].get("listener")()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    from .ds_air_service.service import Service
+    from .ds_air_service import Service
     Service.destroy()
 
     return unload_ok
