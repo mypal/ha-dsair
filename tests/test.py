@@ -1,5 +1,5 @@
-from ds_air_service.decoder import decoder
-from ds_air_service.display import display
+from custom_components.ds_air.ds_air_service.decoder import decoder
+from custom_components.ds_air.ds_air_service.display import display
 
 list = [
     # '0212000d000000010000000000000000001000000103',
