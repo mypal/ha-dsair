@@ -29,13 +29,42 @@
   },
   "options": {
     "step": {
-      "user": {
-        "title": "Binding sensors",
-        "description": "Bind sensors to climate",
+      "init": {
+        "title": "DS-AIR",
+        "menu_options": {
+            "adjust_config": "Adjust config",
+            "bind_sensors": "Link sensors"
+        }
+      },
+      "adjust_config": {
+        "title": "Adjust config",
+        "description": "",
+        "data": {
+          "host": "Gateway IP",
+          "port": "Gateway Port",
+          "gw": "Gateway model",
+          "scan_interval": "Sensor update frequency(min)",
+          "sensors": "Has sensor",
+          "temp": "Create Temperature entity",
+          "humidity": "Create Humidity entity",
+          "pm25": "Create PM2.5 entity",
+          "co2": "Create CO2 entity",
+          "tvoc": "Create TVOC entity",
+          "voc": "Create VOC entity",
+          "hcho": "Create HCHO entity"
+        }
+      },
+      "bind_sensors": {
+        "title": "Link sensor",
+        "description": "Link sensor for AC",
         "data": {
           "climate": "Climate name",
           "sensor_temp": "Temperature sensor entity_id",
           "sensor_humi": "Humidity sensor entity_id"
+        },
+        "empty": {
+          "title": "No data",
+          "description": "No AC for link"
         }
       }
     }

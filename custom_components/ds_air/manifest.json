@@ -3,8 +3,8 @@
   "name": "DS-AIR",
   "documentation": "https://github.com/mypal/ha-dsair",
   "dependencies": [],
-  "codeowners": [],
+  "codeowners": ["@mypal"],
   "requirements": [],
-  "version": "1.3.3",
+  "version": "1.3.5",
   "config_flow": true
 }

@@ -45,7 +45,7 @@ class DsSensor(SensorEntity):
         return {
             "identifiers": {(DOMAIN, self._unique_id)},
             "name": "传感器%s" % self._name,
-            "manufacturer": "DAIKIN INDUSTRIES, Ltd."
+            "manufacturer": "Daikin Industries, Ltd."
         }
 
     @property
@@ -95,10 +95,11 @@ class DsSensor(SensorEntity):
         """Parse data sent by gateway."""
         self._is_available = device.connected
         if UNINITIALIZED_VALUE != getattr(device, self._data_key):
-            if type(SENSOR_TYPES.get(self._data_key)[3]) != int:
+            scaling = SENSOR_TYPES.get(self._data_key)[3]
+            if type(scaling) != int and type(scaling) != float:
                 self._state = str(getattr(device, self._data_key))
             else:
-                self._state = getattr(device, self._data_key) / SENSOR_TYPES.get(self._data_key)[3]
+                self._state = getattr(device, self._data_key) / scaling
 
         if not not_update:
             self.schedule_update_ha_state()
