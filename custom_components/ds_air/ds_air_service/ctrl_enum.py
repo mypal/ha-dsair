@@ -338,6 +338,7 @@ class EnumControl:
     def get_mode_name(idx):
         return _MODE_NAME_LIST[idx]
 
+    @staticmethod
     def get_action_name(idx):
         return _MODE_ACTION_LIST[idx]
 
