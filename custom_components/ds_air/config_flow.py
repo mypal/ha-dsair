@@ -186,7 +186,7 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data={"link": self._config_data})
         cur_climate: str = self._climates[self._cur]
         cur_links = self.config_entry.options.get("link", [])
-        cur_link = next(link for link in cur_links if link["climate"] == cur_climate)
+        cur_link = next((link for link in cur_links if link["climate"] == cur_climate), None)
         cur_sensor_temp = cur_link.get("sensor_temp") if cur_link else None
         cur_sensor_humi = cur_link.get("sensor_humi") if cur_link else None
         return self.async_show_form(
