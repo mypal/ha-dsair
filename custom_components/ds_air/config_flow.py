@@ -99,14 +99,20 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
         self._climates = list(map(lambda state: state.alias, Service.get_aircons()))
         sensors = hass.states.async_all("sensor")
         self._sensors_temp = {
-            state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
-            for state in sensors
-            if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.TEMPERATURE
+            None: 'None',
+            **{
+                state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
+                for state in sensors
+                if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.TEMPERATURE
+            }
         }
         self._sensors_humi = {
-            state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
-            for state in sensors
-            if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.HUMIDITY
+            None: 'None',
+            **{
+                state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
+                for state in sensors
+                if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.HUMIDITY
+            }
         }
         self._len = len(self._climates)
         self._cur = -1
