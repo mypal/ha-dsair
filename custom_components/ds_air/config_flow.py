@@ -99,14 +99,20 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
         self._climates = list(map(lambda state: state.alias, Service.get_aircons()))
         sensors = hass.states.async_all("sensor")
         self._sensors_temp = {
-            state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
-            for state in sensors
-            if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.TEMPERATURE
+            None: 'None',
+            **{
+                state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
+                for state in sensors
+                if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.TEMPERATURE
+            }
         }
         self._sensors_humi = {
-            state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
-            for state in sensors
-            if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.HUMIDITY
+            None: 'None',
+            **{
+                state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
+                for state in sensors
+                if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.HUMIDITY
+            }
         }
         self._len = len(self._climates)
         self._cur = -1
@@ -186,7 +192,7 @@ class DsAirOptionsFlowHandler(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data={"link": self._config_data})
         cur_climate: str = self._climates[self._cur]
         cur_links = self.config_entry.options.get("link", [])
-        cur_link = next(link for link in cur_links if link["climate"] == cur_climate)
+        cur_link = next((link for link in cur_links if link["climate"] == cur_climate), None)
         cur_sensor_temp = cur_link.get("sensor_temp") if cur_link else None
         cur_sensor_humi = cur_link.get("sensor_humi") if cur_link else None
         return self.async_show_form(
