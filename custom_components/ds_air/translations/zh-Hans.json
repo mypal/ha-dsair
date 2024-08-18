@@ -5,6 +5,7 @@
         "title": "金制空气",
         "description": "本插件支持大金DTA117B611/DTA117C611两款空调网关",
         "data": {
+          "eid": "网关ID",
           "host": "网关IP",
           "port": "网关端口",
           "gw": "网关型号",
@@ -40,6 +41,7 @@
         "title": "修改设置",
         "description": "",
         "data": {
+          "eid": "网关ID",
           "host": "网关IP",
           "port": "网关端口",
           "gw": "网关型号",

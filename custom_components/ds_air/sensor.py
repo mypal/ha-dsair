@@ -4,33 +4,35 @@ from typing import Optional
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.helpers.entity import DeviceInfo
 
-from .const import DOMAIN, SENSOR_TYPES
+from .const import DOMAIN, SENSOR_TYPES, CONF_ID
 from .ds_air_service.dao import Sensor, UNINITIALIZED_VALUE
 from .ds_air_service.service import Service
 
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Perform the setup for Daikin devices."""
+    instance_id = config_entry.data[CONF_ID]  # Use CONF_ID as the instance ID
     entities = []
-    for device in Service.get_sensors():
+    for device in Service.get_sensors(instance_id):  # Fetch sensors based on instance ID
         for key in SENSOR_TYPES:
             if config_entry.data.get(key):
-                entities.append(DsSensor(device, key))
+                entities.append(DsSensor(device, key, instance_id))  # Pass instance ID to DsSensor
     async_add_entities(entities)
 
 
 class DsSensor(SensorEntity):
     """Representation of a DaikinSensor."""
 
-    def __init__(self, device: Sensor, data_key):
+    def __init__(self, device: Sensor, data_key, instance_id: str):
         """Initialize the DaikinSensor."""
         self._data_key = data_key
         self._name = device.alias
         self._unique_id = device.unique_id
         self._is_available = False
         self._state = 0
+        self._instance_id = instance_id  # Store instance ID
         self.parse_data(device, True)
-        Service.register_sensor_hook(device.unique_id, self.parse_data)
+        Service.register_sensor_hook(device.unique_id, self.parse_data)  # Register hook with device ID
 
     @property
     def name(self):
@@ -38,7 +40,7 @@ class DsSensor(SensorEntity):
 
     @property
     def unique_id(self):
-        return "%s_%s" % (self._data_key, self._unique_id)
+        return "daikin_%s_%s" % (self._data_key, self._unique_id)
 
     @property
     def device_info(self) -> Optional[DeviceInfo]:
