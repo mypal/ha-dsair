@@ -11,7 +11,7 @@ from .param import GetRoomInfoParam, AirConRecommendedIndoorTempParam, AirConCap
     AirConQueryStatusParam, Sensor2InfoParam
 
 
-def decoder(b):
+def decoder(b, instance_id):
     if b[0] != 2:
         return None, None
 
@@ -22,10 +22,10 @@ def decoder(b):
         else:
             return None, None
 
-    return result_factory(struct.unpack('<BHBBBBIBIBH' + str(length - 16) + 'sB', b[:length + 4])), b[length + 4:]
+    return result_factory(struct.unpack('<BHBBBBIBIBH' + str(length - 16) + 'sB', b[:length + 4]), instance_id), b[length + 4:]
 
 
-def result_factory(data):
+def result_factory(data, instance_id):
     r1, length, r2, r3, subbody_ver, r4, cnt, dev_type, dev_id, need_ack, cmd_type, subbody, r5 = data
     if dev_id == EnumDevice.SYSTEM.value[1]:
         if cmd_type == EnumCmdType.SYS_ACK.value:
@@ -43,13 +43,13 @@ def result_factory(data):
         elif cmd_type == EnumCmdType.SYS_CHANGE_PW.value:
             result = ChangePWResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_GET_ROOM_INFO.value:
-            result = GetRoomInfoResult(cnt, EnumDevice.SYSTEM)
+            result = GetRoomInfoResult(cnt, EnumDevice.SYSTEM, instance_id)
         elif cmd_type == EnumCmdType.SYS_QUERY_SCHEDULE_SETTING.value:
             result = QueryScheduleSettingResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_QUERY_SCHEDULE_ID.value:
             result = QueryScheduleIDResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_HAND_SHAKE.value:
-            result = HandShakeResult(cnt, EnumDevice.SYSTEM)
+            result = HandShakeResult(cnt, EnumDevice.SYSTEM, instance_id)
         elif cmd_type == EnumCmdType.SYS_CMD_TRANSFER.value:
             result = CmdTransferResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_QUERY_SCHEDULE_FINISH.value:
@@ -57,24 +57,24 @@ def result_factory(data):
         elif cmd_type == EnumCmdType.SYS_SCHEDULE_QUERY_VERSION_V3:
             result = ScheduleQueryVersionV3Result(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SENSOR2_INFO:
-            result = Sensor2InfoResult(cnt, EnumDevice.SYSTEM)
+            result = Sensor2InfoResult(cnt, EnumDevice.SYSTEM, instance_id)
         else:
             result = UnknownResult(cnt, EnumDevice.SYSTEM, cmd_type)
     elif dev_id == EnumDevice.NEWAIRCON.value[1] or dev_id == EnumDevice.AIRCON.value[1] \
             or dev_id == EnumDevice.BATHROOM.value[1] or dev_id == EnumDevice.SENSOR.value[1]:
         device = EnumDevice((8, dev_id))
         if cmd_type == EnumCmdType.STATUS_CHANGED.value:
-            result = AirConStatusChangedResult(cnt, device)
+            result = AirConStatusChangedResult(cnt, device, instance_id)
         elif cmd_type == EnumCmdType.QUERY_STATUS.value:
-            result = AirConQueryStatusResult(cnt, device)
+            result = AirConQueryStatusResult(cnt, device, instance_id)
         elif cmd_type == EnumCmdType.AIR_RECOMMENDED_INDOOR_TEMP.value:
             result = AirConRecommendedIndoorTempResult(cnt, device)
         elif cmd_type == EnumCmdType.AIR_CAPABILITY_QUERY.value:
-            result = AirConCapabilityQueryResult(cnt, device)
+            result = AirConCapabilityQueryResult(cnt, device, instance_id)
         elif cmd_type == EnumCmdType.QUERY_SCENARIO_SETTING.value:
             result = AirConQueryScenarioSettingResult(cnt, device)
         elif cmd_type == EnumCmdType.SENSOR2_INFO.value:
-            result = Sensor2InfoResult(cnt, device)
+            result = Sensor2InfoResult(cnt, device, instance_id)
         else:
             result = UnknownResult(cnt, device, cmd_type)
     else:
@@ -161,13 +161,14 @@ class ScheduleQueryVersionV3Result(BaseResult):
 
 
 class Sensor2InfoResult(BaseResult):
-    def __init__(self, cmd_id: int, target: EnumDevice):
+    def __init__(self, cmd_id: int, target: EnumDevice, instance_id: str):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SENSOR2_INFO)
         self._count = 0
         self._mode = 0
         self._room_id = 0
         self._sensor_type = 0
         self._sensors: typing.List[Sensor] = []
+        self._instance_id = instance_id
 
     def load_bytes(self, b):
         data = Decode(b)
@@ -181,6 +182,7 @@ class Sensor2InfoResult(BaseResult):
             unit_id = d.read1()
             sensor = Sensor()
             sensor.mac = d.read(6).hex()
+            sensor.instance_id = self._instance_id
             sensor.room_id = self._room_id
             sensor.unit_id = unit_id
             length = d.read1()
@@ -255,7 +257,7 @@ class Sensor2InfoResult(BaseResult):
 
     def do(self):
         from .service import Service
-        Service.set_sensors_status(self._sensors)
+        Service.set_sensors_status(self._instance_id, self._sensors)
 
     @property
     def count(self):
@@ -402,12 +404,13 @@ class ChangePWResult(BaseResult):
 
 
 class GetRoomInfoResult(BaseResult):
-    def __init__(self, cmd_id: int, target: EnumDevice):
+    def __init__(self, cmd_id: int, target: EnumDevice, instance_id: str):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_GET_ROOM_INFO)
         self._count: int = 0
         self._hds: typing.List[HD] = []
         self._sensors: typing.List[Sensor] = []
         self._rooms: typing.List[Room] = []
+        self._instance_id = instance_id
 
     def load_bytes(self, b):
         ver_flag = 1
@@ -454,6 +457,7 @@ class GetRoomInfoResult(BaseResult):
                         dev.is_small_vam = EnumDevice.SMALL_VAM == device
                     else:
                         dev = Device()
+                    dev.instance_id = self._instance_id
                     dev.room_id = room.id
                     dev.unit_id = unit_id
                     if ver_flag > 2:
@@ -468,8 +472,8 @@ class GetRoomInfoResult(BaseResult):
     def do(self):
         from .service import Service
         Service.set_rooms(self.rooms)
-        Service.send_msg(AirConRecommendedIndoorTempParam())
-        Service.set_sensors(self.sensors)
+        Service.send_msg(self._instance_id, AirConRecommendedIndoorTempParam())
+        Service.set_sensors(self._instance_id, self.sensors)
 
         aircons = []
         new_aircons = []
@@ -487,15 +491,15 @@ class GetRoomInfoResult(BaseResult):
         p = AirConCapabilityQueryParam()
         p.aircons = aircons
         p.target = EnumDevice.AIRCON
-        Service.send_msg(p)
+        Service.send_msg(self._instance_id, p)
         p = AirConCapabilityQueryParam()
         p.aircons = new_aircons
         p.target = EnumDevice.NEWAIRCON
-        Service.send_msg(p)
+        Service.send_msg(self._instance_id, p)
         p = AirConCapabilityQueryParam()
         p.aircons = bathrooms
         p.target = EnumDevice.BATHROOM
-        Service.send_msg(p)
+        Service.send_msg(self._instance_id, p)
 
     @property
     def count(self):
@@ -531,9 +535,10 @@ class QueryScheduleIDResult(BaseResult):
 
 
 class HandShakeResult(BaseResult):
-    def __init__(self, cmd_id: int, target: EnumDevice):
+    def __init__(self, cmd_id: int, target: EnumDevice, instance_id: str):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_HAND_SHAKE)
         self._time: str = ''
+        self._instance_id: str = instance_id
 
     def load_bytes(self, b):
         d = Decode(b)
@@ -543,8 +548,8 @@ class HandShakeResult(BaseResult):
         p = GetRoomInfoParam()
         p.room_ids.append(0xffff)
         from .service import Service
-        Service.send_msg(p)
-        Service.send_msg(Sensor2InfoParam())
+        Service.send_msg(self._instance_id, p)
+        Service.send_msg(self._instance_id, Sensor2InfoParam())
 
 
 class GetGWInfoResult(BaseResult):
@@ -576,11 +581,12 @@ class QueryScheduleFinish(BaseResult):
 
 
 class AirConStatusChangedResult(BaseResult):
-    def __init__(self, cmd_id: int, target: EnumDevice):
+    def __init__(self, cmd_id: int, target: EnumDevice, instance_id: str):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.STATUS_CHANGED)
         self._room = 0  # type: int
         self._unit = 0  # type: int
         self._status = AirConStatus()  # type: AirConStatus
+        self._instance_id = instance_id
 
     def load_bytes(self, b):
         d = Decode(b)
@@ -606,11 +612,11 @@ class AirConStatusChangedResult(BaseResult):
 
     def do(self):
         from .service import Service
-        Service.update_aircon(self.target, self._room, self._unit, status=self._status)
+        Service.update_aircon(self._instance_id, self.target, self._room, self._unit, status=self._status)
 
 
 class AirConQueryStatusResult(BaseResult):
-    def __init__(self, cmd_id: int, target: EnumDevice):
+    def __init__(self, cmd_id: int, target: EnumDevice, instance_id: str):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.QUERY_STATUS)
         self.unit = 0
         self.room = 0
@@ -627,6 +633,7 @@ class AirConQueryStatusResult(BaseResult):
         self.fresh_air_allow = False
         self.fresh_air_humidification = FreshAirHumidification.OFF
         self.three_d_fresh = ThreeDFresh.CLOSE
+        self._instance_id = instance_id
 
     def load_bytes(self, b):
         d = Decode(b)
@@ -682,7 +689,7 @@ class AirConQueryStatusResult(BaseResult):
         from .service import Service
         status = AirConStatus(self.current_temp, self.setted_temp, self.switch, self.air_flow, self.breathe,
                               self.fan_direction1, self.fan_direction2, self.humidity, self.mode)
-        Service.set_aircon_status(self.target, self.room, self.unit, status)
+        Service.set_aircon_status(self._instance_id, self.target, self.room, self.unit, status)
 
 
 class AirConRecommendedIndoorTempResult(BaseResult):
@@ -706,9 +713,10 @@ class AirConRecommendedIndoorTempResult(BaseResult):
 
 
 class AirConCapabilityQueryResult(BaseResult):
-    def __init__(self, cmd_id: int, target: EnumDevice):
+    def __init__(self, cmd_id: int, target: EnumDevice, instance_id: str):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.AIR_CAPABILITY_QUERY)
         self._air_cons: typing.List[AirCon] = []
+        self._instance_id = instance_id
 
     def load_bytes(self, b):
         d = Decode(b)
@@ -763,15 +771,15 @@ class AirConCapabilityQueryResult(BaseResult):
         if Service.is_ready():
             if len(self._air_cons):
                 for i in self._air_cons:
-                    Service.update_aircon(get_device_by_aircon(i), i.room_id, i.unit_id, aircon=i)
+                    Service.update_aircon(self._instance_id, get_device_by_aircon(i), i.room_id, i.unit_id, aircon=i)
         else:
             for i in self._air_cons:
                 p = AirConQueryStatusParam()
                 p.target = self.target
                 p.device = i
                 from .service import Service
-                Service.send_msg(p)
-            Service.set_device(self.target, self._air_cons)
+                Service.send_msg(self._instance_id, p)
+            Service.set_device(self._instance_id, self.target, self._air_cons)
 
     @property
     def aircons(self):

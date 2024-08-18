@@ -12,10 +12,11 @@ class Device:
         self.room_id: int = 0
         self.unit_id: int = 0
         self.mac: str = ""
+        self.instance_id: str = ""
 
     @property
     def unique_id(self):
-        return "daikin_%d_%d" % (self.room_id, self.unit_id)
+        return "daikin_%s_%d_%d" % (self.instance_id, self.room_id, self.unit_id)
 
 
 def _nothing():

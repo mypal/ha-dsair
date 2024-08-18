@@ -5,6 +5,7 @@
         "title": "DS-AIR",
         "description": "Support DTA117B611/DTA117C611",
         "data": {
+          "eid": "Entry ID",
           "host": "Host",
           "port": "Port",
           "gw": "Gateway model",
@@ -40,6 +41,7 @@
         "title": "Adjust config",
         "description": "",
         "data": {
+          "eid": "Entry ID",
           "host": "Gateway IP",
           "port": "Gateway Port",
           "gw": "Gateway model",

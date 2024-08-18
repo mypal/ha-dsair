@@ -6,6 +6,8 @@ from .ds_air_service.ctrl_enum import EnumSensor
 
 DOMAIN = "ds_air"
 CONF_GW = "gw"
+CONF_ID = "eid"
+DEFAULT_ID = "gw1"
 DEFAULT_HOST = "192.168.1."
 DEFAULT_PORT = 8008
 DEFAULT_GW = "DTA117C611"
