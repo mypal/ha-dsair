@@ -25,7 +25,8 @@ from homeassistant.const import (
     CONF_PORT,
     MAJOR_VERSION,
     MINOR_VERSION,
-    PRECISION_TENTHS, UnitOfTemperature,
+    PRECISION_TENTHS,
+    UnitOfTemperature,
 )
 from homeassistant.core import Event, HomeAssistant
 from homeassistant.helpers import config_validation as cv
@@ -39,7 +40,8 @@ from .const import (
     FAN_DIRECTION_LIST,
     MANUFACTURER,
     get_action_name,
-    get_air_flow_enum, get_air_flow_name,
+    get_air_flow_enum,
+    get_air_flow_name,
     get_fan_direction_enum,
     get_fan_direction_name,
     get_mode_name,
@@ -83,7 +85,7 @@ async def async_setup_entry(
     if link is not None:
         for i in link:
             climate_name = i.get("climate")
-            if climate := next(c for c in climates if c.name == climate_name):
+            if climate := next(c for c in climates if c._device_info.alias == climate_name):
                 if temp_entity_id := i.get("sensor_temp"):
                     sensor_temp_map.setdefault(temp_entity_id, []).append(climate)
                     climate.linked_temp_entity_id = temp_entity_id
@@ -110,6 +112,8 @@ class DsAir(ClimateEntity):
     """Representation of a Daikin climate device."""
 
     # Entity Properties
+    _attr_has_entity_name: bool = True
+    _attr_name: str | None = None
     _attr_should_poll: bool = False
 
     # Climate Properties
@@ -132,7 +136,6 @@ class DsAir(ClimateEntity):
         _log(str(aircon.__dict__))
         _log(str(aircon.status.__dict__))
         """Initialize the climate device."""
-        self._attr_name = aircon.alias
         self._device_info = aircon
         self._attr_unique_id = aircon.unique_id
         self.linked_temp_entity_id: str | None = None
@@ -143,7 +146,7 @@ class DsAir(ClimateEntity):
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.unique_id)},
-            name=f"空调{self._attr_name}",
+            name=aircon.alias if "空调" in aircon.alias else f"{aircon.alias} 空调",
             manufacturer=MANUFACTURER,
         )
 

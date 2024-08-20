@@ -212,7 +212,7 @@ class Service:
             Service._ready = False
 
     @staticmethod
-    def get_aircons():
+    def get_aircons() -> list[AirCon]:
         aircons = []
         if Service._new_aircons is not None:
             aircons += Service._new_aircons
