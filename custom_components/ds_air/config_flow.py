@@ -44,10 +44,7 @@ class DsAirFlowHandler(ConfigFlow, domain=DOMAIN):
         errors = {}
         if user_input is not None:
             self.user_input.update(user_input)
-            if (
-                not user_input.get(CONF_SENSORS)
-                or user_input.get("temp") is not None
-            ):
+            if not user_input.get(CONF_SENSORS) or user_input.get("temp") is not None:
                 return self.async_create_entry(title="金制空气", data=self.user_input)
             else:
                 return self.async_show_form(
@@ -107,20 +104,21 @@ class DsAirOptionsFlowHandler(OptionsFlow):
         """Manage the options."""
         sensors = self.hass.states.async_all("sensor")
         self._sensors_temp = {
-            None: 'None',
+            None: "None",
             **{
                 state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
                 for state in sensors
-                if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.TEMPERATURE
-            }
+                if state.attributes.get(ATTR_DEVICE_CLASS)
+                == SensorDeviceClass.TEMPERATURE
+            },
         }
         self._sensors_humi = {
-            None: 'None',
+            None: "None",
             **{
                 state.entity_id: f"{state.attributes.get(ATTR_FRIENDLY_NAME, state.entity_id)} ({state.entity_id})"
                 for state in sensors
                 if state.attributes.get(ATTR_DEVICE_CLASS) == SensorDeviceClass.HUMIDITY
-            }
+            },
         }
 
         return self.async_show_menu(
@@ -229,7 +227,9 @@ class DsAirOptionsFlowHandler(OptionsFlow):
             return self.async_create_entry(title="", data={"link": self._config_data})
         cur_climate: str = self._climates[self._cur]
         cur_links = self.config_entry.options.get("link", [])
-        cur_link = next((link for link in cur_links if link["climate"] == cur_climate), None)
+        cur_link = next(
+            (link for link in cur_links if link["climate"] == cur_climate), None
+        )
         cur_sensor_temp = cur_link.get("sensor_temp") if cur_link else None
         cur_sensor_humi = cur_link.get("sensor_humi") if cur_link else None
         return self.async_show_form(

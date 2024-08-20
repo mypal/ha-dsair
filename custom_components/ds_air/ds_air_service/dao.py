@@ -22,11 +22,8 @@ class Device:
 
     @property
     def unique_id(self):
+        # todo 需要加上所属网关
         return "daikin_%d_%d" % (self.room_id, self.unit_id)
-
-
-def _nothing():
-    """do nothing"""
 
 
 class AirConStatus:

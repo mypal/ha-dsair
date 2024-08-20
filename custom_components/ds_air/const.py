@@ -1,20 +1,14 @@
-from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any
+from homeassistant.components.climate import (
+    FAN_AUTO,
+    FAN_HIGH,
+    FAN_LOW,
+    FAN_MEDIUM,
+    HVACAction,
+    HVACMode,
+)
 
-from homeassistant.components.sensor import (
-    SensorDeviceClass,
-    SensorEntityDescription,
-    SensorStateClass,
-)
-from homeassistant.const import (
-    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-    CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
-    CONCENTRATION_PARTS_PER_MILLION,
-    MAJOR_VERSION,
-    PERCENTAGE,
-    UnitOfTemperature,
-)
+from .ds_air_service import EnumControl
+
 
 DOMAIN = "ds_air"
 CONF_GW = "gw"
@@ -25,56 +19,60 @@ GW_LIST = ["DTA117C611", "DTA117B611"]
 
 MANUFACTURER = "Daikin Industries, Ltd."
 
-FROZEN = MAJOR_VERSION >= 2024
+
+_MODE_NAME_LIST = [
+    HVACMode.COOL,
+    HVACMode.DRY,
+    HVACMode.FAN_ONLY,
+    HVACMode.AUTO,
+    HVACMode.HEAT,
+    HVACMode.DRY,
+    HVACMode.AUTO,
+    HVACMode.AUTO,
+    HVACMode.HEAT,
+    HVACMode.DRY,
+]
 
 
-@dataclass(frozen=FROZEN, kw_only=True)
-class DsSensorEntityDescription(SensorEntityDescription):
-    has_entity_name: bool = True
-    state_class: SensorStateClass = SensorStateClass.MEASUREMENT
-    value_fn: Callable[[Any], Any] | None = lambda x: x
+def get_mode_name(idx: int) -> HVACMode:
+    return _MODE_NAME_LIST[idx]
 
 
-SENSOR_DESCRIPTORS = {
-    "temp": DsSensorEntityDescription(
-        key="temp",
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        device_class=SensorDeviceClass.TEMPERATURE,
-        value_fn=lambda x: x / 10,
-    ),
-    "humidity": DsSensorEntityDescription(
-        key="humidity",
-        native_unit_of_measurement=PERCENTAGE,
-        device_class=SensorDeviceClass.HUMIDITY,
-        value_fn=lambda x: x / 10,
-    ),
-    "pm25": DsSensorEntityDescription(
-        key="pm25",
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-        device_class=SensorDeviceClass.PM25,
-    ),
-    "co2": DsSensorEntityDescription(
-        key="co2",
-        native_unit_of_measurement=CONCENTRATION_PARTS_PER_MILLION,
-        device_class=SensorDeviceClass.CO2,
-    ),
-    "tvoc": DsSensorEntityDescription(
-        key="tvoc",
-        name="TVOC",
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-        device_class=SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS,
-        suggested_display_precision=0,
-        value_fn=lambda x: x * 10,
-    ),
-    "voc": DsSensorEntityDescription(
-        key="voc",
-        device_class=SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS_PARTS,
-        value_fn=lambda x: str(x),  # EnumSensor.Voc
-    ),
-    "hcho": DsSensorEntityDescription(
-        key="hcho",
-        name="HCHO",
-        native_unit_of_measurement=CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
-        value_fn=lambda x: x / 100,
-    ),
-}
+_MODE_ACTION_LIST = [
+    HVACAction.COOLING,
+    HVACAction.DRYING,
+    HVACAction.FAN,
+    None,
+    HVACAction.HEATING,
+    HVACAction.DRYING,
+    None,
+    None,
+    HVACAction.PREHEATING,
+    HVACAction.DRYING,
+]
+
+
+def get_action_name(idx: int) -> HVACAction | None:
+    return _MODE_ACTION_LIST[idx]
+
+
+AIR_FLOW_NAME_LIST = [FAN_LOW, "稍弱", FAN_MEDIUM, "稍强", FAN_HIGH, FAN_AUTO]
+
+
+def get_air_flow_name(idx: int) -> str:
+    return AIR_FLOW_NAME_LIST[idx]
+
+
+def get_air_flow_enum(name: str) -> EnumControl.AirFlow:
+    return EnumControl.AirFlow(AIR_FLOW_NAME_LIST.index(name))
+
+
+FAN_DIRECTION_LIST = [None, "➡️", "↘️", "⬇️", "↙️", "⬅️", "↔️", "🔄"]
+
+
+def get_fan_direction_name(idx: int) -> str:
+    return FAN_DIRECTION_LIST[idx]
+
+
+def get_fan_direction_enum(name: str) -> EnumControl.FanDirection:
+    return EnumControl.FanDirection(FAN_DIRECTION_LIST.index(name))

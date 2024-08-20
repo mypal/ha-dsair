@@ -6,7 +6,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, DsSensorEntityDescription, MANUFACTURER, SENSOR_DESCRIPTORS
+from .const import DOMAIN, MANUFACTURER
+from .descriptions import DsSensorEntityDescription, SENSOR_DESCRIPTORS
 from .ds_air_service import Sensor, Service, UNINITIALIZED_VALUE
 
 

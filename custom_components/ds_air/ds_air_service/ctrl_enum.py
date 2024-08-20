@@ -1,14 +1,5 @@
 from enum import Enum, IntEnum
 
-from homeassistant.components.climate.const import (
-    FAN_AUTO,
-    FAN_HIGH,
-    FAN_LOW,
-    FAN_MEDIUM,
-    HVACAction,
-    HVACMode,
-)
-
 
 class EnumCmdType(IntEnum):
     # 返回指令
@@ -229,49 +220,6 @@ class EnumSwitch(IntEnum):
     OFF = 2
 
 
-"""EnumControl"""
-
-
-class AirFlow(IntEnum):
-    SUPER_WEAK = 0
-    WEAK = 1
-    MIDDLE = 2
-    STRONG = 3
-    SUPER_STRONG = 4
-    AUTO = 5
-
-
-# _AIR_FLOW_NAME_LIST = ['最弱', '稍弱', '中等', '稍强', '最强', '自动']
-_AIR_FLOW_NAME_LIST = [FAN_LOW, "稍弱", FAN_MEDIUM, "稍强", FAN_HIGH, FAN_AUTO]
-
-
-class Breathe(IntEnum):
-    CLOSE = 0
-    WEAK = 1
-    STRONG = 2
-
-
-class FanDirection(IntEnum):
-    INVALID = 0
-    P0 = 1  # 最右 最上
-    P1 = 2
-    P2 = 3
-    P3 = 4
-    P4 = 5  # 最左 最下
-    AUTO = 6
-    SWING = 7
-
-
-_FAN_DIRECTION_LIST = ["INVALID", "➡️", "↘️", "⬇️", "↙️", "⬅️", "↔️", "🔄"]
-
-
-class Humidity(IntEnum):
-    CLOSE = 0
-    STEP1 = 1
-    STEP2 = 2
-    STEP3 = 3
-
-
 class FreshAirHumidification(IntEnum):
     OFF = 0
     FRESH_AIR = 1
@@ -285,112 +233,68 @@ class ThreeDFresh(IntEnum):
     AUTO = 3
 
 
-class Mode(IntEnum):
-    COLD = 0
-    DRY = 1
-    VENTILATION = 2
-    AUTO = 3
-    HEAT = 4
-    AUTODRY = 5
-    RELAX = 6
-    SLEEP = 7
-    PREHEAT = 8
-    MOREDRY = 9
-
-
-# Legacy Mode Mapping
-# _MODE_NAME_LIST = [HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO, HVACMode.HEAT,
-#                   HVACMode.DRY, HVACMode.AUTO, HVACMode.HEAT_COOL, HVACMode.HEAT, HVACMode.DRY]
-
-_MODE_NAME_LIST = [
-    HVACMode.COOL,
-    HVACMode.DRY,
-    HVACMode.FAN_ONLY,
-    HVACMode.AUTO,
-    HVACMode.HEAT,
-    HVACMode.DRY,
-    HVACMode.AUTO,
-    HVACMode.AUTO,
-    HVACMode.HEAT,
-    HVACMode.DRY,
-]
-_MODE_ACTION_LIST = [
-    HVACAction.COOLING,
-    HVACAction.DRYING,
-    HVACAction.FAN,
-    None,
-    HVACAction.HEATING,
-    HVACAction.DRYING,
-    None,
-    None,
-    HVACAction.PREHEATING,
-    HVACAction.DRYING,
-]
-
-
-class Switch(IntEnum):
-    OFF = 0
-    ON = 1
-
-
-class Type(IntEnum):
-    SWITCH = 1  # 0
-    MODE = 2  # 1
-    AIR_FLOW = 4  # 2
-    CURRENT_TEMP = 8
-    FRESH_AIR_HUMIDIFICATION = 8  # 3
-    SETTED_TEMP = 16  # 4
-    FAN_DIRECTION = 32  # 5
-    HUMIDITY = 64  # 6
-    BREATHE = 128  # 7
-    FAN_DIRECTION_FB = 254  # 8
-    FAN_DIRECTION_LR = 255  # 9
-    SCENE_STATE = 253  # 10
-
-
 class EnumControl:
-    Switch = Switch
-    AirFlow = AirFlow
-    Breathe = Breathe
-    FanDirection = FanDirection
-    Humidity = Humidity
-    Mode = Mode
-    Type = Type
+    class Switch(IntEnum):
+        OFF = 0
+        ON = 1
 
-    @staticmethod
-    def get_mode_name(idx):
-        return _MODE_NAME_LIST[idx]
+    class AirFlow(IntEnum):
+        SUPER_WEAK = 0
+        WEAK = 1
+        MIDDLE = 2
+        STRONG = 3
+        SUPER_STRONG = 4
+        AUTO = 5
 
-    @staticmethod
-    def get_action_name(idx):
-        return _MODE_ACTION_LIST[idx]
+    class Breathe(IntEnum):
+        CLOSE = 0
+        WEAK = 1
+        STRONG = 2
 
-    @staticmethod
-    def get_mode_enum(name):
-        return Mode(_MODE_NAME_LIST.index(name))
+    class FanDirection(IntEnum):
+        INVALID = 0
+        P0 = 1  # 最右 最上
+        P1 = 2
+        P2 = 3
+        P3 = 4
+        P4 = 5  # 最左 最下
+        AUTO = 6
+        SWING = 7
 
-    @staticmethod
-    def get_air_flow_name(idx):
-        return _AIR_FLOW_NAME_LIST[idx]
+    class Humidity(IntEnum):
+        CLOSE = 0
+        STEP1 = 1
+        STEP2 = 2
+        STEP3 = 3
 
-    @staticmethod
-    def get_air_flow_enum(name):
-        return AirFlow(_AIR_FLOW_NAME_LIST.index(name))
+    class Mode(IntEnum):
+        COLD = 0
+        DRY = 1
+        VENTILATION = 2
+        AUTO = 3
+        HEAT = 4
+        AUTODRY = 5
+        RELAX = 6
+        SLEEP = 7
+        PREHEAT = 8
+        MOREDRY = 9
 
-    @staticmethod
-    def get_fan_direction_name(idx):
-        return _FAN_DIRECTION_LIST[idx]
-
-    @staticmethod
-    def get_fan_direction_enum(name):
-        return FanDirection(_FAN_DIRECTION_LIST.index(name))
+    class Type(IntEnum):
+        SWITCH = 1  # 0
+        MODE = 2  # 1
+        AIR_FLOW = 4  # 2
+        CURRENT_TEMP = 8
+        FRESH_AIR_HUMIDIFICATION = 8  # 3
+        SETTED_TEMP = 16  # 4
+        FAN_DIRECTION = 32  # 5
+        HUMIDITY = 64  # 6
+        BREATHE = 128  # 7
+        FAN_DIRECTION_FB = 254  # 8
+        FAN_DIRECTION_LR = 255  # 9
+        SCENE_STATE = 253  # 10
 
 
 class EnumSensor:
-    class LinkState(IntEnum):
-        NO_LINKED = 0
-        YES_LINKED = 1
-
     class Voc(IntEnum):
         STEP_1 = 1
         STEP_2 = 2
