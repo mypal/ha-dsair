@@ -4,6 +4,7 @@ import time
 from collections.abc import Callable
 from threading import Lock, Thread
 
+from .config import Config
 from .ctrl_enum import EnumDevice
 from .dao import AirCon, AirConStatus, Room, STATUS_ATTR, Sensor, get_device_by_aircon
 from .decoder import BaseResult, decoder
@@ -27,9 +28,10 @@ def _log(s: str):
 
 
 class SocketClient:
-    def __init__(self, host: str, port: int):
+    def __init__(self, host: str, port: int, config: Config):
         self._host = host
         self._port = port
+        self._config = config
         self._locker = Lock()
         self._s = None
         while not self.do_connect():
@@ -56,13 +58,13 @@ class SocketClient:
 
     def send(self, p: Param):
         self._locker.acquire()
-        _log("send hex: 0x" + p.to_string().hex())
+        _log("send hex: 0x" + p.to_string(self._config).hex())
         _log("\033[31msend:\033[0m")
         _log(display(p))
         done = False
         while not done:
             try:
-                self._s.sendall(p.to_string())
+                self._s.sendall(p.to_string(self._config))
                 done = True
             except Exception:
                 time.sleep(3)
@@ -87,7 +89,7 @@ class SocketClient:
             _log("recv hex: 0x" + data.hex())
         while data:
             try:
-                r, b = decoder(data)
+                r, b = decoder(data, self._config)
                 res.append(r)
                 data = b
             except Exception as e:
@@ -159,11 +161,11 @@ class Service:
     _scan_interval: int = 5
 
     @staticmethod
-    def init(host: str, port: int, scan_interval: int):
+    def init(host: str, port: int, scan_interval: int, config: Config):
         if Service._ready:
             return
         Service._scan_interval = scan_interval
-        Service._socket_client = SocketClient(host, port)
+        Service._socket_client = SocketClient(host, port, config)
         Service._socket_client.send(HandShakeParam())
         Service._heartbeat_thread = HeartBeatThread()
         Service._heartbeat_thread.start()

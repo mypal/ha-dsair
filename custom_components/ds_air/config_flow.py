@@ -148,9 +148,7 @@ class DsAirOptionsFlowHandler(OptionsFlow):
                     {
                         vol.Required(CONF_HOST, default=data[CONF_HOST]): str,
                         vol.Required(CONF_PORT, default=data[CONF_PORT]): int,
-                        vol.Required(CONF_GW, default=data[CONF_GW]): vol.In(
-                            GW_LIST
-                        ),
+                        vol.Required(CONF_GW, default=data[CONF_GW]): vol.In(GW_LIST),
                         vol.Required(
                             CONF_SCAN_INTERVAL, default=data[CONF_SCAN_INTERVAL]
                         ): int,

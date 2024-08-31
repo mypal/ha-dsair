@@ -21,7 +21,7 @@ PLATFORMS = [
 ]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
     host = entry.data[CONF_HOST]
     port = entry.data[CONF_PORT]
@@ -35,9 +35,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry):
     hass.data[DOMAIN][CONF_GW] = gw
     hass.data[DOMAIN][CONF_SCAN_INTERVAL] = scan_interval
 
-    Config.is_c611 = gw == DEFAULT_GW
+    config = Config()
+    config.is_c611 = gw == DEFAULT_GW
 
-    await hass.async_add_executor_job(Service.init, host, port, scan_interval)
+    await hass.async_add_executor_job(Service.init, host, port, scan_interval, config)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(update_listener))
 

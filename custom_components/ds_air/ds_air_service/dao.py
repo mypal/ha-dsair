@@ -9,6 +9,7 @@ from .ctrl_enum import (
     EnumOutDoorRunCond,
     EnumSwitch,
 )
+from .config import Config
 
 
 class Device:
@@ -51,8 +52,9 @@ class AirConStatus:
 
 
 class AirCon(Device):
-    def __init__(self):
+    def __init__(self, config: Config):
         super().__init__()
+        self.config = config
         self.auto_dry_mode: int = 0
         self.auto_mode: int = 0
         self.bath_room: bool = False

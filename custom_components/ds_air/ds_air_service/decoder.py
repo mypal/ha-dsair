@@ -35,7 +35,7 @@ from .param import (
 )
 
 
-def decoder(b):
+def decoder(b: bytes, config: Config):
     if b[0] != 2:
         return None, None
 
@@ -51,11 +51,12 @@ def decoder(b):
             return None, None
 
     return result_factory(
-        struct.unpack("<BHBBBBIBIBH" + str(length - 16) + "sB", b[: length + 4])
+        struct.unpack("<BHBBBBIBIBH" + str(length - 16) + "sB", b[: length + 4]),
+        config,
     ), b[length + 4 :]
 
 
-def result_factory(data):
+def result_factory(data: tuple, config: Config):
     (
         r1,
         length,
@@ -130,7 +131,7 @@ def result_factory(data):
         result = UnknownResult(cnt, EnumDevice.SYSTEM, cmd_type)
 
     result.subbody_ver = subbody_ver
-    result.load_bytes(subbody)
+    result.load_bytes(subbody, config)
 
     return result
 
@@ -183,10 +184,10 @@ class BaseResult(BaseBean):
     def __init__(self, cmd_id: int, targe: EnumDevice, cmd_type: EnumCmdType):
         BaseBean.__init__(self, cmd_id, targe, cmd_type)
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         """do nothing"""
 
-    def do(self):
+    def do(self) -> None:
         """do nothing"""
 
 
@@ -199,8 +200,8 @@ class AckResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
 
-    def load_bytes(self, b):
-        Config.is_new_version = struct.unpack("<B", b)[0] == 2
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        config.is_new_version = struct.unpack("<B", b)[0] == 2
 
 
 class ScheduleQueryVersionV3Result(BaseResult):
@@ -217,7 +218,7 @@ class Sensor2InfoResult(BaseResult):
         self._sensor_type = 0
         self._sensors: typing.List[Sensor] = []
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         data = Decode(b)
         self._mode = data.read1()
         count = data.read1()
@@ -301,7 +302,7 @@ class Sensor2InfoResult(BaseResult):
             self._sensors.append(sensor)
             count = count - 1
 
-    def do(self):
+    def do(self) -> None:
         from .service import Service
 
         Service.set_sensors_status(self._sensors)
@@ -333,7 +334,7 @@ class CmdRspResult(BaseResult):
         self._cmdId = None
         self._code = None
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         self._cmdId, self._code = struct.unpack("<IB", b)
 
     @property
@@ -350,7 +351,7 @@ class TimeSyncResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_TIME_SYNC)
         self._time = None
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         self._time = struct.unpack("<I", b)[0]
 
     @property
@@ -366,7 +367,7 @@ class ErrCodeResult(BaseResult):
         self._room = None
         self._unit = None
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         dev_id, room, unit = struct.unpack("<iBB", b[:6])
         self._device = EnumDevice((8, dev_id))
         self._room = room
@@ -399,7 +400,7 @@ class GetWeatherResult(BaseResult):
         self._wind_dire = None
         self._wind_speed = None
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         (
             self._condition,
             self._humidity,
@@ -434,7 +435,7 @@ class LoginResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_LOGIN)
         self._status = None
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         self._status = struct.unpack("<BB", b)[1]
 
     @property
@@ -447,7 +448,7 @@ class ChangePWResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_CHANGE_PW)
         self._status = None
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         self._status = struct.unpack("<B", b)[0]
 
     @property
@@ -463,7 +464,7 @@ class GetRoomInfoResult(BaseResult):
         self._sensors: typing.List[Sensor] = []
         self._rooms: typing.List[Room] = []
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         ver_flag = 1
         d = Decode(b)
         self._count = d.read2()
@@ -490,7 +491,7 @@ class GetRoomInfoResult(BaseResult):
                         or EnumDevice.NEWAIRCON == device
                         or EnumDevice.BATHROOM == device
                     ):
-                        dev = AirCon()
+                        dev = AirCon(config)
                         room.air_con = dev
                         dev.new_air_con = EnumDevice.NEWAIRCON == device
                         dev.bath_room = EnumDevice.BATHROOM == device
@@ -526,7 +527,7 @@ class GetRoomInfoResult(BaseResult):
                             dev.alias = room.alias
             self.rooms.append(room)
 
-    def do(self):
+    def do(self) -> None:
         from .service import Service
 
         Service.set_rooms(self.rooms)
@@ -582,7 +583,7 @@ class QueryScheduleSettingResult(BaseResult):
             self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_SETTING
         )
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         """todo"""
 
 
@@ -590,7 +591,7 @@ class QueryScheduleIDResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_ID)
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         """todo"""
 
 
@@ -599,11 +600,11 @@ class HandShakeResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_HAND_SHAKE)
         self._time: str = ""
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         self._time = d.read_utf(14)
 
-    def do(self):
+    def do(self) -> None:
         p = GetRoomInfoParam()
         p.room_ids.append(0xFFFF)
         from .service import Service
@@ -617,10 +618,10 @@ class GetGWInfoResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_HAND_SHAKE)
         self._time: str = ""
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         """todo"""
 
-    def do(self):
+    def do(self) -> None:
         """todo"""
 
 
@@ -628,7 +629,7 @@ class CmdTransferResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_CMD_TRANSFER)
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         """todo"""
 
 
@@ -636,7 +637,7 @@ class QueryScheduleFinish(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_FINISH)
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         """todo"""
 
 
@@ -647,7 +648,7 @@ class AirConStatusChangedResult(BaseResult):
         self._unit: int = 0
         self._status: AirConStatus = AirConStatus()
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         self._room = d.read1()
         self._unit = d.read1()
@@ -663,13 +664,13 @@ class AirConStatusChangedResult(BaseResult):
             status.current_temp = d.read2()
         if flag & EnumControl.Type.SETTED_TEMP:
             status.setted_temp = d.read2()
-        if Config.is_new_version:
+        if config.is_new_version:
             if flag & EnumControl.Type.FAN_DIRECTION:
                 direction = d.read1()
                 status.fan_direction1 = EnumControl.FanDirection(direction & 0xF)
                 status.fan_direction2 = EnumControl.FanDirection((direction >> 4) & 0xF)
 
-    def do(self):
+    def do(self) -> None:
         from .service import Service
 
         Service.update_aircon(self.target, self._room, self._unit, status=self._status)
@@ -694,7 +695,7 @@ class AirConQueryStatusResult(BaseResult):
         self.fresh_air_humidification = FreshAirHumidification.OFF
         self.three_d_fresh = ThreeDFresh.CLOSE
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         self.room = d.read1()
         self.unit = d.read1()
@@ -705,7 +706,7 @@ class AirConQueryStatusResult(BaseResult):
             self.mode = EnumControl.Mode(d.read1())
         if flag >> 2 & 1:
             self.air_flow = EnumControl.AirFlow(d.read1())
-        if Config.is_c611:
+        if config.is_c611:
             if flag >> 3 & 1:
                 bt = d.read1()
                 self.hum_allow = bt & 8 == 8
@@ -714,7 +715,7 @@ class AirConQueryStatusResult(BaseResult):
 
             if flag >> 4 & 1:
                 self.setted_temp = d.read2()
-            if Config.is_new_version:
+            if config.is_new_version:
                 if flag >> 5 & 1:
                     b = d.read1()
                     self.fan_direction1 = EnumControl.FanDirection(b & 0xF)
@@ -732,7 +733,7 @@ class AirConQueryStatusResult(BaseResult):
                 self.current_temp = d.read2()
             if flag >> 4 & 1:
                 self.setted_temp = d.read2()
-            if Config.is_new_version:
+            if config.is_new_version:
                 if flag >> 5 & 1:
                     b = d.read1()
                     self.fan_direction1 = EnumControl.FanDirection(b & 0xF)
@@ -744,7 +745,7 @@ class AirConQueryStatusResult(BaseResult):
                     if flag >> 7 & 1:
                         self.breathe = EnumControl.Breathe(d.read1())
 
-    def do(self):
+    def do(self) -> None:
         from .service import Service
 
         status = AirConStatus(
@@ -769,7 +770,7 @@ class AirConRecommendedIndoorTempResult(BaseResult):
         self._temp: int = 0
         self._outdoor_temp: int = 0
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         self._temp = d.read2()
         self._outdoor_temp = d.read2()
@@ -788,14 +789,14 @@ class AirConCapabilityQueryResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.AIR_CAPABILITY_QUERY)
         self._air_cons: typing.List[AirCon] = []
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         room_size = d.read1()
         for i in range(room_size):
             room_id = d.read1()
             unit_size = d.read1()
             for j in range(unit_size):
-                aircon = AirCon()
+                aircon = AirCon(config)
                 aircon.unit_id = d.read1()
                 aircon.room_id = room_id
                 aircon.new_air_con = self.target == EnumDevice.NEWAIRCON
@@ -807,7 +808,7 @@ class AirConCapabilityQueryResult(BaseResult):
                 aircon.heat_mode = flag >> 2 & 1
                 aircon.cool_mode = flag >> 1 & 1
                 aircon.ventilation_mode = flag & 1
-                if Config.is_new_version:
+                if config.is_new_version:
                     flag = d.read1()
                     if flag & 1:
                         aircon.fan_direction1 = EnumFanDirection.STEP_5
@@ -836,7 +837,7 @@ class AirConCapabilityQueryResult(BaseResult):
                     d.read1()
                 self._air_cons.append(aircon)
 
-    def do(self):
+    def do(self) -> None:
         from .service import Service
 
         if Service.is_ready():
@@ -864,7 +865,7 @@ class AirConQueryScenarioSettingResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.QUERY_SCENARIO_SETTING)
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         """todo"""
 
 
@@ -873,7 +874,7 @@ class UnknownResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, cmd_type)
         self._subbody = ""
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         self._subbody = struct.pack("<" + str(len(b)) + "s", b).hex()
 
     @property

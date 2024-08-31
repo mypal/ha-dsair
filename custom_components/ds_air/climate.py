@@ -85,7 +85,9 @@ async def async_setup_entry(
     if link is not None:
         for i in link:
             climate_name = i.get("climate")
-            if climate := next(c for c in climates if c._device_info.alias == climate_name):
+            if climate := next(
+                c for c in climates if c._device_info.alias == climate_name
+            ):
                 if temp_entity_id := i.get("sensor_temp"):
                     sensor_temp_map.setdefault(temp_entity_id, []).append(climate)
                     climate.linked_temp_entity_id = temp_entity_id
@@ -248,7 +250,7 @@ class DsAir(ClimateEntity):
         if self._link_cur_temp:
             return self._attr_current_temperature
         else:
-            if Config.is_c611:
+            if self._device_info.config.is_c611:
                 return None
             else:
                 return self._device_info.status.current_temp / 10

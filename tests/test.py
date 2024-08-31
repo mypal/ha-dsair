@@ -1,3 +1,4 @@
+from custom_components.ds_air import Config
 from custom_components.ds_air.ds_air_service.decoder import decoder
 from custom_components.ds_air.ds_air_service.display import display
 
@@ -7,18 +8,19 @@ list = [
 ]
 
 
-def show(s):
+def show(s, config: Config):
     if s[0] == "D":
         s = s[6:]
     print(s)
     b = bytes.fromhex(s)
     while b:
-        r, b = decoder(b)
+        r, b = decoder(b, config)
         print(display(r))
 
 
+c = Config()
 for i in list:
-    show(i)
+    show(i, c)
 
 import socket
 
