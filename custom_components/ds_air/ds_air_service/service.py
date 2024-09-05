@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import logging
 import socket
 import time
@@ -28,7 +30,7 @@ def _log(s: str):
 
 
 class SocketClient:
-    def __init__(self, host: str, port: int, config: Config):
+    def __init__(self, host: str, port: int, service: Service, config: Config):
         self._host = host
         self._port = port
         self._config = config
@@ -37,7 +39,7 @@ class SocketClient:
         while not self.do_connect():
             time.sleep(3)
         self._ready = True
-        self._recv_thread = RecvThread(self)
+        self._recv_thread = RecvThread(self, service)
         self._recv_thread.start()
 
     def destroy(self):
@@ -99,9 +101,10 @@ class SocketClient:
 
 
 class RecvThread(Thread):
-    def __init__(self, sock: SocketClient):
+    def __init__(self, sock: SocketClient, service: Service):
         super().__init__()
         self._sock = sock
+        self._service = service
         self._locker = Lock()
         self._running = True
 
@@ -117,15 +120,16 @@ class RecvThread(Thread):
                 self._locker.acquire()
                 try:
                     if i is not None:
-                        i.do()
+                        i.do(self._service)
                 except Exception as e:
                     _log(e)
                 self._locker.release()
 
 
 class HeartBeatThread(Thread):
-    def __init__(self):
+    def __init__(self, service: Service):
         super().__init__()
+        self.service = service
         self._running = True
 
     def terminate(self):
@@ -136,175 +140,160 @@ class HeartBeatThread(Thread):
         time.sleep(30)
         cnt = 0
         while self._running:
-            Service.send_msg(HeartbeatParam())
+            self.service.send_msg(HeartbeatParam())
             cnt += 1
-            if cnt == Service.get_scan_interval():
+            if cnt == self.service.get_scan_interval():
                 _log("poll_status")
                 cnt = 0
-                Service.poll_status()
+                self.service.poll_status()
 
             time.sleep(60)
 
 
 class Service:
-    _socket_client: SocketClient = None
-    _rooms: list[Room] = None
-    _aircons: list[AirCon] = None
-    _new_aircons: list[AirCon] = None
-    _bathrooms: list[AirCon] = None
-    _ready: bool = False
-    _none_stat_dev_cnt: int = 0
-    _status_hook: list[(AirCon, Callable)] = []
-    _sensor_hook: list[(str, Callable)] = []
-    _heartbeat_thread = None
-    _sensors: list[Sensor] = []
-    _scan_interval: int = 5
+    def __init__(self):
+        self._socket_client: SocketClient = None
+        self._rooms: list[Room] = None
+        self._aircons: list[AirCon] = None
+        self._new_aircons: list[AirCon] = None
+        self._bathrooms: list[AirCon] = None
+        self._ready: bool = False
+        self._none_stat_dev_cnt: int = 0
+        self._status_hook: list[(AirCon, Callable)] = []
+        self._sensor_hook: list[(str, Callable)] = []
+        self._heartbeat_thread = None
+        self._sensors: list[Sensor] = []
+        self._scan_interval: int = 5
+        self.state_change_listener: Callable[[], None] | None = None
 
-    state_change_listener: Callable[[], None] | None = None
-
-    @staticmethod
-    def init(host: str, port: int, scan_interval: int, config: Config):
-        if Service._ready:
+    def init(self, host: str, port: int, scan_interval: int, config: Config) -> None:
+        if self._ready:
             return
-        Service._scan_interval = scan_interval
-        Service._socket_client = SocketClient(host, port, config)
-        Service._socket_client.send(HandShakeParam())
-        Service._heartbeat_thread = HeartBeatThread()
-        Service._heartbeat_thread.start()
+        self._scan_interval = scan_interval
+        self._socket_client = SocketClient(host, port, self, config)
+        self._socket_client.send(HandShakeParam())
+        self._heartbeat_thread = HeartBeatThread(self)
+        self._heartbeat_thread.start()
         while (
-            Service._rooms is None
-            or Service._aircons is None
-            or Service._new_aircons is None
-            or Service._bathrooms is None
+            self._rooms is None
+            or self._aircons is None
+            or self._new_aircons is None
+            or self._bathrooms is None
         ):
             time.sleep(1)
-        for i in Service._aircons:
-            for j in Service._rooms:
+        for i in self._aircons:
+            for j in self._rooms:
                 if i.room_id == j.id:
                     i.alias = j.alias
                     if i.unit_id:
                         i.alias += str(i.unit_id)
-        for i in Service._new_aircons:
-            for j in Service._rooms:
+        for i in self._new_aircons:
+            for j in self._rooms:
                 if i.room_id == j.id:
                     i.alias = j.alias
                     if i.unit_id:
                         i.alias += str(i.unit_id)
-        for i in Service._bathrooms:
-            for j in Service._rooms:
+        for i in self._bathrooms:
+            for j in self._rooms:
                 if i.room_id == j.id:
                     i.alias = j.alias
                     if i.unit_id:
                         i.alias += str(i.unit_id)
-        Service._ready = True
+        self._ready = True
 
-    @staticmethod
-    def destroy():
-        if Service._ready:
-            Service._heartbeat_thread.terminate()
-            Service._socket_client.destroy()
-            Service._socket_client = None
-            Service._rooms = None
-            Service._aircons = None
-            Service._new_aircons = None
-            Service._bathrooms = None
-            Service._none_stat_dev_cnt = 0
-            Service._status_hook = []
-            Service._sensor_hook = []
-            Service._heartbeat_thread = None
-            Service._sensors = []
-            Service._ready = False
+    def destroy(self) -> None:
+        if self._ready:
+            self._heartbeat_thread.terminate()
+            self._socket_client.destroy()
+            self._socket_client = None
+            self._rooms = None
+            self._aircons = None
+            self._new_aircons = None
+            self._bathrooms = None
+            self._none_stat_dev_cnt = 0
+            self._status_hook = []
+            self._sensor_hook = []
+            self._heartbeat_thread = None
+            self._sensors = []
+            self._ready = False
 
-    @staticmethod
-    def get_aircons() -> list[AirCon]:
+    def get_aircons(self) -> list[AirCon]:
         aircons = []
-        if Service._new_aircons is not None:
-            aircons += Service._new_aircons
-        if Service._aircons is not None:
-            aircons += Service._aircons
-        if Service._bathrooms is not None:
-            aircons += Service._bathrooms
+        if self._new_aircons is not None:
+            aircons += self._new_aircons
+        if self._aircons is not None:
+            aircons += self._aircons
+        if self._bathrooms is not None:
+            aircons += self._bathrooms
         return aircons
 
-    @staticmethod
-    def control(aircon: AirCon, status: AirConStatus):
+    def control(self, aircon: AirCon, status: AirConStatus):
         p = AirConControlParam(aircon, status)
-        Service.send_msg(p)
+        self.send_msg(p)
 
-    @staticmethod
-    def register_status_hook(device: AirCon, hook: Callable):
-        Service._status_hook.append((device, hook))
+    def register_status_hook(self, device: AirCon, hook: Callable):
+        self._status_hook.append((device, hook))
 
-    @staticmethod
-    def register_sensor_hook(unique_id: str, hook: Callable):
-        Service._sensor_hook.append((unique_id, hook))
+    def register_sensor_hook(self, unique_id: str, hook: Callable):
+        self._sensor_hook.append((unique_id, hook))
 
     # ----split line---- above for component, below for inner call
 
-    @staticmethod
-    def is_ready() -> bool:
-        return Service._ready
+    def is_ready(self) -> bool:
+        return self._ready
 
-    @staticmethod
-    def send_msg(p: Param):
+    def send_msg(self, p: Param):
         """send msg to climate gateway"""
-        Service._socket_client.send(p)
+        self._socket_client.send(p)
 
-    @staticmethod
-    def get_rooms():
-        return Service._rooms
+    def get_rooms(self):
+        return self._rooms
 
-    @staticmethod
-    def set_rooms(v: list[Room]):
-        Service._rooms = v
+    def set_rooms(self, v: list[Room]):
+        self._rooms = v
 
-    @staticmethod
-    def get_sensors():
-        return Service._sensors
+    def get_sensors(self):
+        return self._sensors
 
-    @staticmethod
-    def set_sensors(sensors):
-        Service._sensors = sensors
+    def set_sensors(self, sensors):
+        self._sensors = sensors
 
-    @staticmethod
-    def set_device(t: EnumDevice, v: list[AirCon]):
-        Service._none_stat_dev_cnt += len(v)
+    def set_device(self, t: EnumDevice, v: list[AirCon]):
+        self._none_stat_dev_cnt += len(v)
         if t == EnumDevice.AIRCON:
-            Service._aircons = v
+            self._aircons = v
         elif t == EnumDevice.NEWAIRCON:
-            Service._new_aircons = v
+            self._new_aircons = v
         else:
-            Service._bathrooms = v
+            self._bathrooms = v
 
-    @staticmethod
     def set_aircon_status(
-        target: EnumDevice, room: int, unit: int, status: AirConStatus
+        self, target: EnumDevice, room: int, unit: int, status: AirConStatus
     ):
-        if Service._ready:
-            Service.update_aircon(target, room, unit, status=status)
+        if self._ready:
+            self.update_aircon(target, room, unit, status=status)
         else:
             li = []
             if target == EnumDevice.AIRCON:
-                li = Service._aircons
+                li = self._aircons
             elif target == EnumDevice.NEWAIRCON:
-                li = Service._new_aircons
+                li = self._new_aircons
             elif target == EnumDevice.BATHROOM:
-                li = Service._bathrooms
+                li = self._bathrooms
             for i in li:
                 if i.unit_id == unit and i.room_id == room:
                     i.status = status
-                    Service._none_stat_dev_cnt -= 1
+                    self._none_stat_dev_cnt -= 1
                     break
 
-    @staticmethod
-    def set_sensors_status(sensors: list[Sensor]):
+    def set_sensors_status(self, sensors: list[Sensor]):
         for new_sensor in sensors:
-            for sensor in Service._sensors:
+            for sensor in self._sensors:
                 if sensor.unique_id == new_sensor.unique_id:
                     for attr in STATUS_ATTR:
                         setattr(sensor, attr, getattr(new_sensor, attr))
                     break
-            for item in Service._sensor_hook:
+            for item in self._sensor_hook:
                 unique_id, func = item
                 if new_sensor.unique_id == unique_id:
                     try:
@@ -312,19 +301,17 @@ class Service:
                     except Exception as e:
                         _log(str(e))
 
-    @staticmethod
-    def poll_status():
-        for i in Service._new_aircons:
+    def poll_status(self):
+        for i in self._new_aircons:
             p = AirConQueryStatusParam()
             p.target = EnumDevice.NEWAIRCON
             p.device = i
-            Service.send_msg(p)
+            self.send_msg(p)
         p = Sensor2InfoParam()
-        Service.send_msg(p)
+        self.send_msg(p)
 
-    @staticmethod
-    def update_aircon(target: EnumDevice, room: int, unit: int, **kwargs):
-        li = Service._status_hook
+    def update_aircon(self, target: EnumDevice, room: int, unit: int, **kwargs):
+        li = self._status_hook
         for item in li:
             i, func = item
             if (
@@ -338,6 +325,5 @@ class Service:
                     _log("hook error!!")
                     _log(str(e))
 
-    @staticmethod
-    def get_scan_interval():
-        return Service._scan_interval
+    def get_scan_interval(self):
+        return self._scan_interval

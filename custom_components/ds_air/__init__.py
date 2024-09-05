@@ -13,6 +13,7 @@ from homeassistant.helpers.device_registry import DeviceEntry
 from .const import CONF_GW, DEFAULT_GW, DEFAULT_HOST, DEFAULT_PORT, DOMAIN
 from .ds_air_service import Config, Service
 
+
 _LOGGER = logging.getLogger(__name__)
 
 PLATFORMS = [
@@ -30,15 +31,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug(f"{host}:{port} {gw} {scan_interval}")
 
-    # hass.data[DOMAIN][CONF_HOST] = host
-    # hass.data[DOMAIN][CONF_PORT] = port
-    # hass.data[DOMAIN][CONF_GW] = gw
-    # hass.data[DOMAIN][CONF_SCAN_INTERVAL] = scan_interval
-
     config = Config()
     config.is_c611 = gw == DEFAULT_GW
 
-    await hass.async_add_executor_job(Service.init, host, port, scan_interval, config)
+    service = Service()
+    hass.data[DOMAIN][entry.entry_id] = service
+    await hass.async_add_executor_job(service.init, host, port, scan_interval, config)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(update_listener))
 
@@ -47,12 +45,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    if Service.state_change_listener is not None:
-        Service.state_change_listener()
-    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
-    Service.destroy()
+    service: Service = hass.data[DOMAIN].pop(entry.entry_id)
 
-    return unload_ok
+    if service.state_change_listener is not None:
+        service.state_change_listener()
+
+    unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    if not unload_ok:
+        return False
+
+    service.destroy()
+
+    return True
 
 
 async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:

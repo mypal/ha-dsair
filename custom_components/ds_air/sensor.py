@@ -17,11 +17,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Perform the setup for Daikin devices."""
+    service: Service = hass.data[DOMAIN][config_entry.entry_id]
     entities = []
-    for device in Service.get_sensors():
+    for device in service.get_sensors():
         for key in SENSOR_DESCRIPTORS:
             if config_entry.data.get(key):
-                entities.append(DsSensor(device, SENSOR_DESCRIPTORS.get(key)))
+                entities.append(DsSensor(service, device, SENSOR_DESCRIPTORS.get(key)))
     async_add_entities(entities)
 
 
@@ -32,7 +33,9 @@ class DsSensor(SensorEntity):
 
     _attr_should_poll: bool = False
 
-    def __init__(self, device: Sensor, description: DsSensorEntityDescription):
+    def __init__(
+        self, service: Service, device: Sensor, description: DsSensorEntityDescription
+    ):
         """Initialize the Daikin Sensor."""
         self.entity_description = description
         self._data_key: str = description.key
@@ -47,7 +50,7 @@ class DsSensor(SensorEntity):
         self.entity_id = f"sensor.daikin_{device.mac}_{self._data_key}"
 
         self._parse_data(device)
-        Service.register_sensor_hook(device.unique_id, self._handle_sensor_hook)
+        service.register_sensor_hook(device.unique_id, self._handle_sensor_hook)
 
     def _parse_data(self, device: Sensor) -> None:
         """Parse data sent by gateway."""

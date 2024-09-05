@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 import struct
-import typing
+from typing import TYPE_CHECKING
 
 from .base_bean import BaseBean
 from .config import Config
@@ -33,6 +35,9 @@ from .param import (
     GetRoomInfoParam,
     Sensor2InfoParam,
 )
+
+if TYPE_CHECKING:
+    from .service import Service
 
 
 def decoder(b: bytes, config: Config):
@@ -187,7 +192,7 @@ class BaseResult(BaseBean):
     def load_bytes(self, b: bytes, config: Config) -> None:
         """do nothing"""
 
-    def do(self) -> None:
+    def do(self, service: Service) -> None:
         """do nothing"""
 
 
@@ -216,7 +221,7 @@ class Sensor2InfoResult(BaseResult):
         self._mode = 0
         self._room_id = 0
         self._sensor_type = 0
-        self._sensors: typing.List[Sensor] = []
+        self._sensors: list[Sensor] = []
 
     def load_bytes(self, b: bytes, config: Config) -> None:
         data = Decode(b)
@@ -302,10 +307,8 @@ class Sensor2InfoResult(BaseResult):
             self._sensors.append(sensor)
             count = count - 1
 
-    def do(self) -> None:
-        from .service import Service
-
-        Service.set_sensors_status(self._sensors)
+    def do(self, service: Service) -> None:
+        service.set_sensors_status(self._sensors)
 
     @property
     def count(self):
@@ -460,9 +463,9 @@ class GetRoomInfoResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_GET_ROOM_INFO)
         self._count: int = 0
-        self._hds: typing.List[HD] = []
-        self._sensors: typing.List[Sensor] = []
-        self._rooms: typing.List[Room] = []
+        self._hds: list[HD] = []
+        self._sensors: list[Sensor] = []
+        self._rooms: list[Room] = []
 
     def load_bytes(self, b: bytes, config: Config) -> None:
         ver_flag = 1
@@ -527,17 +530,15 @@ class GetRoomInfoResult(BaseResult):
                             dev.alias = room.alias
             self.rooms.append(room)
 
-    def do(self) -> None:
-        from .service import Service
-
-        Service.set_rooms(self.rooms)
-        Service.send_msg(AirConRecommendedIndoorTempParam())
-        Service.set_sensors(self.sensors)
+    def do(self, service: Service) -> None:
+        service.set_rooms(self.rooms)
+        service.send_msg(AirConRecommendedIndoorTempParam())
+        service.set_sensors(self.sensors)
 
         aircons = []
         new_aircons = []
         bathrooms = []
-        for room in Service.get_rooms():
+        for room in service.get_rooms():
             if room.air_con is not None:
                 room.air_con.alias = room.alias
                 if room.air_con.new_air_con:
@@ -550,15 +551,15 @@ class GetRoomInfoResult(BaseResult):
         p = AirConCapabilityQueryParam()
         p.aircons = aircons
         p.target = EnumDevice.AIRCON
-        Service.send_msg(p)
+        service.send_msg(p)
         p = AirConCapabilityQueryParam()
         p.aircons = new_aircons
         p.target = EnumDevice.NEWAIRCON
-        Service.send_msg(p)
+        service.send_msg(p)
         p = AirConCapabilityQueryParam()
         p.aircons = bathrooms
         p.target = EnumDevice.BATHROOM
-        Service.send_msg(p)
+        service.send_msg(p)
 
     @property
     def count(self):
@@ -604,13 +605,12 @@ class HandShakeResult(BaseResult):
         d = Decode(b)
         self._time = d.read_utf(14)
 
-    def do(self) -> None:
+    def do(self, service: Service) -> None:
         p = GetRoomInfoParam()
         p.room_ids.append(0xFFFF)
-        from .service import Service
 
-        Service.send_msg(p)
-        Service.send_msg(Sensor2InfoParam())
+        service.send_msg(p)
+        service.send_msg(Sensor2InfoParam())
 
 
 class GetGWInfoResult(BaseResult):
@@ -621,7 +621,7 @@ class GetGWInfoResult(BaseResult):
     def load_bytes(self, b: bytes, config: Config) -> None:
         """todo"""
 
-    def do(self) -> None:
+    def do(self, service: Service) -> None:
         """todo"""
 
 
@@ -670,10 +670,8 @@ class AirConStatusChangedResult(BaseResult):
                 status.fan_direction1 = EnumControl.FanDirection(direction & 0xF)
                 status.fan_direction2 = EnumControl.FanDirection((direction >> 4) & 0xF)
 
-    def do(self) -> None:
-        from .service import Service
-
-        Service.update_aircon(self.target, self._room, self._unit, status=self._status)
+    def do(self, service: Service) -> None:
+        service.update_aircon(self.target, self._room, self._unit, status=self._status)
 
 
 class AirConQueryStatusResult(BaseResult):
@@ -745,9 +743,7 @@ class AirConQueryStatusResult(BaseResult):
                     if flag >> 7 & 1:
                         self.breathe = EnumControl.Breathe(d.read1())
 
-    def do(self) -> None:
-        from .service import Service
-
+    def do(self, service: Service) -> None:
         status = AirConStatus(
             self.current_temp,
             self.setted_temp,
@@ -759,7 +755,7 @@ class AirConQueryStatusResult(BaseResult):
             self.humidity,
             self.mode,
         )
-        Service.set_aircon_status(self.target, self.room, self.unit, status)
+        service.set_aircon_status(self.target, self.room, self.unit, status)
 
 
 class AirConRecommendedIndoorTempResult(BaseResult):
@@ -787,7 +783,7 @@ class AirConRecommendedIndoorTempResult(BaseResult):
 class AirConCapabilityQueryResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.AIR_CAPABILITY_QUERY)
-        self._air_cons: typing.List[AirCon] = []
+        self._air_cons: list[AirCon] = []
 
     def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
@@ -837,13 +833,11 @@ class AirConCapabilityQueryResult(BaseResult):
                     d.read1()
                 self._air_cons.append(aircon)
 
-    def do(self) -> None:
-        from .service import Service
-
-        if Service.is_ready():
+    def do(self, service: Service) -> None:
+        if service.is_ready():
             if len(self._air_cons):
                 for i in self._air_cons:
-                    Service.update_aircon(
+                    service.update_aircon(
                         get_device_by_aircon(i), i.room_id, i.unit_id, aircon=i
                     )
         else:
@@ -851,10 +845,8 @@ class AirConCapabilityQueryResult(BaseResult):
                 p = AirConQueryStatusParam()
                 p.target = self.target
                 p.device = i
-                from .service import Service
-
-                Service.send_msg(p)
-            Service.set_device(self.target, self._air_cons)
+                service.send_msg(p)
+            service.set_device(self.target, self._air_cons)
 
     @property
     def aircons(self):

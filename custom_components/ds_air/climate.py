@@ -46,7 +46,7 @@ from .const import (
     get_fan_direction_name,
     get_mode_name,
 )
-from .ds_air_service import AirCon, AirConStatus, Config, EnumControl, display, Service
+from .ds_air_service import AirCon, AirConStatus, EnumControl, display, Service
 
 
 _SUPPORT_FLAGS = (
@@ -74,10 +74,10 @@ async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up the climate devices."""
-
+    service: Service = hass.data[DOMAIN][entry.entry_id]
     climates = []
-    for aircon in Service.get_aircons():
-        climates.append(DsAir(aircon))
+    for aircon in service.get_aircons():
+        climates.append(DsAir(service, aircon))
     async_add_entities(climates)
     link = entry.options.get("link")
     sensor_temp_map: dict[str, list[DsAir]] = {}
@@ -107,7 +107,7 @@ async def async_setup_entry(
     remove_listener = async_track_state_change_event(
         hass, list(sensor_temp_map.keys()) + list(sensor_humi_map.keys()), listener
     )
-    Service.state_change_listener = remove_listener
+    service.state_change_listener = remove_listener
 
 
 class DsAir(ClimateEntity):
@@ -133,18 +133,19 @@ class DsAir(ClimateEntity):
 
     _enable_turn_on_off_backwards_compatibility: bool = False  # used in 2024.2~2024.12
 
-    def __init__(self, aircon: AirCon):
+    def __init__(self, service: Service, aircon: AirCon):
         _log("create aircon:")
         _log(str(aircon.__dict__))
         _log(str(aircon.status.__dict__))
         """Initialize the climate device."""
+        self.service = service
         self._device_info = aircon
         self._attr_unique_id = aircon.unique_id
         self.linked_temp_entity_id: str | None = None
         self.linked_humi_entity_id: str | None = None
         self._link_cur_temp = False
 
-        Service.register_status_hook(aircon, self._status_change_hook)
+        service.register_status_hook(aircon, self._status_change_hook)
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.unique_id)},
@@ -314,7 +315,7 @@ class DsAir(ClimateEntity):
                 new_status = AirConStatus()
                 status.setted_temp = round(temperate * 10.0)
                 new_status.setted_temp = round(temperate * 10.0)
-                Service.control(self._device_info, new_status)
+                self.service.control(self._device_info, new_status)
                 self.schedule_update_ha_state()
 
     def set_humidity(self, humidity: int) -> None:
@@ -327,7 +328,7 @@ class DsAir(ClimateEntity):
             new_status = AirConStatus()
             status.humidity = EnumControl.Humidity(humidity)
             new_status.humidity = EnumControl.Humidity(humidity)
-            Service.control(self._device_info, new_status)
+            self.service.control(self._device_info, new_status)
             self.schedule_update_ha_state()
 
     def set_fan_mode(self, fan_mode: str) -> None:
@@ -340,7 +341,7 @@ class DsAir(ClimateEntity):
             new_status = AirConStatus()
             status.air_flow = get_air_flow_enum(fan_mode)
             new_status.air_flow = get_air_flow_enum(fan_mode)
-            Service.control(self._device_info, new_status)
+            self.service.control(self._device_info, new_status)
             self.schedule_update_ha_state()
 
     def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
@@ -351,7 +352,7 @@ class DsAir(ClimateEntity):
         if hvac_mode == HVACMode.OFF:
             status.switch = EnumControl.Switch.OFF
             new_status.switch = EnumControl.Switch.OFF
-            Service.control(self._device_info, new_status)
+            self.service.control(self._device_info, new_status)
         else:
             status.switch = EnumControl.Switch.ON
             new_status.switch = EnumControl.Switch.ON
@@ -382,7 +383,7 @@ class DsAir(ClimateEntity):
                     mode = m.SLEEP
             status.mode = mode
             new_status.mode = mode
-            Service.control(self._device_info, new_status)
+            self.service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
 
     def set_swing_mode(self, swing_mode: str) -> None:
@@ -394,7 +395,7 @@ class DsAir(ClimateEntity):
             new_status.fan_direction1 = self._device_info.status.fan_direction1
             status.fan_direction2 = get_fan_direction_enum(swing_mode)
             new_status.fan_direction2 = get_fan_direction_enum(swing_mode)
-            Service.control(self._device_info, new_status)
+            self.service.control(self._device_info, new_status)
             self.schedule_update_ha_state()
 
     def set_preset_mode(self, preset_mode: str) -> None:
@@ -418,7 +419,7 @@ class DsAir(ClimateEntity):
                 mode = m.RELAX
         status.mode = mode
         new_status.mode = mode
-        Service.control(self._device_info, new_status)
+        self.service.control(self._device_info, new_status)
         self.schedule_update_ha_state()
 
     @property
