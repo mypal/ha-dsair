@@ -17,14 +17,14 @@ from .ctrl_enum import (
     ThreeDFresh,
 )
 from .dao import (
+    HD,
+    UNINITIALIZED_VALUE,
     AirCon,
     AirConStatus,
     Device,
     Geothermic,
-    HD,
     Room,
     Sensor,
-    UNINITIALIZED_VALUE,
     Ventilation,
     get_device_by_aircon,
 )
@@ -190,10 +190,10 @@ class BaseResult(BaseBean):
         BaseBean.__init__(self, cmd_id, targe, cmd_type)
 
     def load_bytes(self, b: bytes, config: Config) -> None:
-        """do nothing"""
+        """Do nothing"""
 
     def do(self, service: Service) -> None:
-        """do nothing"""
+        """Do nothing"""
 
 
 class HeartbeatResult(BaseResult):
@@ -490,33 +490,33 @@ class GetRoomInfoResult(BaseResult):
                 device_count = d.read2()
                 for unit_id in range(device_count):
                     if (
-                        EnumDevice.AIRCON == device
-                        or EnumDevice.NEWAIRCON == device
-                        or EnumDevice.BATHROOM == device
+                        device == EnumDevice.AIRCON
+                        or device == EnumDevice.NEWAIRCON
+                        or device == EnumDevice.BATHROOM
                     ):
                         dev = AirCon(config)
                         room.air_con = dev
-                        dev.new_air_con = EnumDevice.NEWAIRCON == device
-                        dev.bath_room = EnumDevice.BATHROOM == device
-                    elif EnumDevice.GEOTHERMIC == device:
+                        dev.new_air_con = device == EnumDevice.NEWAIRCON
+                        dev.bath_room = device == EnumDevice.BATHROOM
+                    elif device == EnumDevice.GEOTHERMIC:
                         dev = Geothermic()
                         room.geothermic = dev
-                    elif EnumDevice.HD == device:
+                    elif device == EnumDevice.HD:
                         dev = HD()
                         self.hds.append(dev)
                         room.hd_room = True
                         room.hd = dev
-                    elif EnumDevice.SENSOR == device:
+                    elif device == EnumDevice.SENSOR:
                         dev = Sensor()
                         self.sensors.append(dev)
                         room.sensor_room = True
                     elif (
-                        EnumDevice.VENTILATION == device
-                        or EnumDevice.SMALL_VAM == device
+                        device == EnumDevice.VENTILATION
+                        or device == EnumDevice.SMALL_VAM
                     ):
                         dev = Ventilation()
                         room.ventilation = dev
-                        dev.is_small_vam = EnumDevice.SMALL_VAM == device
+                        dev.is_small_vam = device == EnumDevice.SMALL_VAM
                     else:
                         dev = Device()
                     dev.room_id = room.id
@@ -585,7 +585,7 @@ class QueryScheduleSettingResult(BaseResult):
         )
 
     def load_bytes(self, b: bytes, config: Config) -> None:
-        """todo"""
+        """Todo"""
 
 
 class QueryScheduleIDResult(BaseResult):
@@ -593,7 +593,7 @@ class QueryScheduleIDResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_ID)
 
     def load_bytes(self, b: bytes, config: Config) -> None:
-        """todo"""
+        """Todo"""
 
 
 class HandShakeResult(BaseResult):
@@ -619,10 +619,10 @@ class GetGWInfoResult(BaseResult):
         self._time: str = ""
 
     def load_bytes(self, b: bytes, config: Config) -> None:
-        """todo"""
+        """Todo"""
 
     def do(self, service: Service) -> None:
-        """todo"""
+        """Todo"""
 
 
 class CmdTransferResult(BaseResult):
@@ -630,7 +630,7 @@ class CmdTransferResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_CMD_TRANSFER)
 
     def load_bytes(self, b: bytes, config: Config) -> None:
-        """todo"""
+        """Todo"""
 
 
 class QueryScheduleFinish(BaseResult):
@@ -638,7 +638,7 @@ class QueryScheduleFinish(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_FINISH)
 
     def load_bytes(self, b: bytes, config: Config) -> None:
-        """todo"""
+        """Todo"""
 
 
 class AirConStatusChangedResult(BaseResult):
@@ -739,9 +739,8 @@ class AirConQueryStatusResult(BaseResult):
                 if self.target == EnumDevice.NEWAIRCON:
                     if flag >> 6 & 1:
                         self.humidity = EnumControl.Humidity(d.read1())
-                else:
-                    if flag >> 7 & 1:
-                        self.breathe = EnumControl.Breathe(d.read1())
+                elif flag >> 7 & 1:
+                    self.breathe = EnumControl.Breathe(d.read1())
 
     def do(self, service: Service) -> None:
         status = AirConStatus(
@@ -858,7 +857,7 @@ class AirConQueryScenarioSettingResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.QUERY_SCENARIO_SETTING)
 
     def load_bytes(self, b: bytes, config: Config) -> None:
-        """todo"""
+        """Todo"""
 
 
 class UnknownResult(BaseResult):

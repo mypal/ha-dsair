@@ -1,6 +1,6 @@
 import time
-from typing import Optional
 
+from .config import Config
 from .ctrl_enum import (
     EnumControl,
     EnumDevice,
@@ -9,7 +9,6 @@ from .ctrl_enum import (
     EnumOutDoorRunCond,
     EnumSwitch,
 )
-from .config import Config
 
 
 class Device:
@@ -175,12 +174,12 @@ class Room:
     def __init__(self):
         self.air_con = None
         self.alias: str = ""
-        self.geothermic: Optional[Geothermic] = None
-        self.hd: Optional[HD] = None
+        self.geothermic: Geothermic | None = None
+        self.hd: HD | None = None
         self.hd_room: bool = False
         self.sensor_room: bool = False
         self.icon: str = ""
         self.id: int = 0
         self.name: str = ""
         self.type: int = 0
-        self.ventilation: Optional[Ventilation] = Ventilation()
+        self.ventilation: Ventilation | None = Ventilation()

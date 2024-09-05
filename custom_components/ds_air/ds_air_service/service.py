@@ -1,14 +1,14 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 import logging
 import socket
-import time
-from collections.abc import Callable
 from threading import Lock, Thread
+import time
 
 from .config import Config
 from .ctrl_enum import EnumDevice
-from .dao import AirCon, AirConStatus, Room, STATUS_ATTR, Sensor, get_device_by_aircon
+from .dao import STATUS_ATTR, AirCon, AirConStatus, Room, Sensor, get_device_by_aircon
 from .decoder import BaseResult, decoder
 from .display import display
 from .param import (
@@ -53,7 +53,7 @@ class SocketClient:
             self._s.connect((self._host, self._port))
             _log("connected")
             return True
-        except socket.error as exc:
+        except OSError as exc:
             _log("connected error")
             _log(str(exc))
             return False
@@ -243,7 +243,7 @@ class Service:
         return self._ready
 
     def send_msg(self, p: Param):
-        """send msg to climate gateway"""
+        """Send msg to climate gateway"""
         self._socket_client.send(p)
 
     def get_rooms(self):

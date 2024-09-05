@@ -1,6 +1,4 @@
 import struct
-import typing
-from typing import Optional
 
 from .base_bean import BaseBean
 from .config import Config
@@ -114,7 +112,7 @@ class GetGWInfoParam(SystemParam):
 class GetRoomInfoParam(SystemParam):
     def __init__(self):
         SystemParam.__init__(self, EnumCmdType.SYS_GET_ROOM_INFO, True)
-        self._room_ids: typing.List[int] = []
+        self._room_ids: list[int] = []
         self.type: int = 1
         self.subbody_ver: int = 1
 
@@ -148,7 +146,7 @@ class AirconParam(Param):
 class AirConCapabilityQueryParam(AirconParam):
     def __init__(self):
         AirconParam.__init__(self, EnumCmdType.AIR_CAPABILITY_QUERY, True)
-        self._aircons: typing.List[AirCon] = []
+        self._aircons: list[AirCon] = []
 
     def generate_subbody(self, s: Encode, config: Config) -> None:
         s.write1(len(self._aircons))
@@ -174,7 +172,7 @@ class AirConRecommendedIndoorTempParam(AirconParam):
 class AirConQueryStatusParam(AirconParam):
     def __init__(self):
         super().__init__(EnumCmdType.QUERY_STATUS, True)
-        self._device: Optional[AirCon] = None
+        self._device: AirCon | None = None
 
     def generate_subbody(self, s: Encode, config: Config) -> None:
         s.write1(self._device.room_id)
@@ -191,9 +189,7 @@ class AirConQueryStatusParam(AirconParam):
                     and dev.fan_direction2 != EnumFanDirection.FIX
                 ):
                     flag = flag | t.FAN_DIRECTION
-                if dev.bath_room:
-                    flag = flag | t.BREATHE
-                elif dev.three_d_fresh_allow:
+                if dev.bath_room or dev.three_d_fresh_allow:
                     flag = flag | t.BREATHE
                 flag = flag | t.HUMIDITY
             if dev.hum_fresh_air_allow:

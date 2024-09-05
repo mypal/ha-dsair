@@ -1,5 +1,4 @@
-"""
-Platform for DS-AIR of Daikin
+"""Platform for DS-AIR of Daikin
 https://www.daikin-china.com.cn/newha/products/4/19/DS-AIR/
 """
 
@@ -12,7 +11,6 @@ from homeassistant.helpers.device_registry import DeviceEntry
 
 from .const import CONF_GW, DEFAULT_GW, DEFAULT_HOST, DEFAULT_PORT, DOMAIN
 from .ds_air_service import Config, Service
-
 
 _LOGGER = logging.getLogger(__name__)
 

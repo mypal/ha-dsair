@@ -9,7 +9,6 @@ from homeassistant.components.climate import (
 
 from .ds_air_service import EnumControl
 
-
 DOMAIN = "ds_air"
 CONF_GW = "gw"
 DEFAULT_HOST = "192.168.1."

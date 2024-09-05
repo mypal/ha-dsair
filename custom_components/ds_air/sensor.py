@@ -7,8 +7,8 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import DOMAIN, MANUFACTURER
-from .descriptions import DsSensorEntityDescription, SENSOR_DESCRIPTORS
-from .ds_air_service import Sensor, Service, UNINITIALIZED_VALUE
+from .descriptions import SENSOR_DESCRIPTORS, DsSensorEntityDescription
+from .ds_air_service import UNINITIALIZED_VALUE, Sensor, Service
 
 
 async def async_setup_entry(

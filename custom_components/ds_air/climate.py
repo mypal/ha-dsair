@@ -1,5 +1,4 @@
-"""
-Daikin platform that offers climate devices.
+"""Daikin platform that offers climate devices.
 
 For more details about this platform, please refer to the documentation
 https://home-assistant.io/components/demo/
@@ -8,15 +7,16 @@ https://home-assistant.io/components/demo/
 import logging
 
 import voluptuous as vol
+
 from homeassistant.components.climate import (
-    ClimateEntity,
-    ClimateEntityFeature,
-    HVACAction,
-    HVACMode,
     PLATFORM_SCHEMA,
     PRESET_COMFORT,
     PRESET_NONE,
     PRESET_SLEEP,
+    ClimateEntity,
+    ClimateEntityFeature,
+    HVACAction,
+    HVACMode,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -46,8 +46,7 @@ from .const import (
     get_fan_direction_name,
     get_mode_name,
 )
-from .ds_air_service import AirCon, AirConStatus, EnumControl, display, Service
-
+from .ds_air_service import AirCon, AirConStatus, EnumControl, Service, display
 
 _SUPPORT_FLAGS = (
     ClimateEntityFeature.TARGET_TEMPERATURE
@@ -230,7 +229,7 @@ class DsAir(ClimateEntity):
     @property
     def hvac_modes(self) -> list[HVACMode]:
         """Return the list of available hvac operation modes."""
-        li = []
+        li: list[HVACMode] = []
         aircon = self._device_info
         if aircon.cool_mode:
             li.append(HVACMode.COOL)
@@ -250,11 +249,10 @@ class DsAir(ClimateEntity):
         """Return the current temperature."""
         if self._link_cur_temp:
             return self._attr_current_temperature
+        elif self._device_info.config.is_c611:
+            return None
         else:
-            if self._device_info.config.is_c611:
-                return None
-            else:
-                return self._device_info.status.current_temp / 10
+            return self._device_info.status.current_temp / 10
 
     @property
     def target_temperature(self) -> float | None:
@@ -412,11 +410,10 @@ class DsAir(ClimateEntity):
                 mode = m.RELAX
             else:
                 mode = m.COLD
-        else:
-            if preset_mode == PRESET_SLEEP:
-                mode = m.SLEEP
-            elif preset_mode == PRESET_COMFORT:
-                mode = m.RELAX
+        elif preset_mode == PRESET_SLEEP:
+            mode = m.SLEEP
+        elif preset_mode == PRESET_COMFORT:
+            mode = m.RELAX
         status.mode = mode
         new_status.mode = mode
         self.service.control(self._device_info, new_status)
