@@ -30,10 +30,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug(f"{host}:{port} {gw} {scan_interval}")
 
-    hass.data[DOMAIN][CONF_HOST] = host
-    hass.data[DOMAIN][CONF_PORT] = port
-    hass.data[DOMAIN][CONF_GW] = gw
-    hass.data[DOMAIN][CONF_SCAN_INTERVAL] = scan_interval
+    # hass.data[DOMAIN][CONF_HOST] = host
+    # hass.data[DOMAIN][CONF_PORT] = port
+    # hass.data[DOMAIN][CONF_GW] = gw
+    # hass.data[DOMAIN][CONF_SCAN_INTERVAL] = scan_interval
 
     config = Config()
     config.is_c611 = gw == DEFAULT_GW
@@ -47,8 +47,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    if hass.data[DOMAIN].get("listener") is not None:
-        hass.data[DOMAIN].get("listener")()
+    if Service.state_change_listener is not None:
+        Service.state_change_listener()
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     Service.destroy()
 

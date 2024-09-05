@@ -160,6 +160,8 @@ class Service:
     _sensors: list[Sensor] = []
     _scan_interval: int = 5
 
+    state_change_listener: Callable[[], None] | None = None
+
     @staticmethod
     def init(host: str, port: int, scan_interval: int, config: Config):
         if Service._ready:
