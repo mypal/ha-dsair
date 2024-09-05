@@ -1,106 +1,63 @@
 """Support for Daikin sensors."""
-from typing import Optional
 
-from homeassistant.components.sensor import SensorEntity, SensorStateClass
+from homeassistant.components.sensor import SensorEntity
+from homeassistant.config_entries import ConfigEntry
+from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, SENSOR_TYPES
-from .ds_air_service.dao import Sensor, UNINITIALIZED_VALUE
-from .ds_air_service.service import Service
+from .const import DOMAIN, MANUFACTURER
+from .descriptions import SENSOR_DESCRIPTORS, DsSensorEntityDescription
+from .ds_air_service import UNINITIALIZED_VALUE, Sensor, Service
 
 
-async def async_setup_entry(hass, config_entry, async_add_entities):
+async def async_setup_entry(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    async_add_entities: AddEntitiesCallback,
+):
     """Perform the setup for Daikin devices."""
+    service: Service = hass.data[DOMAIN][config_entry.entry_id]
     entities = []
-    for device in Service.get_sensors():
-        for key in SENSOR_TYPES:
+    for device in service.get_sensors():
+        for key in SENSOR_DESCRIPTORS:
             if config_entry.data.get(key):
-                entities.append(DsSensor(device, key))
+                entities.append(DsSensor(service, device, SENSOR_DESCRIPTORS.get(key)))
     async_add_entities(entities)
 
 
 class DsSensor(SensorEntity):
-    """Representation of a DaikinSensor."""
+    """Representation of a Daikin Sensor."""
 
-    def __init__(self, device: Sensor, data_key):
-        """Initialize the DaikinSensor."""
-        self._data_key = data_key
-        self._name = device.alias
-        self._unique_id = device.unique_id
-        self._is_available = False
-        self._state = 0
-        self.parse_data(device, True)
-        Service.register_sensor_hook(device.unique_id, self.parse_data)
+    entity_description: DsSensorEntityDescription
 
-    @property
-    def name(self):
-        return "%s_%s" % (self._data_key, self._unique_id)
+    _attr_should_poll: bool = False
 
-    @property
-    def unique_id(self):
-        return "%s_%s" % (self._data_key, self._unique_id)
+    def __init__(
+        self, service: Service, device: Sensor, description: DsSensorEntityDescription
+    ):
+        """Initialize the Daikin Sensor."""
+        self.entity_description = description
+        self._data_key: str = description.key
 
-    @property
-    def device_info(self) -> Optional[DeviceInfo]:
-        return {
-            "identifiers": {(DOMAIN, self._unique_id)},
-            "name": "传感器%s" % self._name,
-            "manufacturer": "Daikin Industries, Ltd."
-        }
-
-    @property
-    def available(self):
-        return self._is_available
-
-    @property
-    def should_poll(self):
-        return False
-
-    @property
-    def icon(self):
-        """Return the icon to use in the frontend."""
-        try:
-            return SENSOR_TYPES.get(self._data_key)[1]
-        except TypeError:
-            return None
-
-    @property
-    def unit_of_measurement(self):
-        """Return the unit of measurement of this entity, if any."""
-        try:
-            return SENSOR_TYPES.get(self._data_key)[0]
-        except TypeError:
-            return None
-
-    @property
-    def device_class(self):
-        """Return the device class of this entity."""
-        return (
-            SENSOR_TYPES.get(self._data_key)[2]
-            if self._data_key in SENSOR_TYPES
-            else None
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, device.unique_id)},
+            name=device.alias,
+            manufacturer=MANUFACTURER,
         )
-    
-    @property
-    def state_class(self):
-        """Return the state class of this entity."""
-        return SensorStateClass.MEASUREMENT
 
-    @property
-    def state(self):
-        """Return the state of the sensor."""
-        return self._state
+        self._attr_unique_id = f"{self._data_key}_{device.unique_id}"
+        self.entity_id = f"sensor.daikin_{device.mac}_{self._data_key}"
 
-    def parse_data(self, device: Sensor, not_update: bool = False):
+        self._parse_data(device)
+        service.register_sensor_hook(device.unique_id, self._handle_sensor_hook)
+
+    def _parse_data(self, device: Sensor) -> None:
         """Parse data sent by gateway."""
-        self._is_available = device.connected
-        if UNINITIALIZED_VALUE != getattr(device, self._data_key):
-            scaling = SENSOR_TYPES.get(self._data_key)[3]
-            if type(scaling) != int and type(scaling) != float:
-                self._state = str(getattr(device, self._data_key))
-            else:
-                self._state = getattr(device, self._data_key) / scaling
+        self._attr_available = device.connected
+        if (data := getattr(device, self._data_key)) != UNINITIALIZED_VALUE:
+            self._attr_native_value = self.entity_description.value_fn(data)
 
-        if not not_update:
-            self.schedule_update_ha_state()
-        return True
+    def _handle_sensor_hook(self, device: Sensor) -> None:
+        self._parse_data(device)
+        self.schedule_update_ha_state()
