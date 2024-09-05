@@ -184,10 +184,7 @@ class AirConQueryStatusParam(AirconParam):
             if dev.fan_volume != EnumFanVolume.NO:
                 flag = flag | t.AIR_FLOW
             if config.is_new_version:
-                if (
-                    dev.fan_direction1 != EnumFanDirection.FIX
-                    and dev.fan_direction2 != EnumFanDirection.FIX
-                ):
+                if EnumFanDirection.FIX not in (dev.fan_direction1, dev.fan_direction2):
                     flag = flag | t.FAN_DIRECTION
                 if dev.bath_room or dev.three_d_fresh_allow:
                     flag = flag | t.BREATHE

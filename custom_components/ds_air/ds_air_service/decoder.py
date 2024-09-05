@@ -52,8 +52,7 @@ def decoder(b: bytes, config: Config):
     ):
         if length == 0:
             return HeartbeatResult(), None
-        else:
-            return None, None
+        return None, None
 
     return result_factory(
         struct.unpack("<BHBBBBIBIBH" + str(length - 16) + "sB", b[: length + 4]),
@@ -110,11 +109,11 @@ def result_factory(data: tuple, config: Config):
             result = Sensor2InfoResult(cnt, EnumDevice.SYSTEM)
         else:
             result = UnknownResult(cnt, EnumDevice.SYSTEM, cmd_type)
-    elif (
-        dev_id == EnumDevice.NEWAIRCON.value[1]
-        or dev_id == EnumDevice.AIRCON.value[1]
-        or dev_id == EnumDevice.BATHROOM.value[1]
-        or dev_id == EnumDevice.SENSOR.value[1]
+    elif dev_id in (
+        EnumDevice.NEWAIRCON.value[1],
+        EnumDevice.AIRCON.value[1],
+        EnumDevice.BATHROOM.value[1],
+        EnumDevice.SENSOR.value[1],
     ):
         device = EnumDevice((8, dev_id))
         if cmd_type == EnumCmdType.STATUS_CHANGED.value:
@@ -167,20 +166,20 @@ class Decode:
         self._pos = pos
         return s
 
-    def read(self, l):
+    def read(self, length: int):
         pos = self._pos
-        s = self._b[pos : pos + l]
-        pos += l
+        s = self._b[pos : pos + length]
+        pos += length
         self._pos = pos
         return s
 
-    def read_utf(self, l):
+    def read_utf(self, length: int):
         pos = self._pos
         try:
-            s = self._b[pos : pos + l].decode("utf-8")
+            s = self._b[pos : pos + length].decode("utf-8")
         except UnicodeDecodeError:
             s = None
-        pos += l
+        pos += length
         self._pos = pos
         return s
 
@@ -472,7 +471,7 @@ class GetRoomInfoResult(BaseResult):
         d = Decode(b)
         self._count = d.read2()
         room_count = d.read1()
-        for i in range(room_count):
+        for _i in range(room_count):
             room = Room()
             room.id = d.read2()
             if self.subbody_ver == 1:
@@ -485,14 +484,14 @@ class GetRoomInfoResult(BaseResult):
                 length = d.read1()
                 room.icon = d.read_utf(length)
             unit_count = d.read2()
-            for j in range(unit_count):
+            for _j in range(unit_count):
                 device = EnumDevice((8, d.read4()))
                 device_count = d.read2()
                 for unit_id in range(device_count):
-                    if (
-                        device == EnumDevice.AIRCON
-                        or device == EnumDevice.NEWAIRCON
-                        or device == EnumDevice.BATHROOM
+                    if device in (
+                        EnumDevice.AIRCON,
+                        EnumDevice.NEWAIRCON,
+                        EnumDevice.BATHROOM,
                     ):
                         dev = AirCon(config)
                         room.air_con = dev
@@ -510,10 +509,7 @@ class GetRoomInfoResult(BaseResult):
                         dev = Sensor()
                         self.sensors.append(dev)
                         room.sensor_room = True
-                    elif (
-                        device == EnumDevice.VENTILATION
-                        or device == EnumDevice.SMALL_VAM
-                    ):
+                    elif device in (EnumDevice.VENTILATION, EnumDevice.SMALL_VAM):
                         dev = Ventilation()
                         room.ventilation = dev
                         dev.is_small_vam = device == EnumDevice.SMALL_VAM
@@ -787,10 +783,10 @@ class AirConCapabilityQueryResult(BaseResult):
     def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         room_size = d.read1()
-        for i in range(room_size):
+        for _i in range(room_size):
             room_id = d.read1()
             unit_size = d.read1()
-            for j in range(unit_size):
+            for _j in range(unit_size):
                 aircon = AirCon(config)
                 aircon.unit_id = d.read1()
                 aircon.room_id = room_id

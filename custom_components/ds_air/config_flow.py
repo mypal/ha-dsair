@@ -100,7 +100,7 @@ class DsAirOptionsFlowHandler(OptionsFlow):
     ) -> FlowResult:
         """Manage the options."""
         service = self.hass.data[DOMAIN][self.config_entry.entry_id]
-        self._climates = list(map(lambda state: state.alias, service.get_aircons()))
+        self._climates = [state.alias for state in service.get_aircons()]
         self._len = len(self._climates)
 
         sensors = self.hass.states.async_all("sensor")

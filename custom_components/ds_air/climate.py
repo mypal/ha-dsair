@@ -74,9 +74,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the climate devices."""
     service: Service = hass.data[DOMAIN][entry.entry_id]
-    climates = []
-    for aircon in service.get_aircons():
-        climates.append(DsAir(service, aircon))
+    climates = [DsAir(service, aircon) for aircon in service.get_aircons()]
     async_add_entities(climates)
     link = entry.options.get("link")
     sensor_temp_map: dict[str, list[DsAir]] = {}
@@ -249,10 +247,9 @@ class DsAir(ClimateEntity):
         """Return the current temperature."""
         if self._link_cur_temp:
             return self._attr_current_temperature
-        elif self._device_info.config.is_c611:
+        if self._device_info.config.is_c611:
             return None
-        else:
-            return self._device_info.status.current_temp / 10
+        return self._device_info.status.current_temp / 10
 
     @property
     def target_temperature(self) -> float | None:

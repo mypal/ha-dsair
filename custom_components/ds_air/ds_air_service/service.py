@@ -51,12 +51,13 @@ class SocketClient:
         self._s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             self._s.connect((self._host, self._port))
-            _log("connected")
-            return True
         except OSError as exc:
             _log("connected error")
             _log(str(exc))
             return False
+        else:
+            _log("connected")
+            return True
 
     def send(self, p: Param):
         self._locker.acquire()

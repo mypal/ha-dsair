@@ -29,25 +29,25 @@ class Device:
 class AirConStatus:
     def __init__(
         self,
-        current_temp: int = None,
-        setted_temp: int = None,
-        switch: EnumControl.Switch = None,
-        air_flow: EnumControl.AirFlow = None,
-        breathe: EnumControl.Breathe = None,
-        fan_direction1: EnumControl.FanDirection = None,
-        fan_direction2: EnumControl.FanDirection = None,
-        humidity: EnumControl.Humidity = None,
-        mode: EnumControl.Mode = None,
+        current_temp: int | None = None,
+        setted_temp: int | None = None,
+        switch: EnumControl.Switch | None = None,
+        air_flow: EnumControl.AirFlow | None = None,
+        breathe: EnumControl.Breathe | None = None,
+        fan_direction1: EnumControl.FanDirection | None = None,
+        fan_direction2: EnumControl.FanDirection | None = None,
+        humidity: EnumControl.Humidity | None = None,
+        mode: EnumControl.Mode | None = None,
     ):
-        self.current_temp: int = current_temp
-        self.setted_temp: int = setted_temp
-        self.switch: EnumControl.Switch = switch
-        self.air_flow: EnumControl.AirFlow = air_flow
-        self.breathe: EnumControl.Breathe = breathe
-        self.fan_direction1: EnumControl.FanDirection = fan_direction1
-        self.fan_direction2: EnumControl.FanDirection = fan_direction2
-        self.humidity: EnumControl.Humidity = humidity
-        self.mode: EnumControl.Mode = mode
+        self.current_temp: int | None = current_temp
+        self.setted_temp: int | None = setted_temp
+        self.switch: EnumControl.Switch | None = switch
+        self.air_flow: EnumControl.AirFlow | None = air_flow
+        self.breathe: EnumControl.Breathe | None = breathe
+        self.fan_direction1: EnumControl.FanDirection | None = fan_direction1
+        self.fan_direction2: EnumControl.FanDirection | None = fan_direction2
+        self.humidity: EnumControl.Humidity | None = humidity
+        self.mode: EnumControl.Mode | None = mode
 
 
 class AirCon(Device):
@@ -81,10 +81,9 @@ class AirCon(Device):
 def get_device_by_aircon(aircon: AirCon):
     if aircon.new_air_con:
         return EnumDevice.NEWAIRCON
-    elif aircon.bath_room:
+    if aircon.bath_room:
         return EnumDevice.BATHROOM
-    else:
-        return EnumDevice.AIRCON
+    return EnumDevice.AIRCON
 
 
 class Geothermic(Device):

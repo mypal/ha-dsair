@@ -305,11 +305,11 @@ class EnumSensor:
         def __str__(self):
             if self.value == EnumSensor.Voc.STEP_UNUSE:
                 return "不可用"
-            elif self.value == EnumSensor.Voc.STEP_1:
+            if self.value == EnumSensor.Voc.STEP_1:
                 return "优"
-            elif self.value == EnumSensor.Voc.STEP_2:
+            if self.value == EnumSensor.Voc.STEP_2:
                 return "低"
-            elif self.value == EnumSensor.Voc.STEP_3:
+            if self.value == EnumSensor.Voc.STEP_3:
                 return "中"
-            elif self.value == EnumSensor.Voc.STEP_4:
+            if self.value == EnumSensor.Voc.STEP_4:
                 return "高"

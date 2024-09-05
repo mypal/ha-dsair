@@ -1,4 +1,5 @@
 """Platform for DS-AIR of Daikin
+
 https://www.daikin-china.com.cn/newha/products/4/19/DS-AIR/
 """
 
@@ -9,7 +10,7 @@ from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, Platfo
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntry
 
-from .const import CONF_GW, DEFAULT_GW, DEFAULT_HOST, DEFAULT_PORT, DOMAIN
+from .const import CONF_GW, DEFAULT_GW, DOMAIN
 from .ds_air_service import Config, Service
 
 _LOGGER = logging.getLogger(__name__)
@@ -27,7 +28,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     gw = entry.data[CONF_GW]
     scan_interval = entry.data[CONF_SCAN_INTERVAL]
 
-    _LOGGER.debug(f"{host}:{port} {gw} {scan_interval}")
+    _LOGGER.debug("%s:%s %s %s", host, port, gw, scan_interval)
 
     config = Config()
     config.is_c611 = gw == DEFAULT_GW
