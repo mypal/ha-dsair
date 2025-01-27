@@ -86,7 +86,7 @@ class DsSensor(SensorEntity):
             if self._data_key in SENSOR_TYPES
             else None
         )
-    
+
     @property
     def state_class(self):
         """Return the state class of this entity."""
@@ -131,7 +131,7 @@ class DsVentSensor(SensorEntity):
     @property
     def unique_id(self):
         return "%s_%s" % (self._data_key, self._unique_id)
-    
+
     @property
     def device_info(self) -> Optional[DeviceInfo]:
         return {
@@ -172,7 +172,7 @@ class DsVentSensor(SensorEntity):
             if self._data_key in SMALL_VAM_SENSOR_TYPES
             else None
         )
-    
+
     @property
     def state_class(self):
         """Return the state class of this entity."""

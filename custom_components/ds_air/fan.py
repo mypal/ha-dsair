@@ -11,6 +11,7 @@ from .ds_air_service.ctrl_enum import _MODE_VENT_NAME_LIST, EnumControl
 
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import MAJOR_VERSION, MINOR_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
@@ -31,6 +32,8 @@ FULL_SUPPORT = (
 LIMITED_SUPPORT = FanEntityFeature.SET_SPEED
 
 SMALL_VAM_SUPPORT = FanEntityFeature.SET_SPEED | FanEntityFeature.PRESET_MODE
+if (MAJOR_VERSION, MINOR_VERSION) >= (2024, 2):
+    SMALL_VAM_SUPPORT |= FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
 
 _LOGGER = logging.getLogger(__name__)
 

@@ -346,7 +346,7 @@ class EnumControl:
     @staticmethod
     def get_mode_enum(name):
         return Mode(_MODE_NAME_LIST.index(name))
-    
+
     @staticmethod
     def get_vent_mode_name(idx):
         return _MODE_VENT_NAME_LIST[idx]
