@@ -5,10 +5,10 @@ import typing
 from threading import Thread, Lock
 
 from .ctrl_enum import EnumDevice, EnumControl
-from .dao import Room, AirCon, AirConStatus, Ventilation, VentilationStatus, get_device_by_aircon, Sensor, STATUS_ATTR
+from .dao import Room, AirCon, AirConStatus, Ventilation, VentilationStatus, get_device_by_aircon, Sensor, STATUS_ATTR, get_device_by_vent, UNINITIALIZED_VALUE
 from .decoder import decoder, BaseResult
 from .display import display
-from .param import Param, HandShakeParam, HeartbeatParam, AirConControlParam, AirConQueryStatusParam, Sensor2InfoParam, VentilationQueryStatusParam, VentilationControlParam
+from .param import Param, HandShakeParam, HeartbeatParam, AirConControlParam, AirConQueryStatusParam, Sensor2InfoParam, VentilationQueryStatusParam, VentilationControlParam, VentilationQueryCompositeSituationParam
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -17,6 +17,11 @@ def _log(s: str):
     s = str(s)
     for i in s.split('\n'):
         _LOGGER.debug(i)
+
+def _logError(s: str):
+    s = str(s)
+    for i in s.split('\n'):
+        _LOGGER.error(i)
 
 
 class SocketClient:
@@ -84,7 +89,7 @@ class SocketClient:
                 res.append(r)
                 data = b
             except Exception as e:
-                _log(e)
+                _logError(e)
                 data = None
         return res
 
@@ -110,7 +115,7 @@ class RecvThread(Thread):
                     if i is not None:
                         i.do()
                 except Exception as e:
-                    _log(e)
+                    _logError(e)
                 self._locker.release()
 
 
@@ -146,9 +151,9 @@ class Service:
     _ventilations = None # type: typing.List[Ventilation]
     _ready = False  # type: bool
     _none_stat_dev_cnt = 0  # type: int
-    _status_hook = []  # type: typing.List[(AirCon, typing.Callable)]
-    _sensor_hook = []  # type: typing.List[(str, typing.Callable)]
-    _vent_hook = [] # type: typing.List[(Ventilation, typing.Callable)]
+    _status_hook = []  # type: typing.List[typing.Tuple[AirCon, typing.Callable]]
+    _sensor_hook = []  # type: typing.List[typing.Tuple[str, typing.Callable]]
+    _vent_hook = [] # type: typing.List[typing.Tuple[Ventilation, typing.Callable]]
     _heartbeat_thread = None
     _sensors = []  # type: typing.List[Sensor]
     _scan_interval = 5  # type: int
@@ -232,13 +237,8 @@ class Service:
         Service.send_msg(p)
 
     @staticmethod
-    def control_vent(aircon: Ventilation, switch: bool):
-        statusVent = VentilationStatus()
-        if switch == True:
-            statusVent.switch = EnumControl.Switch(1)
-        else:
-            statusVent.switch = EnumControl.Switch(0)
-        p = VentilationControlParam(Service._ventilations[0], statusVent)
+    def control_vent(ventilation: Ventilation, status: VentilationStatus):
+        p = VentilationControlParam(ventilation, status)
         Service.send_msg(p)
 
     @staticmethod
@@ -335,8 +335,10 @@ class Service:
         else:
             for i in Service._ventilations:
                 if i.unit_id == unit and i.room_id == room:
-                    i.status = status
-                    i.switch = status.switch
+                    for attr in i.status.__dict__.keys():
+                        value = getattr(status, attr)
+                        if value is not None and value != UNINITIALIZED_VALUE:
+                            setattr(i.status, attr, value)
                     # Service._none_stat_dev_cnt -= 1
                     break
 
@@ -349,9 +351,14 @@ class Service:
             Service.send_msg(p)
         for v in Service._ventilations:
             p = VentilationQueryStatusParam()
-            p.target = EnumDevice.VENTILATION
+            p.target = get_device_by_vent(v)
             p.device = v
             Service.send_msg(p)
+            if v.is_small_vam:
+                p = VentilationQueryCompositeSituationParam()
+                p.target = get_device_by_vent(v)
+                p.device = v
+                Service.send_msg(p)
         p = Sensor2InfoParam()
         Service.send_msg(p)
 
@@ -376,8 +383,8 @@ class Service:
                 try:
                     func(**kwargs)
                 except Exception as e:
-                    _log('vent hook error!!')
-                    _log(str(e))
+                    _logError('vent hook error!!')
+                    _logError(str(e))
 
     @staticmethod
     def get_scan_interval():

@@ -77,7 +77,6 @@ def get_device_by_aircon(aircon: AirCon):
     else:
         return EnumDevice.AIRCON
 
-
 class Geothermic(Device):
     """do nothing"""
 
@@ -85,13 +84,32 @@ class Geothermic(Device):
 class Ventilation(Device):
     def __init__(self):
         Device.__init__(self)
-        self.switch = EnumControl.Switch.OFF # type: EnumControl.Switch
         self.is_small_vam = False  # type: bool
+        self.capability = 0 # type: int
+        self.status = VentilationStatus() #type: VentilationStatus
+
+def get_device_by_vent(vent: Ventilation):
+    if vent.is_small_vam:
+        return EnumDevice.SMALL_VAM
+    else:
+        return EnumDevice.VENTILATION
 
 class VentilationStatus:
     def __init__(self, 
-                 switch: EnumControl.Switch = None):
-        self.switch = switch  # type: EnumControl.Switch
+                 switch: EnumControl.Switch = None,
+                 mode: EnumControl.Mode = None,
+                 air_flow: EnumControl.AirFlow = None,
+                 in_door_temp: int = None,
+                 out_door_temp: int = None,
+                 out_door_humidity: int = None,
+                 pm25: int = None):
+        self.switch: EnumControl.Switch = switch
+        self.mode: EnumControl.Mode = mode
+        self.air_flow: EnumControl.AirFlow = air_flow
+        self.in_door_temp: int = in_door_temp
+        self.out_door_temp: int = out_door_temp
+        self.out_door_humidity: int = out_door_humidity
+        self.pm25: int = pm25
 
 
 class HD(Device):
@@ -154,4 +172,4 @@ class Room:
         self.id = 0  # type: int
         self.name = ''  # type: str
         self.type = 0  # type: int
-        self.ventilation = Ventilation()  # type: Optional[Ventilation]
+        self.ventilation = None  # type: Optional[Ventilation]

@@ -1,9 +1,9 @@
 import struct
 import typing
-from typing import Optional
+from typing import Optional, Literal
 
 from .config import Config
-from .dao import AirCon, Device, get_device_by_aircon, AirConStatus, Ventilation, VentilationStatus
+from .dao import AirCon, Device, get_device_by_aircon, AirConStatus, Ventilation, VentilationStatus, get_device_by_vent
 from .base_bean import BaseBean
 from .ctrl_enum import EnumCmdType, EnumDevice, EnumControl, EnumFanDirection, EnumFanVolume
 
@@ -51,7 +51,7 @@ class Param(BaseBean):
         BaseBean.__init__(self, Param.cnt, device_type, cmd_type)
         self._has_result = has_result
 
-    def generate_subbody(self, s):
+    def generate_subbody(self, s: Encode):
         return
 
     def to_string(self):
@@ -104,8 +104,9 @@ class GetGWInfoParam(SystemParam):
 
 
 class GetRoomInfoParam(SystemParam):
-    def __init__(self):
-        SystemParam.__init__(self, EnumCmdType.SYS_GET_ROOM_INFO, True)
+    def __init__(self, cmd_type: Literal[EnumCmdType.SYS_GET_ROOM_INFO,
+                                         EnumCmdType.SYS_GET_ROOM_INFO_V1]):
+        SystemParam.__init__(self, cmd_type, True)
         self._room_ids: typing.List[int] = []
         self.type: int = 1
         self.subbody_ver: int = 1
@@ -245,8 +246,8 @@ class AirConControlParam(AirconParam):
                 s.write2(val)
 
 class VentilationParam(Param):
-    def __init__(self, cmd_cype, has_result):
-        Param.__init__(self, EnumDevice.VENTILATION, cmd_cype, has_result)
+    def __init__(self, cmd_type, has_result):
+        Param.__init__(self, EnumDevice.VENTILATION, cmd_type, has_result)
 
 class VentilationCapabilityQueryParam(VentilationParam):
     def __init__(self):
@@ -279,7 +280,9 @@ class VentilationQueryStatusParam(VentilationParam):
         t = EnumControl.Type
         flag = t.SWITCH
         # dev = self.device
-        s.write1(flag)
+        # s.write1(flag)
+        # 代码中对于SmallVAM是用这个参数，但是查询结果没有区别
+        s.write1(7)
 
     @property
     def device(self):
@@ -292,7 +295,7 @@ class VentilationQueryStatusParam(VentilationParam):
 class VentilationControlParam(VentilationParam):
     def __init__(self, vent: Ventilation, new_status: VentilationStatus):
         super().__init__(EnumCmdType.CONTROL, False)
-        self.target = EnumDevice.VENTILATION
+        self.target = get_device_by_vent(vent)
         self._vent = vent
         self._new_status = new_status
 
@@ -306,9 +309,33 @@ class VentilationControlParam(VentilationParam):
         if status.switch is not None:
             flag = flag | EnumControl.Type.SWITCH
             li.append((1, status.switch.value))
+        if status.mode is not None:
+            flag = flag | EnumControl.Type.MODE
+            li.append((1, status.mode.value))
+        if status.air_flow is not None:
+            flag = flag | EnumControl.Type.AIR_FLOW
+            li.append((1, status.air_flow.value))
+
         s.write1(flag)
         for bit, val in li:
             if bit == 1:
                 s.write1(val)
             elif bit == 2:
                 s.write2(val)
+
+class VentilationQueryCompositeSituationParam(VentilationParam):
+    def __init__(self):
+        super().__init__(EnumCmdType.SMALL_VAM_QUERY_COMPOSITE_SITUATION, True)
+        self._device = None  # type: Optional[Ventilation]
+
+    def generate_subbody(self, s):
+        s.write1(self._device.room_id)
+        s.write1(self._device.unit_id)
+
+    @property
+    def device(self):
+        return self._device
+
+    @device.setter
+    def device(self, v: Ventilation):
+        self._device = v

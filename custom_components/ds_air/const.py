@@ -19,3 +19,10 @@ SENSOR_TYPES = {
     "voc": [None, None, SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS_PARTS, EnumSensor.Voc],
     "hcho": [CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER, None, None, 100],
 }
+
+SMALL_VAM_SENSOR_TYPES = {
+    "in_door_temp": [TEMP_CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
+    "out_door_temp": [TEMP_CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
+    "out_door_humidity": [PERCENTAGE, None, SensorDeviceClass.HUMIDITY, 1],
+    "pm25": [CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, None, SensorDeviceClass.PM25, 1],
+}
