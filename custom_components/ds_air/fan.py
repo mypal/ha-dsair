@@ -141,8 +141,14 @@ class DsVent(FanEntity):
         else:
             if percentage > 50:
                 air_flow = EnumControl.AirFlow.STRONG
-            else:
+            elif percentage > 0:
                 air_flow = EnumControl.AirFlow.WEAK
+            else:
+                air_flow = vent.status.air_flow
+
+            if percentage > 0 and vent.status.switch != EnumControl.Switch.ON:
+                vent.status.switch = EnumControl.Switch.ON
+                new_status.switch = EnumControl.Switch.ON
 
         vent.status.air_flow = air_flow
         if air_flow != EnumControl.AirFlow.SUPER_WEAK:
