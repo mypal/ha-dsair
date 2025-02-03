@@ -21,8 +21,8 @@ SENSOR_TYPES = {
 }
 
 SMALL_VAM_SENSOR_TYPES = {
-    "in_door_temp": [TEMP_CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
-    "out_door_temp": [TEMP_CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
+    "in_door_temp": [UnitOfTemperature.CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
+    "out_door_temp": [UnitOfTemperature.CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
     "out_door_humidity": [PERCENTAGE, None, SensorDeviceClass.HUMIDITY, 1],
     "pm25": [CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, None, SensorDeviceClass.PM25, 1],
 }
