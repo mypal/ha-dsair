@@ -229,7 +229,7 @@ class DsAir(ClimateEntity):
         if self._link_cur_temp:
             return self._cur_temp
         else:
-            if Config.is_c611:
+            if Config.is_c611 or Config.is_d611:
                 return None
             else:
                 return self._device_info.status.current_temp / 10

@@ -305,8 +305,8 @@ _MODE_NAME_LIST = [HVACMode.COOL, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO
                    HVACMode.DRY, HVACMode.AUTO, HVACMode.AUTO, HVACMode.HEAT, HVACMode.DRY]
 _MODE_ACTION_LIST = [HVACAction.COOLING, HVACAction.DRYING, HVACAction.FAN, None, HVACAction.HEATING,
                    HVACAction.DRYING, None, None, HVACAction.PREHEATING, HVACAction.DRYING]
-_MODE_VENT_NAME_LIST = ["内循环", "热交换", "自动", "防污染", "排异味"]
-_MODE_VENT_NAME_LIST2 = ["旁通", "热交换", "自动"]
+_MODE_VENT_NAME_LIST_SMALL_VAM = ["内循环", "热交换", "自动", "防污染", "排异味"]
+_MODE_VENT_NAME_LIST_STANDARD_VAM = ["旁通", "热交换", "自动"]
 
 class Switch(IntEnum):
     OFF = 0
@@ -349,20 +349,20 @@ class EnumControl:
         return Mode(_MODE_NAME_LIST.index(name))
 
     @staticmethod
-    def get_vent_mode_name(idx):
-        return _MODE_VENT_NAME_LIST[idx]
+    def get_vent_mode_name_small_vam(idx):
+        return _MODE_VENT_NAME_LIST_SMALL_VAM[idx]
 
     @staticmethod
-    def get_vent_mode_enum(name: str):
-        return Mode(_MODE_VENT_NAME_LIST.index(name))
-    
-    @staticmethod
-    def get_vent_mode_name2(idx):
-        return _MODE_VENT_NAME_LIST2[idx]
+    def get_vent_mode_enum_small_vam(name: str):
+        return Mode(_MODE_VENT_NAME_LIST_SMALL_VAM.index(name))
 
     @staticmethod
-    def get_vent_mode_enum2(name: str):
-        return Mode(_MODE_VENT_NAME_LIST2.index(name))
+    def get_vent_mode_name_standard_vam(idx):
+        return _MODE_VENT_NAME_LIST_STANDARD_VAM[idx]
+
+    @staticmethod
+    def get_vent_mode_enum_standard_vam(name: str):
+        return Mode(_MODE_VENT_NAME_LIST_STANDARD_VAM.index(name))
 
     @staticmethod
     def get_air_flow_name(idx):

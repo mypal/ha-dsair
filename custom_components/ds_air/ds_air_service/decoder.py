@@ -613,7 +613,7 @@ class HandShakeResult(BaseResult):
         self._time = d.read_utf(14)
 
     def do(self):
-        if Config.is_new_version and Config.is_c611:
+        if Config.is_d611:
             p = GetRoomInfoParam(EnumCmdType.SYS_GET_ROOM_INFO_V1)
         else:
             p = GetRoomInfoParam(EnumCmdType.SYS_GET_ROOM_INFO)
@@ -715,7 +715,7 @@ class AirConQueryStatusResult(BaseResult):
             self.mode = EnumControl.Mode(d.read1())
         if flag >> 2 & 1:
             self.air_flow = EnumControl.AirFlow(d.read1())
-        if Config.is_c611:
+        if Config.is_c611 or Config.is_d611:
             if flag >> 3 & 1:
                 bt = d.read1()
                 self.hum_allow = bt & 8 == 8

@@ -9,7 +9,7 @@ from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 
 from .hass_inst import GetHass
-from .const import CONF_GW, DEFAULT_HOST, DEFAULT_PORT, DEFAULT_GW, DOMAIN
+from .const import CONF_GW, DEFAULT_HOST, DEFAULT_PORT, C611, D611, DOMAIN
 from .ds_air_service.config import Config
 
 _LOGGER = logging.getLogger(__name__)
@@ -43,7 +43,8 @@ async def async_setup_entry(
     hass.data[DOMAIN][CONF_GW] = gw
     hass.data[DOMAIN][CONF_SCAN_INTERVAL] = scan_interval
 
-    Config.is_c611 = gw == DEFAULT_GW
+    Config.is_c611 = gw == C611
+    Config.is_d611 = gw == D611
 
     from .ds_air_service.service import Service
     await hass.async_add_executor_job(Service.init, host, port, scan_interval)

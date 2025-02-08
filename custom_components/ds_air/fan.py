@@ -7,7 +7,7 @@ from re import S
 from typing import Any,Optional, List
 
 from .ds_air_service.display import display
-from .ds_air_service.ctrl_enum import _MODE_VENT_NAME_LIST, _MODE_VENT_NAME_LIST2, EnumControl
+from .ds_air_service.ctrl_enum import _MODE_VENT_NAME_LIST_SMALL_VAM, _MODE_VENT_NAME_LIST_STANDARD_VAM, EnumControl
 
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.config_entries import ConfigEntry
@@ -31,11 +31,17 @@ FULL_SUPPORT = (
 )
 LIMITED_SUPPORT = FanEntityFeature.SET_SPEED
 
+# TODO: Do Standard VAMs use FULL_SUPPORT or LIMITED_SUPPORT?
 SMALL_VAM_SUPPORT = FanEntityFeature.SET_SPEED | FanEntityFeature.PRESET_MODE
-if (MAJOR_VERSION, MINOR_VERSION) >= (2024, 2):
-    SMALL_VAM_SUPPORT |= FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
 
-POWEWR_SUPPORT = FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
+# For HA Core >= 2024.8, set TURN_ON and TURN_OFF flags for all VAMs.
+# https://developers.home-assistant.io/blog/2024/07/19/fan-fanentityfeatures-turn-on_off/
+if (MAJOR_VERSION, MINOR_VERSION) >= (2024, 8):
+    POWER_SUPPORT = FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
+
+    FULL_SUPPORT |= POWER_SUPPORT
+    LIMITED_SUPPORT |= POWER_SUPPORT
+    SMALL_VAM_SUPPORT |= POWER_SUPPORT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -66,10 +72,12 @@ class DsVent(FanEntity):
         self._name = vent.alias
         self._device_info = vent
         self._unique_id = vent.unique_id
+
+        # Don't include the AUTO mode.
         if vent.is_small_vam:
-            self._attr_speed_count = 4
+            self._attr_speed_count = len(_MODE_VENT_NAME_LIST_SMALL_VAM) - 1
         else:
-            self._attr_speed_count = 2
+            self._attr_speed_count = len(_MODE_VENT_NAME_LIST_STANDARD_VAM) - 1
         Service.register_vent_hook(vent, self._status_change_hook)
 
     def _status_change_hook(self, **kwargs):
@@ -114,25 +122,23 @@ class DsVent(FanEntity):
     @property
     def supported_features(self) -> int:
         """Flag supported features."""
-        if self._device_info.is_small_vam:
-            return SMALL_VAM_SUPPORT
-        return SMALL_VAM_SUPPORT | POWEWR_SUPPORT
+        # TODO: Do Standard VAMs use FULL_SUPPORT or LIMITED_SUPPORT?
+        return SMALL_VAM_SUPPORT
 
-    
     @property
     def percentage(self) -> int | None:
         vent = self._device_info
         if vent.status.air_flow is None:
             return None
-        
+
         if vent.is_small_vam:
             return vent.status.air_flow.value * self.percentage_step
-        
-        if vent.status.air_flow == EnumControl.AirFlow.WEAK:
-            return 50
-        if vent.status.air_flow == EnumControl.AirFlow.STRONG:
-            return 100
-        
+        else:
+            if vent.status.air_flow == EnumControl.AirFlow.WEAK:
+              return 50
+            elif vent.status.air_flow == EnumControl.AirFlow.STRONG:
+              return 100
+
         return None
     
     def set_percentage(self, percentage: int) -> None:
@@ -164,26 +170,28 @@ class DsVent(FanEntity):
         status = vent.status
         new_status = VentilationStatus()
         if vent.is_small_vam:
-            mode = EnumControl.get_vent_mode_enum(preset_mode)
+            mode = EnumControl.get_vent_mode_enum_small_vam(preset_mode)
         else:
-            mode = EnumControl.get_vent_mode_enum2(preset_mode)
+            mode = EnumControl.get_vent_mode_enum_standard_vam(preset_mode)
         status.mode = mode
         new_status.mode = mode
         Service.control_vent(self._device_info, new_status)
-    
+
     @property
     def preset_mode(self) -> str | None:
         if self._device_info.status.mode is None:
             return None
-        if self._device_info.is_small_vam:
-            return EnumControl.get_vent_mode_name(self._device_info.status.mode)
-        return EnumControl.get_vent_mode_name2(self._device_info.status.mode)
+        elif self._device_info.is_small_vam:
+            return EnumControl.get_vent_mode_name_small_vam(self._device_info.status.mode)
+        else:
+            return EnumControl.get_vent_mode_name_standard_vam(self._device_info.status.mode)
 
     @property
     def preset_modes(self) -> list[str] | None:
         if self._device_info.is_small_vam:
-            return _MODE_VENT_NAME_LIST
-        return _MODE_VENT_NAME_LIST2
+            return _MODE_VENT_NAME_LIST_SMALL_VAM
+        else:
+            return _MODE_VENT_NAME_LIST_STANDARD_VAM
 
     @property
     def device_info(self) -> Optional[DeviceInfo]:
