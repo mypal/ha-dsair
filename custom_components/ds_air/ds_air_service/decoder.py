@@ -950,7 +950,10 @@ class VentilationCapabilityQueryResult(BaseResult):
                     csp.target = self.target
                     csp.device = vent
                     Service.send_msg(csp)
-            Service.set_ventilations(self._vents)
+            original_vents = Service.get_ventilations()
+            if original_vents is None:
+                original_vents = []
+            Service.set_ventilations(original_vents + self._vents)
 
     # @property
     # def aircons(self):

@@ -7,7 +7,7 @@ from re import S
 from typing import Any,Optional, List
 
 from .ds_air_service.display import display
-from .ds_air_service.ctrl_enum import _MODE_VENT_NAME_LIST, EnumControl
+from .ds_air_service.ctrl_enum import _MODE_VENT_NAME_LIST, _MODE_VENT_NAME_LIST2, EnumControl
 
 from homeassistant.components.fan import FanEntity, FanEntityFeature
 from homeassistant.config_entries import ConfigEntry
@@ -34,6 +34,8 @@ LIMITED_SUPPORT = FanEntityFeature.SET_SPEED
 SMALL_VAM_SUPPORT = FanEntityFeature.SET_SPEED | FanEntityFeature.PRESET_MODE
 if (MAJOR_VERSION, MINOR_VERSION) >= (2024, 2):
     SMALL_VAM_SUPPORT |= FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
+
+POWEWR_SUPPORT = FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -112,7 +114,9 @@ class DsVent(FanEntity):
     @property
     def supported_features(self) -> int:
         """Flag supported features."""
-        return SMALL_VAM_SUPPORT
+        if self._device_info.is_small_vam:
+            return SMALL_VAM_SUPPORT
+        return SMALL_VAM_SUPPORT | POWEWR_SUPPORT
 
     
     @property
@@ -120,12 +124,35 @@ class DsVent(FanEntity):
         vent = self._device_info
         if vent.status.air_flow is None:
             return None
-        return vent.status.air_flow.value * self.percentage_step
+        
+        if vent.is_small_vam:
+            return vent.status.air_flow.value * self.percentage_step
+        
+        if vent.status.air_flow == EnumControl.AirFlow.WEAK:
+            return 50
+        if vent.status.air_flow == EnumControl.AirFlow.STRONG:
+            return 100
+        
+        return None
     
     def set_percentage(self, percentage: int) -> None:
         vent = self._device_info
         new_status = VentilationStatus()
-        air_flow = EnumControl.AirFlow(round(percentage / self.percentage_step))
+
+        if vent.is_small_vam:
+            air_flow = EnumControl.AirFlow(round(percentage / self.percentage_step))
+        else:
+            if percentage > 50:
+                air_flow = EnumControl.AirFlow.STRONG
+            elif percentage > 0:
+                air_flow = EnumControl.AirFlow.WEAK
+            else:
+                air_flow = vent.status.air_flow
+
+            if percentage > 0 and vent.status.switch != EnumControl.Switch.ON:
+                vent.status.switch = EnumControl.Switch.ON
+                new_status.switch = EnumControl.Switch.ON
+
         vent.status.air_flow = air_flow
         if air_flow != EnumControl.AirFlow.SUPER_WEAK:
             new_status.air_flow = air_flow
@@ -136,7 +163,10 @@ class DsVent(FanEntity):
         vent = self._device_info
         status = vent.status
         new_status = VentilationStatus()
-        mode = EnumControl.get_vent_mode_enum(preset_mode)
+        if vent.is_small_vam:
+            mode = EnumControl.get_vent_mode_enum(preset_mode)
+        else:
+            mode = EnumControl.get_vent_mode_enum2(preset_mode)
         status.mode = mode
         new_status.mode = mode
         Service.control_vent(self._device_info, new_status)
@@ -145,11 +175,15 @@ class DsVent(FanEntity):
     def preset_mode(self) -> str | None:
         if self._device_info.status.mode is None:
             return None
-        return EnumControl.get_vent_mode_name(self._device_info.status.mode)
+        if self._device_info.is_small_vam:
+            return EnumControl.get_vent_mode_name(self._device_info.status.mode)
+        return EnumControl.get_vent_mode_name2(self._device_info.status.mode)
 
     @property
     def preset_modes(self) -> list[str] | None:
-        return _MODE_VENT_NAME_LIST
+        if self._device_info.is_small_vam:
+            return _MODE_VENT_NAME_LIST
+        return _MODE_VENT_NAME_LIST2
 
     @property
     def device_info(self) -> Optional[DeviceInfo]:
