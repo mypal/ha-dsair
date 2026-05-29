@@ -56,9 +56,6 @@ class DsSensor(SensorEntity):
         self._attr_unique_id = build_prefixed_unique_id(
             self._data_key, device.unique_id
         )
-        self.entity_id = (
-            f"sensor.daikin_{device.gateway_id}_{device.mac}_{self._data_key}"
-        )
 
         self._parse_data(device)
         service.register_sensor_hook(device.unique_id, self._handle_sensor_hook)
