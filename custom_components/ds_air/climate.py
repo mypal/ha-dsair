@@ -21,6 +21,7 @@ from homeassistant.components.climate import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_TEMPERATURE,
+    CONF_HOST,
     CONF_PORT,
     MAJOR_VERSION,
     MINOR_VERSION,
