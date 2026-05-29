@@ -44,6 +44,7 @@ from .const import (
     get_air_flow_name,
     get_fan_direction_enum,
     get_fan_direction_name,
+    get_gateway_name,
     get_mode_name,
 )
 from .ds_air_service import AirCon, AirConStatus, EnumControl, Service, display
@@ -74,17 +75,19 @@ async def async_setup_entry(
 ) -> None:
     """Set up the climate devices."""
     service: Service = hass.data[DOMAIN][entry.entry_id]
-    climates = [DsAir(service, aircon) for aircon in service.get_aircons()]
+    gateway_name = get_gateway_name(
+        hass.config.language, entry.data[CONF_HOST], entry.title
+    )
+    climates = [DsAir(service, aircon, gateway_name) for aircon in service.get_aircons()]
     async_add_entities(climates)
     link = entry.options.get("link")
+    climate_by_unique_id = {climate.unique_id: climate for climate in climates}
     sensor_temp_map: dict[str, list[DsAir]] = {}
     sensor_humi_map: dict[str, list[DsAir]] = {}
     if link is not None:
         for i in link:
-            climate_name = i.get("climate")
-            if climate := next(
-                c for c in climates if c._device_info.alias == climate_name
-            ):
+            climate_id = i.get("climate")
+            if climate := climate_by_unique_id.get(climate_id):
                 if temp_entity_id := i.get("sensor_temp"):
                     sensor_temp_map.setdefault(temp_entity_id, []).append(climate)
                     climate.linked_temp_entity_id = temp_entity_id
@@ -130,7 +133,7 @@ class DsAir(ClimateEntity):
 
     _enable_turn_on_off_backwards_compatibility: bool = False  # used in 2024.2~2024.12
 
-    def __init__(self, service: Service, aircon: AirCon):
+    def __init__(self, service: Service, aircon: AirCon, gateway_name: str):
         _log("create aircon:")
         _log(str(aircon.__dict__))
         _log(str(aircon.status.__dict__))
@@ -144,10 +147,12 @@ class DsAir(ClimateEntity):
 
         service.register_status_hook(aircon, self._status_change_hook)
 
+        device_name = aircon.alias if "空调" in aircon.alias else f"{aircon.alias} 空调"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.unique_id)},
-            name=aircon.alias if "空调" in aircon.alias else f"{aircon.alias} 空调",
+            name=f"{gateway_name} {device_name}",
             manufacturer=MANUFACTURER,
+            via_device=(DOMAIN, aircon.gateway_id),
         )
 
     async def async_added_to_hass(self) -> None:

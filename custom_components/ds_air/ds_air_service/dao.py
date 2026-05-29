@@ -1,3 +1,4 @@
+from collections.abc import Iterable
 import time
 
 from .config import Config
@@ -11,9 +12,74 @@ from .ctrl_enum import (
 )
 
 
+def build_device_unique_id(gateway_id: str, room_id: int, unit_id: int) -> str:
+    return f"daikin_{gateway_id}_{room_id}_{unit_id}"
+
+
+def build_prefixed_unique_id(prefix: str, device_unique_id: str) -> str:
+    return f"{prefix}_{device_unique_id}"
+
+
+def migrate_legacy_unique_id(
+    unique_id: str, gateway_id: str, sensor_keys: Iterable[str] = ()
+) -> str | None:
+    parts = unique_id.split("_")
+    if len(parts) == 3 and parts[0] == "daikin":
+        room_id, unit_id = parts[1:]
+        if room_id.isdigit() and unit_id.isdigit():
+            return build_device_unique_id(gateway_id, int(room_id), int(unit_id))
+
+    for sensor_key in sensor_keys:
+        prefix = f"{sensor_key}_daikin_"
+        if not unique_id.startswith(prefix):
+            continue
+        legacy_parts = unique_id.removeprefix(prefix).split("_")
+        if len(legacy_parts) != 2:
+            continue
+        room_id, unit_id = legacy_parts
+        if room_id.isdigit() and unit_id.isdigit():
+            device_unique_id = build_device_unique_id(
+                gateway_id, int(room_id), int(unit_id)
+            )
+            return build_prefixed_unique_id(
+                sensor_key, device_unique_id
+            )
+
+    return None
+
+
+def migrate_legacy_sensor_links(
+    links: list, aircons: Iterable["Device"]
+) -> tuple[list[dict], bool]:
+    aircons_by_unique_id = {aircon.unique_id: aircon for aircon in aircons}
+    alias_to_unique_id = {
+        aircon.alias: aircon.unique_id for aircon in aircons if aircon.alias
+    }
+    changed = False
+    migrated_links: list[dict] = []
+
+    for link in links:
+        if not isinstance(link, dict):
+            migrated_links.append(link)
+            continue
+        migrated_link = dict(link)
+        climate_id = migrated_link.get("climate")
+        if (
+            climate_id
+            and climate_id not in aircons_by_unique_id
+            and climate_id in alias_to_unique_id
+        ):
+            migrated_link["climate"] = alias_to_unique_id[climate_id]
+            changed = True
+        migrated_links.append(migrated_link)
+
+    return migrated_links, changed
+
+
 class Device:
     def __init__(self):
         self.alias: str = ""
+        self.gateway_id: str = ""
         self.id: int = 0
         self.name: str = ""
         self.room_id: int = 0
@@ -22,8 +88,7 @@ class Device:
 
     @property
     def unique_id(self):
-        # todo 需要加上所属网关
-        return "daikin_%d_%d" % (self.room_id, self.unit_id)
+        return build_device_unique_id(self.gateway_id, self.room_id, self.unit_id)
 
 
 class AirConStatus:
@@ -54,6 +119,7 @@ class AirCon(Device):
     def __init__(self, config: Config):
         super().__init__()
         self.config = config
+        self.gateway_id = config.gateway_id
         self.auto_dry_mode: int = 0
         self.auto_mode: int = 0
         self.bath_room: bool = False
