@@ -21,7 +21,6 @@ from homeassistant.components.climate import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_TEMPERATURE,
-    CONF_HOST,
     CONF_PORT,
     MAJOR_VERSION,
     MINOR_VERSION,
@@ -44,10 +43,10 @@ from .const import (
     get_air_flow_name,
     get_fan_direction_enum,
     get_fan_direction_name,
-    get_gateway_name,
     get_mode_name,
 )
 from .ds_air_service import AirCon, AirConStatus, EnumControl, Service, display
+from .ds_air_service.dao import build_aircon_device_name
 
 _SUPPORT_FLAGS = (
     ClimateEntityFeature.TARGET_TEMPERATURE
@@ -75,10 +74,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up the climate devices."""
     service: Service = hass.data[DOMAIN][entry.entry_id]
-    gateway_name = get_gateway_name(
-        hass.config.language, entry.data[CONF_HOST], entry.title
-    )
-    climates = [DsAir(service, aircon, gateway_name) for aircon in service.get_aircons()]
+    climates = [DsAir(service, aircon) for aircon in service.get_aircons()]
     async_add_entities(climates)
     link = entry.options.get("link")
     climate_by_unique_id = {climate.unique_id: climate for climate in climates}
@@ -133,7 +129,7 @@ class DsAir(ClimateEntity):
 
     _enable_turn_on_off_backwards_compatibility: bool = False  # used in 2024.2~2024.12
 
-    def __init__(self, service: Service, aircon: AirCon, gateway_name: str):
+    def __init__(self, service: Service, aircon: AirCon):
         _log("create aircon:")
         _log(str(aircon.__dict__))
         _log(str(aircon.status.__dict__))
@@ -147,10 +143,9 @@ class DsAir(ClimateEntity):
 
         service.register_status_hook(aircon, self._status_change_hook)
 
-        device_name = aircon.alias if "空调" in aircon.alias else f"{aircon.alias} 空调"
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.unique_id)},
-            name=f"{gateway_name} {device_name}",
+            name=build_aircon_device_name(aircon.alias),
             manufacturer=MANUFACTURER,
             via_device=(DOMAIN, aircon.gateway_id),
         )

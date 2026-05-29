@@ -2,15 +2,14 @@
 
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN, MANUFACTURER, get_gateway_name
+from .const import DOMAIN, MANUFACTURER
 from .descriptions import SENSOR_DESCRIPTORS, DsSensorEntityDescription
 from .ds_air_service import UNINITIALIZED_VALUE, Sensor, Service
-from .ds_air_service.dao import build_prefixed_unique_id
+from .ds_air_service.dao import build_prefixed_unique_id, build_sensor_device_name
 
 
 async def async_setup_entry(
@@ -20,15 +19,12 @@ async def async_setup_entry(
 ):
     """Perform the setup for Daikin devices."""
     service: Service = hass.data[DOMAIN][config_entry.entry_id]
-    gateway_name = get_gateway_name(
-        hass.config.language, config_entry.data[CONF_HOST], config_entry.title
-    )
     entities = []
     for device in service.get_sensors():
         for key in SENSOR_DESCRIPTORS:
             if config_entry.data.get(key):
                 entities.append(
-                    DsSensor(service, device, SENSOR_DESCRIPTORS.get(key), gateway_name)
+                    DsSensor(service, device, SENSOR_DESCRIPTORS.get(key))
                 )
     async_add_entities(entities)
 
@@ -45,7 +41,6 @@ class DsSensor(SensorEntity):
         service: Service,
         device: Sensor,
         description: DsSensorEntityDescription,
-        gateway_name: str,
     ):
         """Initialize the Daikin Sensor."""
         self.entity_description = description
@@ -53,7 +48,7 @@ class DsSensor(SensorEntity):
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, device.unique_id)},
-            name=f"{gateway_name} {device.alias}",
+            name=build_sensor_device_name(device.alias),
             manufacturer=MANUFACTURER,
             via_device=(DOMAIN, device.gateway_id),
         )

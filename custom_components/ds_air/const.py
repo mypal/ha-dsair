@@ -23,17 +23,19 @@ MANUFACTURER = "Daikin Industries, Ltd."
 
 
 def get_default_gateway_name(language: str | None, host: str) -> str:
-    if language and language.lower().startswith("zh"):
-        return f"{CN_GATEWAY_NAME} {host}"
-    return f"{EN_GATEWAY_NAME} {host}"
+    return CN_GATEWAY_NAME
 
 
-def is_legacy_gateway_title(title: str) -> bool:
-    return title in LEGACY_GATEWAY_TITLES
+def is_legacy_gateway_title(title: str | None, host: str | None = None) -> bool:
+    if title in LEGACY_GATEWAY_TITLES:
+        return True
+    if host is None:
+        return False
+    return title in {f"{CN_GATEWAY_NAME} {host}", f"{EN_GATEWAY_NAME} {host}"}
 
 
 def get_gateway_name(language: str | None, host: str, title: str | None) -> str:
-    if title and not is_legacy_gateway_title(title):
+    if title and not is_legacy_gateway_title(title, host):
         return title
     return get_default_gateway_name(language, host)
 

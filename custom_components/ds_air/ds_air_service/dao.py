@@ -20,6 +20,14 @@ def build_prefixed_unique_id(prefix: str, device_unique_id: str) -> str:
     return f"{prefix}_{device_unique_id}"
 
 
+def build_aircon_device_name(alias: str) -> str:
+    return alias if "空调" in alias else f"{alias} 空调"
+
+
+def build_sensor_device_name(alias: str) -> str:
+    return f"{alias} 传感器"
+
+
 def migrate_legacy_unique_id(
     unique_id: str, gateway_id: str, sensor_keys: Iterable[str] = ()
 ) -> str | None:

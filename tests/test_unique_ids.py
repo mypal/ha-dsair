@@ -68,6 +68,14 @@ class UniqueIdTests(unittest.TestCase):
             [{"climate": "daikin_entry_a_1_0", "sensor_temp": "sensor.temp"}],
         )
 
+    def test_default_device_names_do_not_include_gateway_prefix(self):
+        self.assertTrue(hasattr(dao, "build_aircon_device_name"))
+        self.assertTrue(hasattr(dao, "build_sensor_device_name"))
+
+        self.assertEqual(dao.build_aircon_device_name("客厅"), "客厅 空调")
+        self.assertEqual(dao.build_aircon_device_name("客厅空调"), "客厅空调")
+        self.assertEqual(dao.build_sensor_device_name("客厅"), "客厅 传感器")
+
 
 if __name__ == "__main__":
     unittest.main()

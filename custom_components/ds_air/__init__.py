@@ -170,20 +170,22 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _migrate_device_registry_identifiers(hass, entry, gateway_id)
 
     update: dict = {"version": 1}
-    if minor_version < 2:
-        update["minor_version"] = 2
+    if minor_version < 3:
+        update["minor_version"] = 3
     options, options_changed = _migrate_options_unique_ids(
         dict(entry.options), gateway_id
     )
     if options_changed:
         update["options"] = options
-    if entry.data.get(CONF_HOST) and is_legacy_gateway_title(entry.title):
+    if entry.data.get(CONF_HOST) and is_legacy_gateway_title(
+        entry.title, entry.data[CONF_HOST]
+    ):
         update["title"] = get_default_gateway_name(
             hass.config.language, entry.data[CONF_HOST]
         )
 
     hass.config_entries.async_update_entry(entry, **update)
-    _LOGGER.debug("Migration to DS-AIR config entry version 1.2 successful")
+    _LOGGER.debug("Migration to DS-AIR config entry version 1.3 successful")
 
     return True
 
