@@ -39,7 +39,6 @@ def _log(s: str) -> None:
 
 class DsAirFlowHandler(ConfigFlow, domain=DOMAIN):
     VERSION = 1
-    MINOR_VERSION = 3
 
     def __init__(self):
         self.user_input = {}
@@ -52,9 +51,7 @@ class DsAirFlowHandler(ConfigFlow, domain=DOMAIN):
             self.user_input.update(user_input)
             if not user_input.get(CONF_SENSORS) or user_input.get("temp") is not None:
                 return self.async_create_entry(
-                    title=get_default_gateway_name(
-                        self.hass.config.language, self.user_input[CONF_HOST]
-                    ),
+                    title=get_default_gateway_name(),
                     data=self.user_input,
                 )
 

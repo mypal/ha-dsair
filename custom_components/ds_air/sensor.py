@@ -9,7 +9,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from .const import DOMAIN, MANUFACTURER
 from .descriptions import SENSOR_DESCRIPTORS, DsSensorEntityDescription
 from .ds_air_service import UNINITIALIZED_VALUE, Sensor, Service
-from .ds_air_service.dao import build_prefixed_unique_id, build_sensor_device_name
+from .ds_air_service.dao import build_sensor_device_name
 
 
 async def async_setup_entry(
@@ -53,9 +53,7 @@ class DsSensor(SensorEntity):
             via_device=(DOMAIN, device.gateway_id),
         )
 
-        self._attr_unique_id = build_prefixed_unique_id(
-            self._data_key, device.unique_id
-        )
+        self._attr_unique_id = f"{self._data_key}_{device.unique_id}"
 
         self._parse_data(device)
         service.register_sensor_hook(device.unique_id, self._handle_sensor_hook)

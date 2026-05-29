@@ -27,45 +27,12 @@ class UniqueIdTests(unittest.TestCase):
         self.assertNotEqual(first.unique_id, second.unique_id)
 
     def test_prefixed_sensor_unique_id_inserts_gateway_after_daikin(self):
-        self.assertTrue(hasattr(dao, "build_prefixed_unique_id"))
+        self.assertFalse(hasattr(dao, "build_prefixed_unique_id"))
+        device_unique_id = dao.build_device_unique_id("entry_a", 1, 0)
+
         self.assertEqual(
-            dao.build_prefixed_unique_id("temp", "daikin_entry_a_1_0"),
+            f"temp_{device_unique_id}",
             "temp_daikin_entry_a_1_0",
-        )
-
-    def test_legacy_registry_unique_ids_migrate_to_gateway_scoped_ids(self):
-        self.assertTrue(hasattr(dao, "migrate_legacy_unique_id"))
-
-        self.assertEqual(
-            dao.migrate_legacy_unique_id("daikin_1_0", "entry_a", {"temp"}),
-            "daikin_entry_a_1_0",
-        )
-        self.assertEqual(
-            dao.migrate_legacy_unique_id("temp_daikin_1_0", "entry_a", {"temp"}),
-            "temp_daikin_entry_a_1_0",
-        )
-        self.assertIsNone(
-            dao.migrate_legacy_unique_id("temp_daikin_entry_a_1_0", "entry_a", {"temp"})
-        )
-
-    def test_legacy_alias_sensor_links_migrate_to_climate_unique_ids(self):
-        self.assertTrue(hasattr(dao, "migrate_legacy_sensor_links"))
-
-        device = Device()
-        device.gateway_id = "entry_a"
-        device.room_id = 1
-        device.unit_id = 0
-        device.alias = "客厅"
-
-        links, changed = dao.migrate_legacy_sensor_links(
-            [{"climate": "客厅", "sensor_temp": "sensor.temp"}],
-            [device],
-        )
-
-        self.assertTrue(changed)
-        self.assertEqual(
-            links,
-            [{"climate": "daikin_entry_a_1_0", "sensor_temp": "sensor.temp"}],
         )
 
     def test_default_device_names_do_not_include_gateway_prefix(self):

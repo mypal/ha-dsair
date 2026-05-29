@@ -16,28 +16,12 @@ DEFAULT_PORT = 8008
 DEFAULT_GW = "DTA117C611"
 GW_LIST = ["DTA117C611", "DTA117B611"]
 CN_GATEWAY_NAME = "金制空气"
-EN_GATEWAY_NAME = "DS-AIR"
-LEGACY_GATEWAY_TITLES = {CN_GATEWAY_NAME, EN_GATEWAY_NAME}
 
 MANUFACTURER = "Daikin Industries, Ltd."
 
 
-def get_default_gateway_name(language: str | None, host: str) -> str:
+def get_default_gateway_name() -> str:
     return CN_GATEWAY_NAME
-
-
-def is_legacy_gateway_title(title: str | None, host: str | None = None) -> bool:
-    if title in LEGACY_GATEWAY_TITLES:
-        return True
-    if host is None:
-        return False
-    return title in {f"{CN_GATEWAY_NAME} {host}", f"{EN_GATEWAY_NAME} {host}"}
-
-
-def get_gateway_name(language: str | None, host: str, title: str | None) -> str:
-    if title and not is_legacy_gateway_title(title, host):
-        return title
-    return get_default_gateway_name(language, host)
 
 
 _MODE_NAME_LIST = [
