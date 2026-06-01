@@ -8,6 +8,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .const import (
@@ -187,7 +188,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     service = Service()
     hass.data[DOMAIN][entry.entry_id] = service
-    await hass.async_add_executor_job(service.init, host, port, scan_interval, config)
+    try:
+        await hass.async_add_executor_job(
+            service.init, host, port, scan_interval, config
+        )
+    except TimeoutError as exc:
+        hass.data[DOMAIN].pop(entry.entry_id, None)
+        raise ConfigEntryNotReady(str(exc)) from exc
     _migrate_legacy_sensor_links(hass, entry, service)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(update_listener))

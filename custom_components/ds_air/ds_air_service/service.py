@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 import logging
 import socket
-from threading import Lock, Thread
+from threading import Event, Lock, Thread
 import time
 
 from .config import Config
@@ -21,6 +21,9 @@ from .param import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+INIT_TIMEOUT_SECONDS = 60.0
+SOCKET_TIMEOUT_SECONDS = 5.0
+CONNECT_RETRY_INTERVAL_SECONDS = 3.0
 
 
 def _log(s: str):
@@ -30,49 +33,82 @@ def _log(s: str):
 
 
 class SocketClient:
-    def __init__(self, host: str, port: int, service: Service, config: Config):
+    def __init__(
+        self,
+        host: str,
+        port: int,
+        service: Service,
+        config: Config,
+        deadline: float | None = None,
+    ):
         self._host = host
         self._port = port
         self._config = config
         self._locker = Lock()
         self._s = None
-        while not self.do_connect():
-            time.sleep(3)
+        self._ready = False
+        self._recv_thread = None
+        while not self.do_connect(deadline):
+            self._raise_if_expired(deadline, "connecting")
+            time.sleep(self._retry_sleep(deadline))
         self._ready = True
         self._recv_thread = RecvThread(self, service)
         self._recv_thread.start()
 
     def destroy(self):
         self._ready = False
-        self._recv_thread.terminate()
-        self._s.close()
+        if self._recv_thread is not None:
+            self._recv_thread.terminate()
+            self._recv_thread = None
+        if self._s is not None:
+            self._s.close()
+            self._s = None
 
-    def do_connect(self):
+    def _raise_if_expired(self, deadline: float | None, action: str) -> None:
+        if deadline is not None and time.monotonic() >= deadline:
+            raise TimeoutError(
+                f"Timed out {action} to DS-AIR gateway {self._host}:{self._port}"
+            )
+
+    def _retry_sleep(self, deadline: float | None) -> float:
+        if deadline is None:
+            return CONNECT_RETRY_INTERVAL_SECONDS
+        return min(CONNECT_RETRY_INTERVAL_SECONDS, max(0.0, deadline - time.monotonic()))
+
+    def do_connect(self, deadline: float | None = None):
+        self._raise_if_expired(deadline, "connecting")
         self._s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        timeout = SOCKET_TIMEOUT_SECONDS
+        if deadline is not None:
+            timeout = min(timeout, max(0.001, deadline - time.monotonic()))
+        self._s.settimeout(timeout)
         try:
             self._s.connect((self._host, self._port))
         except OSError as exc:
             _log("connected error")
             _log(str(exc))
+            self._s.close()
+            self._s = None
             return False
         else:
             _log("connected")
             return True
 
-    def send(self, p: Param):
-        self._locker.acquire()
-        _log("send hex: 0x" + p.to_string(self._config).hex())
-        _log("\033[31msend:\033[0m")
-        _log(display(p))
-        done = False
-        while not done:
-            try:
-                self._s.sendall(p.to_string(self._config))
-                done = True
-            except Exception:
-                time.sleep(3)
-                self.do_connect()
-        self._locker.release()
+    def send(self, p: Param, deadline: float | None = None):
+        data = p.to_string(self._config)
+        with self._locker:
+            _log("send hex: 0x" + data.hex())
+            _log("\033[31msend:\033[0m")
+            _log(display(p))
+            done = False
+            while not done:
+                self._raise_if_expired(deadline, "sending")
+                try:
+                    self._s.sendall(data)
+                    done = True
+                except Exception:
+                    time.sleep(self._retry_sleep(deadline))
+                    self.do_connect(deadline)
 
     def recv(self) -> (list[BaseResult], bytes):
         res = []
@@ -132,13 +168,16 @@ class HeartBeatThread(Thread):
         super().__init__()
         self.service = service
         self._running = True
+        self._stop_event = Event()
 
     def terminate(self):
         self._running = False
+        self._stop_event.set()
 
     def run(self) -> None:
         super().run()
-        time.sleep(30)
+        if self._stop_event.wait(30):
+            return
         cnt = 0
         while self._running:
             self.service.send_msg(HeartbeatParam())
@@ -148,7 +187,8 @@ class HeartBeatThread(Thread):
                 cnt = 0
                 self.service.poll_status()
 
-            time.sleep(60)
+            if self._stop_event.wait(60):
+                return
 
 
 class Service:
@@ -167,56 +207,76 @@ class Service:
         self._scan_interval: int = 5
         self.state_change_listener: Callable[[], None] | None = None
 
-    def init(self, host: str, port: int, scan_interval: int, config: Config) -> None:
+    def init(
+        self,
+        host: str,
+        port: int,
+        scan_interval: int,
+        config: Config,
+        timeout: float | None = INIT_TIMEOUT_SECONDS,
+    ) -> None:
         if self._ready:
             return
-        self._scan_interval = scan_interval
-        self._socket_client = SocketClient(host, port, self, config)
-        self._socket_client.send(HandShakeParam())
-        self._heartbeat_thread = HeartBeatThread(self)
-        self._heartbeat_thread.start()
-        while (
-            self._rooms is None
-            or self._aircons is None
-            or self._new_aircons is None
-            or self._bathrooms is None
-        ):
-            time.sleep(1)
-        for i in self._aircons:
-            for j in self._rooms:
-                if i.room_id == j.id:
-                    i.alias = j.alias
-                    if i.unit_id:
-                        i.alias += str(i.unit_id)
-        for i in self._new_aircons:
-            for j in self._rooms:
-                if i.room_id == j.id:
-                    i.alias = j.alias
-                    if i.unit_id:
-                        i.alias += str(i.unit_id)
-        for i in self._bathrooms:
-            for j in self._rooms:
-                if i.room_id == j.id:
-                    i.alias = j.alias
-                    if i.unit_id:
-                        i.alias += str(i.unit_id)
-        self._ready = True
+        deadline = time.monotonic() + timeout if timeout is not None else None
+        try:
+            self._scan_interval = scan_interval
+            self._socket_client = SocketClient(host, port, self, config, deadline)
+            self._socket_client.send(HandShakeParam(), deadline)
+            self._heartbeat_thread = HeartBeatThread(self)
+            self._heartbeat_thread.start()
+            while (
+                self._rooms is None
+                or self._aircons is None
+                or self._new_aircons is None
+                or self._bathrooms is None
+            ):
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise TimeoutError(
+                        f"Timed out initializing DS-AIR gateway {host}:{port}"
+                    )
+                if deadline is None:
+                    time.sleep(1)
+                else:
+                    time.sleep(min(1, max(0.0, deadline - time.monotonic())))
+            for i in self._aircons:
+                for j in self._rooms:
+                    if i.room_id == j.id:
+                        i.alias = j.alias
+                        if i.unit_id:
+                            i.alias += str(i.unit_id)
+            for i in self._new_aircons:
+                for j in self._rooms:
+                    if i.room_id == j.id:
+                        i.alias = j.alias
+                        if i.unit_id:
+                            i.alias += str(i.unit_id)
+            for i in self._bathrooms:
+                for j in self._rooms:
+                    if i.room_id == j.id:
+                        i.alias = j.alias
+                        if i.unit_id:
+                            i.alias += str(i.unit_id)
+            self._ready = True
+        except Exception:
+            self.destroy()
+            raise
 
     def destroy(self) -> None:
-        if self._ready:
+        if self._heartbeat_thread is not None:
             self._heartbeat_thread.terminate()
+            self._heartbeat_thread = None
+        if self._socket_client is not None:
             self._socket_client.destroy()
             self._socket_client = None
-            self._rooms = None
-            self._aircons = None
-            self._new_aircons = None
-            self._bathrooms = None
-            self._none_stat_dev_cnt = 0
-            self._status_hook = []
-            self._sensor_hook = []
-            self._heartbeat_thread = None
-            self._sensors = []
-            self._ready = False
+        self._rooms = None
+        self._aircons = None
+        self._new_aircons = None
+        self._bathrooms = None
+        self._none_stat_dev_cnt = 0
+        self._status_hook = []
+        self._sensor_hook = []
+        self._sensors = []
+        self._ready = False
 
     def get_aircons(self) -> list[AirCon]:
         aircons = []
