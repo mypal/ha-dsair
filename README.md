@@ -2,7 +2,7 @@
 
 此项目是Home Assistant平台[DS-AIR](https://www.daikin-china.com.cn/newha/products/4/19/DS-AIR/)以及[金制空气](https://www.daikin-china.com.cn/newha/products/4/19/jzkq/)自定义组件的实现
 
-支持的网关设备型号为DTA117B611/DTA117C611，其他网关的支持情况未知
+支持的网关设备型号为 DTA117B611、DTA117C611，其他网关的支持情况未知。（DTA117D611 可直接选择 DTA117C611）
 
 # 支持设备
 
@@ -19,9 +19,22 @@
 
 # 接入方法
 
-1. 将项目ha-air目录部署到自定义组件目录，一般路径为```~/.homeassistant/custom_components/```  
-   或使用hacs载入自定义存储库，设置URL```https://github.com/mypal/ha-dsair``` ，类别 ```集成```
-2. 本集成已支持ha可视化配置，在配置-集成-添加集成中选择```DS-AIR``` ，依次填入网关IP、端口号、设备型号提交即可
+## 安装
+- 方法一：将项目 `ds_air` 目录直接拷贝到 `/config/custom_components/` 目录下
+
+- 方法二：点击此按钮添加 HACS 自定义存储库 
+
+  [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=mypal&repository=ha-dsair&category=integration)
+
+  然后点击右下角 DOWNLOAD 安装
+
+## 配置 
+    
+- 方法一：在`配置-集成-添加集成`中选择`DS-AIR`
+
+- 方法二：直接点击此按钮 [![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=ds_air)
+
+然后依次填入网关IP、端口号、设备型号提交即可
 
 # 开发过程
 
