@@ -38,7 +38,7 @@ def _log(s: str) -> None:
 
 
 class DsAirFlowHandler(ConfigFlow, domain=DOMAIN):
-    VERSION = 1
+    VERSION = 2
 
     def __init__(self):
         self.user_input = {}
