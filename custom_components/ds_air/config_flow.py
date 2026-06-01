@@ -18,7 +18,15 @@ from homeassistant.const import (
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
-from .const import CONF_GW, DEFAULT_GW, DEFAULT_HOST, DEFAULT_PORT, DOMAIN, GW_LIST
+from .const import (
+    CONF_GW,
+    DEFAULT_GW,
+    DEFAULT_HOST,
+    DEFAULT_PORT,
+    DOMAIN,
+    GW_LIST,
+    get_default_gateway_name,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,7 +50,10 @@ class DsAirFlowHandler(ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             self.user_input.update(user_input)
             if not user_input.get(CONF_SENSORS) or user_input.get("temp") is not None:
-                return self.async_create_entry(title="金制空气", data=self.user_input)
+                return self.async_create_entry(
+                    title=get_default_gateway_name(),
+                    data=self.user_input,
+                )
 
             return self.async_show_form(
                 step_id="user",
@@ -86,9 +97,10 @@ class DsAirOptionsFlowHandler(OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
         self._config_data = []
-        self._climates: list[str] = []  # set in async_step_init
+        self._climates: dict[str, str] = {}  # set in async_step_init
+        self._climate_ids: list[str] = []  # set in async_step_init
         self._len: int = 0  # set in async_step_init
         self._sensors_temp: dict[str, str] = {}
         self._sensors_humi: dict[str, str] = {}
@@ -99,9 +111,14 @@ class DsAirOptionsFlowHandler(OptionsFlow):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Manage the options."""
-        service = self.hass.data[DOMAIN][self.config_entry.entry_id]
-        self._climates = [state.alias for state in service.get_aircons()]
-        self._len = len(self._climates)
+        service = self.hass.data[DOMAIN][self._config_entry.entry_id]
+        host = self._config_entry.data[CONF_HOST]
+        self._climates = {
+            state.unique_id: f"{state.alias} ({host} {state.room_id}-{state.unit_id:02d})"
+            for state in service.get_aircons()
+        }
+        self._climate_ids = list(self._climates)
+        self._len = len(self._climate_ids)
 
         sensors = self.hass.states.async_all("sensor")
         self._sensors_temp = {
@@ -136,12 +153,12 @@ class DsAirOptionsFlowHandler(OptionsFlow):
             if self.user_input.get("_invaild"):
                 self.user_input["_invaild"] = False
                 self.hass.config_entries.async_update_entry(
-                    self.config_entry, data=self.user_input
+                    self._config_entry, data=self.user_input
                 )
                 return self.async_create_entry(title="", data={})
         else:
             self.user_input["_invaild"] = True
-            data = self.config_entry.data
+            data = self._config_entry.data
             # if CONF_SENSORS:
             return self.async_show_form(
                 step_id="adjust_config",
@@ -201,10 +218,10 @@ class DsAirOptionsFlowHandler(OptionsFlow):
         self._cur = self._cur + 1
         if self._cur > (self._len - 1):
             return self.async_create_entry(title="", data={"link": self._config_data})
-        cur_climate: str = self._climates[self._cur]
-        cur_links = self.config_entry.options.get("link", [])
+        cur_climate: str = self._climate_ids[self._cur]
+        cur_links = self._config_entry.options.get("link", [])
         cur_link = next(
-            (link for link in cur_links if link["climate"] == cur_climate), None
+            (link for link in cur_links if link.get("climate") == cur_climate), None
         )
         cur_sensor_temp = cur_link.get("sensor_temp") if cur_link else None
         cur_sensor_humi = cur_link.get("sensor_humi") if cur_link else None
@@ -212,7 +229,9 @@ class DsAirOptionsFlowHandler(OptionsFlow):
             step_id="bind_sensors",
             data_schema=vol.Schema(
                 {
-                    vol.Required("climate", default=cur_climate): vol.In([cur_climate]),
+                    vol.Required("climate", default=cur_climate): vol.In(
+                        {cur_climate: self._climates[cur_climate]}
+                    ),
                     vol.Optional("sensor_temp", default=cur_sensor_temp): vol.In(
                         self._sensors_temp
                     ),

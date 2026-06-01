@@ -11,9 +11,22 @@ from .ctrl_enum import (
 )
 
 
+def build_device_unique_id(gateway_id: str, room_id: int, unit_id: int) -> str:
+    return f"daikin_{gateway_id}_{room_id}_{unit_id}"
+
+
+def build_aircon_device_name(alias: str) -> str:
+    return alias if "空调" in alias else f"{alias} 空调"
+
+
+def build_sensor_device_name(alias: str) -> str:
+    return f"{alias} 传感器"
+
+
 class Device:
     def __init__(self):
         self.alias: str = ""
+        self.gateway_id: str = ""
         self.id: int = 0
         self.name: str = ""
         self.room_id: int = 0
@@ -22,8 +35,7 @@ class Device:
 
     @property
     def unique_id(self):
-        # todo 需要加上所属网关
-        return "daikin_%d_%d" % (self.room_id, self.unit_id)
+        return build_device_unique_id(self.gateway_id, self.room_id, self.unit_id)
 
 
 class AirConStatus:
@@ -54,6 +66,7 @@ class AirCon(Device):
     def __init__(self, config: Config):
         super().__init__()
         self.config = config
+        self.gateway_id = config.gateway_id
         self.auto_dry_mode: int = 0
         self.auto_mode: int = 0
         self.bath_room: bool = False

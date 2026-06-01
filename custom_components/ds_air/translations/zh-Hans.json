@@ -61,11 +61,11 @@
           "climate": "空调名称",
           "sensor_temp": "温度传感器实体ID",
           "sensor_humi": "湿度传感器实体ID"
-        },
-        "empty": {
-          "title": "无数据",
-          "description": "没有可操作的空调"
         }
+      },
+      "empty": {
+        "title": "无数据",
+        "description": "没有可操作的空调"
       }
     }
   }

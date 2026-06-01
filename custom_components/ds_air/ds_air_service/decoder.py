@@ -233,6 +233,7 @@ class Sensor2InfoResult(BaseResult):
             self._sensor_type = d.read1()
             unit_id = d.read1()
             sensor = Sensor()
+            sensor.gateway_id = config.gateway_id
             sensor.mac = d.read(6).hex()
             sensor.room_id = self._room_id
             sensor.unit_id = unit_id
@@ -515,6 +516,7 @@ class GetRoomInfoResult(BaseResult):
                         dev.is_small_vam = device == EnumDevice.SMALL_VAM
                     else:
                         dev = Device()
+                    dev.gateway_id = config.gateway_id
                     dev.room_id = room.id
                     dev.unit_id = unit_id
                     if ver_flag > 2:

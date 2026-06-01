@@ -8,9 +8,15 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceEntry
+from homeassistant.helpers import device_registry as dr
 
-from .const import CONF_GW, DEFAULT_GW, DOMAIN
+from .const import (
+    CONF_GW,
+    DEFAULT_GW,
+    DOMAIN,
+    MANUFACTURER,
+    get_default_gateway_name,
+)
 from .ds_air_service import Config, Service
 
 _LOGGER = logging.getLogger(__name__)
@@ -31,7 +37,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("%s:%s %s %s", host, port, gw, scan_interval)
 
     config = Config()
+    config.gateway_id = entry.entry_id
     config.is_c611 = gw == DEFAULT_GW
+
+    device_registry = dr.async_get(hass)
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, entry.entry_id)},
+        manufacturer=MANUFACTURER,
+        model=gw,
+        name=entry.title,
+    )
 
     service = Service()
     hass.data[DOMAIN][entry.entry_id] = service
@@ -63,7 +79,7 @@ async def update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def async_remove_config_entry_device(
-    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: DeviceEntry
+    hass: HomeAssistant, config_entry: ConfigEntry, device_entry: dr.DeviceEntry
 ) -> bool:
     # reference: https://developers.home-assistant.io/docs/device_registry_index/#removing-devices
     return True

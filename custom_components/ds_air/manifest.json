@@ -6,6 +6,7 @@
   "dependencies": [],
   "documentation": "https://github.com/mypal/ha-dsair",
   "integration_type": "hub",
+  "iot_class": "local_polling",
   "issue_tracker": "https://github.com/mypal/ha-dsair/issues",
   "requirements": [],
   "version": "2.0.0"

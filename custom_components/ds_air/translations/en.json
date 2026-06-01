@@ -61,11 +61,11 @@
           "climate": "Climate name",
           "sensor_temp": "Temperature sensor entity_id",
           "sensor_humi": "Humidity sensor entity_id"
-        },
-        "empty": {
-          "title": "No data",
-          "description": "No AC for link"
         }
+      },
+      "empty": {
+        "title": "No data",
+        "description": "No AC for link"
       }
     }
   }

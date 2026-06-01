@@ -47,6 +47,7 @@ from .const import (
     get_mode_name,
 )
 from .ds_air_service import AirCon, AirConStatus, EnumControl, Service, display
+from .ds_air_service.dao import build_aircon_device_name
 
 _SUPPORT_FLAGS = (
     ClimateEntityFeature.TARGET_TEMPERATURE
@@ -77,14 +78,13 @@ async def async_setup_entry(
     climates = [DsAir(service, aircon) for aircon in service.get_aircons()]
     async_add_entities(climates)
     link = entry.options.get("link")
+    climate_by_unique_id = {climate.unique_id: climate for climate in climates}
     sensor_temp_map: dict[str, list[DsAir]] = {}
     sensor_humi_map: dict[str, list[DsAir]] = {}
     if link is not None:
         for i in link:
-            climate_name = i.get("climate")
-            if climate := next(
-                c for c in climates if c._device_info.alias == climate_name
-            ):
+            climate_id = i.get("climate")
+            if climate := climate_by_unique_id.get(climate_id):
                 if temp_entity_id := i.get("sensor_temp"):
                     sensor_temp_map.setdefault(temp_entity_id, []).append(climate)
                     climate.linked_temp_entity_id = temp_entity_id
@@ -146,8 +146,9 @@ class DsAir(ClimateEntity):
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, self.unique_id)},
-            name=aircon.alias if "空调" in aircon.alias else f"{aircon.alias} 空调",
+            name=build_aircon_device_name(aircon.alias),
             manufacturer=MANUFACTURER,
+            via_device=(DOMAIN, aircon.gateway_id),
         )
 
     async def async_added_to_hass(self) -> None:
@@ -208,21 +209,22 @@ class DsAir(ClimateEntity):
     @property
     def target_humidity(self) -> float | None:
         """Return the humidity we try to reach."""
-        return self._device_info.status.humidity.value
+        humidity = self._device_info.status.humidity
+        return humidity.value if humidity is not None else None
 
     @property
     def hvac_action(self) -> HVACAction | None:
         """Return the current running hvac operation if supported."""
         if self._device_info.status.switch == EnumControl.Switch.OFF:
             return HVACAction.OFF
-        return get_action_name(self._device_info.status.mode.value)
+        return get_action_name(self._device_info.status.mode)
 
     @property
     def hvac_mode(self) -> HVACMode | None:
         """Return hvac operation ie. heat, cool mode."""
         if self._device_info.status.switch == EnumControl.Switch.OFF:
             return HVACMode.OFF
-        return get_mode_name(self._device_info.status.mode.value)
+        return get_mode_name(self._device_info.status.mode)
 
     @property
     def hvac_modes(self) -> list[HVACMode]:
@@ -289,7 +291,7 @@ class DsAir(ClimateEntity):
 
         Requires ClimateEntityFeature.FAN_MODE.
         """
-        return get_air_flow_name(self._device_info.status.air_flow.value)
+        return get_air_flow_name(self._device_info.status.air_flow)
 
     @property
     def swing_mode(self) -> str | None:
@@ -297,7 +299,7 @@ class DsAir(ClimateEntity):
 
         Requires ClimateEntityFeature.SWING_MODE.
         """
-        return get_fan_direction_name(self._device_info.status.fan_direction1.value)
+        return get_fan_direction_name(self._device_info.status.fan_direction1)
 
     def set_temperature(self, **kwargs) -> None:
         """Set new target temperatures."""
@@ -421,7 +423,7 @@ class DsAir(ClimateEntity):
         """Return the list of supported features."""
         flags = _SUPPORT_FLAGS
         aircon = self._device_info
-        if aircon.status.fan_direction1.value > 0:
+        if aircon.status.fan_direction1 is not None and aircon.status.fan_direction1.value > 0:
             flags |= ClimateEntityFeature.SWING_MODE
         if aircon.relax_mode:
             flags |= ClimateEntityFeature.TARGET_HUMIDITY
