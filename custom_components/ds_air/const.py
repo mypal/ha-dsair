@@ -60,7 +60,7 @@ def get_action_name(idx: EnumControl.Mode | None) -> HVACAction | None:
     return _MODE_ACTION_LIST[idx] if idx is not None else None
 
 
-AIR_FLOW_NAME_LIST = [FAN_LOW, "稍弱", FAN_MEDIUM, "稍强", FAN_HIGH, FAN_AUTO]
+AIR_FLOW_NAME_LIST = [FAN_LOW, "稍弱", FAN_MEDIUM, "稍强", FAN_HIGH, FAN_AUTO, "静音"]
 
 
 def get_air_flow_name(idx: EnumControl.AirFlow | None) -> str | None:
