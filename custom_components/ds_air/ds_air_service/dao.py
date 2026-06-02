@@ -1,4 +1,5 @@
 import time
+from collections.abc import Iterable
 
 from .config import Config
 from .ctrl_enum import (
@@ -13,6 +14,57 @@ from .ctrl_enum import (
 
 def build_device_unique_id(gateway_id: str, room_id: int, unit_id: int) -> str:
     return f"daikin_{gateway_id}_{room_id}_{unit_id}"
+
+
+def migrate_legacy_unique_id(
+    unique_id: str, gateway_id: str, sensor_keys: Iterable[str] = ()
+) -> str | None:
+    parts = unique_id.split("_")
+    if len(parts) == 3 and parts[0] == "daikin":
+        room_id, unit_id = parts[1:]
+        if room_id.isdigit() and unit_id.isdigit():
+            return build_device_unique_id(gateway_id, int(room_id), int(unit_id))
+
+    for sensor_key in sensor_keys:
+        prefix = f"{sensor_key}_"
+        if not unique_id.startswith(prefix):
+            continue
+        migrated_device_id = migrate_legacy_unique_id(
+            unique_id.removeprefix(prefix), gateway_id
+        )
+        if migrated_device_id is not None:
+            return f"{sensor_key}_{migrated_device_id}"
+
+    return None
+
+
+def migrate_legacy_sensor_links(
+    links: list, aircons: Iterable["Device"]
+) -> tuple[list, bool]:
+    alias_to_unique_id = {
+        aircon.alias: aircon.unique_id for aircon in aircons if aircon.alias
+    }
+    unique_ids = {aircon.unique_id for aircon in aircons}
+    migrated_links = []
+    changed = False
+
+    for link in links:
+        if not isinstance(link, dict):
+            migrated_links.append(link)
+            continue
+
+        migrated_link = dict(link)
+        climate_id = migrated_link.get("climate")
+        if (
+            isinstance(climate_id, str)
+            and climate_id not in unique_ids
+            and climate_id in alias_to_unique_id
+        ):
+            migrated_link["climate"] = alias_to_unique_id[climate_id]
+            changed = True
+        migrated_links.append(migrated_link)
+
+    return migrated_links, changed
 
 
 def build_aircon_device_name(alias: str) -> str:
