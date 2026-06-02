@@ -251,12 +251,14 @@ class DsAir(ClimateEntity):
             return self._attr_current_temperature
         if self._device_info.config.is_c611:
             return None
-        return self._device_info.status.current_temp / 10
+        current_temp = self._device_info.status.current_temp
+        return current_temp / 10 if current_temp is not None else None
 
     @property
     def target_temperature(self) -> float | None:
         """Return the temperature we try to reach."""
-        return self._device_info.status.setted_temp / 10
+        target_temp = self._device_info.status.setted_temp
+        return target_temp / 10 if target_temp is not None else None
 
     @property
     def preset_mode(self) -> str | None:
