@@ -8,7 +8,20 @@ import time
 
 from .config import Config
 from .ctrl_enum import EnumDevice
-from .dao import STATUS_ATTR, AirCon, AirConStatus, Room, Sensor, get_device_by_aircon
+from .dao import (
+    STATUS_ATTR,
+    AirCon,
+    AirConStatus,
+    HD,
+    HDStatus,
+    Room,
+    Sensor,
+    Ventilation,
+    VentilationStatus,
+    get_device_by_aircon,
+    get_device_by_vent,
+    UNINITIALIZED_VALUE,
+)
 from .decoder import BaseResult, decoder
 from .display import display
 from .param import (
@@ -18,6 +31,9 @@ from .param import (
     HeartbeatParam,
     Param,
     Sensor2InfoParam,
+    VentilationControlParam,
+    VentilationQueryCompositeSituationParam,
+    VentilationQueryStatusParam,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -198,14 +214,19 @@ class Service:
         self._aircons: list[AirCon] = None
         self._new_aircons: list[AirCon] = None
         self._bathrooms: list[AirCon] = None
+        self._ventilations: list[Ventilation] = None
+        self._hds: list[HD] = None
         self._ready: bool = False
         self._none_stat_dev_cnt: int = 0
         self._status_hook: list[(AirCon, Callable)] = []
         self._sensor_hook: list[(str, Callable)] = []
+        self._vent_hook: list[(Ventilation, Callable)] = []
+        self._hd_hook: list[(HD, Callable)] = []
         self._heartbeat_thread = None
         self._sensors: list[Sensor] = []
         self._scan_interval: int = 5
         self.state_change_listener: Callable[[], None] | None = None
+        self._config: Config = None
 
     def init(
         self,
@@ -220,6 +241,7 @@ class Service:
         deadline = time.monotonic() + timeout if timeout is not None else None
         try:
             self._scan_interval = scan_interval
+            self._config = config
             self._socket_client = SocketClient(host, port, self, config, deadline)
             self._socket_client.send(HandShakeParam(), deadline)
             self._heartbeat_thread = HeartBeatThread(self)
@@ -229,6 +251,8 @@ class Service:
                 or self._aircons is None
                 or self._new_aircons is None
                 or self._bathrooms is None
+                or self._ventilations is None
+                or self._hds is None
             ):
                 if deadline is not None and time.monotonic() >= deadline:
                     raise TimeoutError(
@@ -256,6 +280,20 @@ class Service:
                         i.alias = j.alias
                         if i.unit_id:
                             i.alias += str(i.unit_id)
+            if self._ventilations is not None:
+                for i in self._ventilations:
+                    for j in self._rooms:
+                        if i.room_id == j.id:
+                            i.alias = j.alias
+                            if i.unit_id:
+                                i.alias += str(i.unit_id)
+            if self._hds is not None:
+                for i in self._hds:
+                    for j in self._rooms:
+                        if i.room_id == j.id:
+                            i.alias = j.alias
+                            if i.unit_id:
+                                i.alias += str(i.unit_id)
             self._ready = True
         except Exception:
             self.destroy()
@@ -272,11 +310,16 @@ class Service:
         self._aircons = None
         self._new_aircons = None
         self._bathrooms = None
+        self._ventilations = None
+        self._hds = None
         self._none_stat_dev_cnt = 0
         self._status_hook = []
         self._sensor_hook = []
+        self._vent_hook = []
+        self._hd_hook = []
         self._sensors = []
         self._ready = False
+        self._config = None
 
     def get_aircons(self) -> list[AirCon]:
         aircons = []
@@ -288,8 +331,29 @@ class Service:
             aircons += self._bathrooms
         return aircons
 
+    def get_ventilations(self) -> list[Ventilation]:
+        if self._ventilations is None:
+            return []
+        return self._ventilations
+
+    def get_hds(self) -> list[HD]:
+        """获取所有HD设备"""
+        if self._hds is None:
+            return []
+        return self._hds
+
     def control(self, aircon: AirCon, status: AirConStatus):
         p = AirConControlParam(aircon, status)
+        self.send_msg(p)
+
+    def control_vent(self, ventilation: Ventilation, status: VentilationStatus):
+        p = VentilationControlParam(ventilation, status)
+        self.send_msg(p)
+
+    def hd_control(self, hd: HD, status: HDStatus):
+        """控制HD设备"""
+        from .param import HDBaseControlParam
+        p = HDBaseControlParam(hd, status)
         self.send_msg(p)
 
     def register_status_hook(self, device: AirCon, hook: Callable):
@@ -297,6 +361,13 @@ class Service:
 
     def register_sensor_hook(self, unique_id: str, hook: Callable):
         self._sensor_hook.append((unique_id, hook))
+
+    def register_vent_hook(self, device: Ventilation, hook: Callable):
+        self._vent_hook.append((device, hook))
+
+    def register_hd_hook(self, device: HD, hook: Callable):
+        """注册HD设备状态钩子"""
+        self._hd_hook.append((device, hook))
 
     # ----split line---- above for component, below for inner call
 
@@ -319,14 +390,24 @@ class Service:
     def set_sensors(self, sensors):
         self._sensors = sensors
 
-    def set_device(self, t: EnumDevice, v: list[AirCon]):
+    def set_device(self, t: EnumDevice, v: list):
         self._none_stat_dev_cnt += len(v)
         if t == EnumDevice.AIRCON:
             self._aircons = v
         elif t == EnumDevice.NEWAIRCON:
             self._new_aircons = v
-        else:
+        elif t == EnumDevice.BATHROOM:
             self._bathrooms = v
+        elif t in (EnumDevice.VENTILATION, EnumDevice.SMALL_VAM):
+            if self._ventilations is None:
+                self._ventilations = v
+            else:
+                self._ventilations.extend(v)
+        elif t == EnumDevice.HD:
+            if self._hds is None:
+                self._hds = v
+            else:
+                self._hds.extend(v)
 
     def set_aircon_status(
         self, target: EnumDevice, room: int, unit: int, status: AirConStatus
@@ -368,6 +449,23 @@ class Service:
             p.target = EnumDevice.NEWAIRCON
             p.device = i
             self.send_msg(p)
+        if self._ventilations is not None:
+            for v in self._ventilations:
+                p = VentilationQueryStatusParam()
+                p.target = get_device_by_vent(v)
+                p.device = v
+                self.send_msg(p)
+                if v.is_small_vam:
+                    p = VentilationQueryCompositeSituationParam()
+                    p.target = get_device_by_vent(v)
+                    p.device = v
+                    self.send_msg(p)
+        if self._hds is not None:
+            for hd in self._hds:
+                from .param import HDQueryStatusParam
+                p = HDQueryStatusParam()
+                p.device = hd
+                self.send_msg(p)
         p = Sensor2InfoParam()
         self.send_msg(p)
 
@@ -388,3 +486,73 @@ class Service:
 
     def get_scan_interval(self):
         return self._scan_interval
+
+    # 新风相关方法
+
+    def set_ventilations(self, ventilations: list[Ventilation]):
+        self._ventilations = ventilations
+
+    def set_ventilation_status(
+        self, room: int, unit: int, status: VentilationStatus
+    ):
+        if self._ready:
+            self.update_ventilation(room, unit, status=status)
+        else:
+            if self._ventilations is not None:
+                for i in self._ventilations:
+                    if i.unit_id == unit and i.room_id == room:
+                        for attr in i.status.__dict__.keys():
+                            value = getattr(status, attr)
+                            if value is not None and value != UNINITIALIZED_VALUE:
+                                setattr(i.status, attr, value)
+                        break
+
+    def update_ventilation(self, room: int, unit: int, **kwargs):
+        li = self._vent_hook
+        if li is None:
+            return
+        for item in li:
+            i, func = item
+            if i.unit_id == unit and i.room_id == room:
+                try:
+                    func(**kwargs)
+                except Exception as e:
+                    _log("vent hook error!!")
+                    _log(str(e))
+
+    # HD 相关方法
+
+    def set_hds(self, hds: list[HD]):
+        """设置HD设备列表"""
+        self._none_stat_dev_cnt += len(hds)
+        self._hds = hds
+
+    def set_hd_status(self, room: int, unit: int, status: HDStatus):
+        """设置HD设备状态"""
+        if self._ready:
+            self.update_hd(room, unit, status=status)
+        else:
+            if self._hds is None:
+                return
+            for hd in self._hds:
+                if hd.unit_id == unit and hd.room_id == room:
+                    for attr in hd.status.__dict__.keys():
+                        value = getattr(status, attr)
+                        if value is not None and value != UNINITIALIZED_VALUE:
+                            setattr(hd.status, attr, value)
+                    self._none_stat_dev_cnt -= 1
+                    break
+
+    def update_hd(self, room: int, unit: int, **kwargs):
+        """更新HD设备状态"""
+        li = self._hd_hook
+        if li is None:
+            return
+        for item in li:
+            i, func = item
+            if i.unit_id == unit and i.room_id == room:
+                try:
+                    func(**kwargs)
+                except Exception as e:
+                    _log("hd hook error!!")
+                    _log(str(e))

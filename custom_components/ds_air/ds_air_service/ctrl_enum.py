@@ -145,7 +145,7 @@ class EnumCmdType(IntEnum):
     HCHO_SET_INFO = 151
     HCHO_GET_SENSORS = 152
     SYS_ADDRESS_ALLOCATION = 218
-    SMALL_VAM_QUERY_AIR_QUALITY = 52
+    SMALL_VAM_QUERY_COMPOSITE_SITUATION = 52
     SMALL_VAM_LINKAGE_CONTROL = 53
     SMALL_VAM_LINKAGE_STATUS = 54
     HUMIDIFIER_GET_ALL_DEVICES = 4
@@ -313,3 +313,33 @@ class EnumSensor:
                 return "中"
             if self.value == EnumSensor.Voc.STEP_4:
                 return "高"
+
+
+# 新风模式列表
+_MODE_VENT_NAME_LIST_SMALL_VAM = ["内循环", "热交换", "自动", "防污染", "排异味"]
+_MODE_VENT_NAME_LIST_STANDARD_VAM = ["旁通", "热交换", "自动"]
+_VENT_AIR_FLOW_NAME_LIST = ["INVALID", "静音", "中速", "高速", "暴风"]
+
+
+def get_vent_mode_name_small_vam(idx: EnumControl.Mode | None) -> str | None:
+    return _MODE_VENT_NAME_LIST_SMALL_VAM[idx] if idx is not None else None
+
+
+def get_vent_mode_enum_small_vam(name: str) -> EnumControl.Mode:
+    return EnumControl.Mode(_MODE_VENT_NAME_LIST_SMALL_VAM.index(name))
+
+
+def get_vent_mode_name_standard_vam(idx: EnumControl.Mode | None) -> str | None:
+    return _MODE_VENT_NAME_LIST_STANDARD_VAM[idx] if idx is not None else None
+
+
+def get_vent_mode_enum_standard_vam(name: str) -> EnumControl.Mode:
+    return EnumControl.Mode(_MODE_VENT_NAME_LIST_STANDARD_VAM.index(name))
+
+
+def get_vent_air_flow_name(idx: EnumControl.AirFlow | None) -> str | None:
+    return _VENT_AIR_FLOW_NAME_LIST[idx] if idx is not None else None
+
+
+def get_vent_air_flow_enum(name: str) -> EnumControl.AirFlow:
+    return EnumControl.AirFlow(_VENT_AIR_FLOW_NAME_LIST.index(name))

@@ -6,6 +6,12 @@ from homeassistant.components.climate import (
     HVACAction,
     HVACMode,
 )
+from homeassistant.const import (
+    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+    PERCENTAGE,
+    UnitOfTemperature,
+)
+from homeassistant.components.sensor import SensorDeviceClass
 
 from .ds_air_service import EnumControl
 
@@ -13,8 +19,14 @@ DOMAIN = "ds_air"
 CONF_GW = "gw"
 DEFAULT_HOST = "192.168.1."
 DEFAULT_PORT = 8008
-DEFAULT_GW = "DTA117C611"
-GW_LIST = ["DTA117C611", "DTA117B611"]
+
+# 网关型号常量
+B611 = "DTA117B611"
+C611 = "DTA117C611"
+D611 = "DTA117D611"
+DEFAULT_GW = C611
+GW_LIST = [C611, B611, D611]
+
 CN_GATEWAY_NAME = "金制空气"
 
 MANUFACTURER = "Daikin Industries, Ltd."
@@ -80,3 +92,12 @@ def get_fan_direction_name(idx: EnumControl.FanDirection | None) -> str | None:
 
 def get_fan_direction_enum(name: str) -> EnumControl.FanDirection:
     return EnumControl.FanDirection(FAN_DIRECTION_LIST.index(name))
+
+
+# 新风传感器类型
+SMALL_VAM_SENSOR_TYPES = {
+    "in_door_temp": [UnitOfTemperature.CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
+    "out_door_temp": [UnitOfTemperature.CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
+    "out_door_humidity": [PERCENTAGE, None, SensorDeviceClass.HUMIDITY, 1],
+    "pm25": [CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, None, SensorDeviceClass.PM25, 1],
+}
