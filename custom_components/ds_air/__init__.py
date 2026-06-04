@@ -13,11 +13,10 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .const import (
     CONF_GW,
-    C611,
-    D611,
     DEFAULT_GW,
     DOMAIN,
     MANUFACTURER,
+    get_gateway_features,
 )
 from .descriptions import SENSOR_DESCRIPTORS
 from .ds_air_service import Config, Service
@@ -180,8 +179,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     config = Config()
     config.gateway_id = entry.entry_id
-    config.is_c611 = gw == C611
-    config.is_d611 = gw == D611
+    config.gateway_features = get_gateway_features(gw)
 
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(

@@ -13,7 +13,7 @@ from homeassistant.const import (
 )
 from homeassistant.components.sensor import SensorDeviceClass
 
-from .ds_air_service import EnumControl
+from .ds_air_service import EnumControl, GatewayFeature
 
 DOMAIN = "ds_air"
 CONF_GW = "gw"
@@ -25,7 +25,7 @@ B611 = "DTA117B611"
 C611 = "DTA117C611"
 D611 = "DTA117D611"
 DEFAULT_GW = C611
-GW_LIST = [C611, B611, D611]
+GW_LIST = [D611, C611, B611]
 
 CN_GATEWAY_NAME = "金制空气"
 
@@ -34,6 +34,26 @@ MANUFACTURER = "Daikin Industries, Ltd."
 
 def get_default_gateway_name() -> str:
     return CN_GATEWAY_NAME
+
+
+_GATEWAY_FEATURES: dict[str, GatewayFeature] = {
+    D611: (
+        GatewayFeature.EXTENDED_STATUS_FLAGS
+        | GatewayFeature.NO_CURRENT_TEMP
+        | GatewayFeature.ROOM_INFO_V1
+        | GatewayFeature.NO_RECOMMENDED_TEMP
+        | GatewayFeature.QUIET_FAN
+    ),
+    C611: (
+        GatewayFeature.EXTENDED_STATUS_FLAGS
+        | GatewayFeature.NO_CURRENT_TEMP
+    ),
+    B611: GatewayFeature(0),
+}
+
+
+def get_gateway_features(gateway: str) -> GatewayFeature:
+    return _GATEWAY_FEATURES.get(gateway, GatewayFeature(0))
 
 
 _MODE_NAME_LIST = [
@@ -72,7 +92,7 @@ def get_action_name(idx: EnumControl.Mode | None) -> HVACAction | None:
     return _MODE_ACTION_LIST[idx] if idx is not None else None
 
 
-AIR_FLOW_NAME_LIST = [FAN_LOW, "稍弱", FAN_MEDIUM, "稍强", FAN_HIGH, FAN_AUTO]
+AIR_FLOW_NAME_LIST = [FAN_LOW, "稍弱", FAN_MEDIUM, "稍强", FAN_HIGH, FAN_AUTO, "静音"]
 
 
 def get_air_flow_name(idx: EnumControl.AirFlow | None) -> str | None:

@@ -2,12 +2,14 @@
 
 此项目是Home Assistant平台[DS-AIR](https://www.daikin-china.com.cn/newha/products/4/19/DS-AIR/)以及[金制空气](https://www.daikin-china.com.cn/newha/products/4/19/jzkq/)自定义组件的实现
 
-支持的网关设备型号为 DTA117B611、DTA117C611，其他网关的支持情况未知。（DTA117D611 可直接选择 DTA117C611）
+支持的网关设备型号为 DTA117D611、DTA117B611、DTA117C611，其他网关的支持情况未知。
 
 # 支持设备
 
 * 空调
 * 空气传感器
+* 新风 (实验性)
+* HD地暖 (实验性)
 
 # 不支持设备
 

@@ -46,7 +46,14 @@ from .const import (
     get_fan_direction_name,
     get_mode_name,
 )
-from .ds_air_service import AirCon, AirConStatus, EnumControl, Service, display
+from .ds_air_service import (
+    AirCon,
+    AirConStatus,
+    EnumControl,
+    GatewayFeature,
+    Service,
+    display,
+)
 from .ds_air_service.dao import build_aircon_device_name
 
 _SUPPORT_FLAGS = (
@@ -150,6 +157,12 @@ class DsAir(ClimateEntity):
             manufacturer=MANUFACTURER,
             via_device=(DOMAIN, aircon.gateway_id),
         )
+        if not aircon.config.supports(GatewayFeature.QUIET_FAN):
+            self._attr_fan_modes = [
+                mode
+                for idx, mode in enumerate(AIR_FLOW_NAME_LIST)
+                if idx != EnumControl.AirFlow.QUIET
+            ]
 
     async def async_added_to_hass(self) -> None:
         if self.linked_temp_entity_id:
@@ -249,7 +262,7 @@ class DsAir(ClimateEntity):
         """Return the current temperature."""
         if self._link_cur_temp:
             return self._attr_current_temperature
-        if self._device_info.config.is_c611 or self._device_info.config.is_d611:
+        if self._device_info.config.supports(GatewayFeature.NO_CURRENT_TEMP):
             return None
         current_temp = self._device_info.status.current_temp
         return current_temp / 10 if current_temp is not None else None

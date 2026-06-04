@@ -1,4 +1,4 @@
-from .config import Config
+from .config import Config, GatewayFeature
 from .ctrl_enum import EnumControl
 from .ctrl_enum import (
     get_vent_mode_name_small_vam,
@@ -21,6 +21,7 @@ from .service import Service
 
 __all__ = [
     "Config",
+    "GatewayFeature",
     "EnumControl",
     "get_vent_mode_name_small_vam",
     "get_vent_mode_name_standard_vam",

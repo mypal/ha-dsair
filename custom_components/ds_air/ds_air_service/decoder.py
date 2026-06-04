@@ -4,7 +4,7 @@ import struct
 from typing import TYPE_CHECKING
 
 from .base_bean import BaseBean
-from .config import Config
+from .config import Config, GatewayFeature
 from .ctrl_enum import (
     EnumCmdType,
     EnumControl,
@@ -564,7 +564,7 @@ class GetRoomInfoResult(BaseResult):
 
     def do(self, service: Service) -> None:
         service.set_rooms(self.rooms)
-        if not service._config.is_d611:
+        if not service._config.supports(GatewayFeature.NO_RECOMMENDED_TEMP):
             # DTA117D611 似乎不支持这个参数
             service.send_msg(AirConRecommendedIndoorTempParam())
         service.set_sensors(self.sensors)
@@ -665,7 +665,7 @@ class HandShakeResult(BaseResult):
         self._time = d.read_utf(14)
 
     def do(self, service: Service) -> None:
-        if service._config.is_d611:
+        if service._config.supports(GatewayFeature.ROOM_INFO_V1):
             p = GetRoomInfoParam(EnumCmdType.SYS_GET_ROOM_INFO_V1)
         else:
             p = GetRoomInfoParam(EnumCmdType.SYS_GET_ROOM_INFO)
@@ -766,7 +766,7 @@ class AirConQueryStatusResult(BaseResult):
             self.mode = EnumControl.Mode(d.read1())
         if flag >> 2 & 1:
             self.air_flow = EnumControl.AirFlow(d.read1())
-        if config.is_c611 or config.is_d611:
+        if config.supports(GatewayFeature.EXTENDED_STATUS_FLAGS):
             if flag >> 3 & 1:
                 bt = d.read1()
                 self.hum_allow = bt & 8 == 8
