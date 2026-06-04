@@ -101,6 +101,8 @@ def result_factory(data: tuple, config: Config):
             result = ChangePWResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_GET_ROOM_INFO.value:
             result = GetRoomInfoResult(cnt, EnumDevice.SYSTEM)
+        elif cmd_type == EnumCmdType.SYS_GET_ROOM_INFO_V1.value:
+            result = GetRoomInfoResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_QUERY_SCHEDULE_SETTING.value:
             result = QueryScheduleSettingResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_QUERY_SCHEDULE_ID.value:
@@ -585,7 +587,7 @@ class GetRoomInfoResult(BaseResult):
                     bathrooms.append(room.air_con)
                 else:
                     aircons.append(room.air_con)
-            elif room.ventilation is not None:
+            if room.ventilation is not None:
                 if room.ventilation.is_small_vam:
                     small_vam.append(room.ventilation)
                 else:
@@ -604,22 +606,16 @@ class GetRoomInfoResult(BaseResult):
         p.target = EnumDevice.BATHROOM
         service.send_msg(p)
 
-        # 新风设备
-        if ventilations:
-            p = VentilationCapabilityQueryParam()
-            p.vents = ventilations
-            p.target = EnumDevice.VENTILATION
-            service.send_msg(p)
-        if small_vam:
-            p = VentilationCapabilityQueryParam()
-            p.vents = small_vam
-            p.target = EnumDevice.SMALL_VAM
-            service.send_msg(p)
+        # 始终发送新风设备能力查询
+        p = VentilationCapabilityQueryParam()
+        p.vents = ventilations
+        p.target = EnumDevice.VENTILATION
+        service.send_msg(p)
 
-        # 没有检测到新风设备
-        if not small_vam and not ventilations:
-            service.set_ventilations([])
-
+        p = VentilationCapabilityQueryParam()
+        p.vents = small_vam
+        p.target = EnumDevice.SMALL_VAM
+        service.send_msg(p)
         # 没有检测到HD设备，设置空列表以完成初始化
         if not self.hds:
             service.set_hds([])
