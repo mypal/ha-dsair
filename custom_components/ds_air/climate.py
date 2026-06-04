@@ -249,7 +249,7 @@ class DsAir(ClimateEntity):
         """Return the current temperature."""
         if self._link_cur_temp:
             return self._attr_current_temperature
-        if self._device_info.config.is_c611:
+        if self._device_info.config.is_c611 or self._device_info.config.is_d611:
             return None
         current_temp = self._device_info.status.current_temp
         return current_temp / 10 if current_temp is not None else None

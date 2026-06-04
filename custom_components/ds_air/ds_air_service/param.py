@@ -9,7 +9,18 @@ from .ctrl_enum import (
     EnumFanDirection,
     EnumFanVolume,
 )
-from .dao import AirCon, AirConStatus, get_device_by_aircon
+from typing import Literal
+
+from .dao import (
+    AirCon,
+    AirConStatus,
+    HD,
+    HDStatus,
+    Ventilation,
+    VentilationStatus,
+    get_device_by_aircon,
+    get_device_by_vent,
+)
 
 
 class Encode:
@@ -110,8 +121,13 @@ class GetGWInfoParam(SystemParam):
 
 
 class GetRoomInfoParam(SystemParam):
-    def __init__(self):
-        SystemParam.__init__(self, EnumCmdType.SYS_GET_ROOM_INFO, True)
+    def __init__(
+        self,
+        cmd_type: Literal[
+            EnumCmdType.SYS_GET_ROOM_INFO, EnumCmdType.SYS_GET_ROOM_INFO_V1
+        ] = EnumCmdType.SYS_GET_ROOM_INFO,
+    ):
+        SystemParam.__init__(self, cmd_type, True)
         self._room_ids: list[int] = []
         self.type: int = 1
         self.subbody_ver: int = 1
@@ -241,6 +257,191 @@ class AirConControlParam(AirconParam):
                     if status.humidity is not None:
                         flag = flag | EnumControl.Type.HUMIDITY
                         li.append((1, status.humidity))
+        s.write1(flag)
+        for bit, val in li:
+            if bit == 1:
+                s.write1(val)
+            elif bit == 2:
+                s.write2(val)
+
+
+# 新风相关参数类
+
+
+class VentilationParam(Param):
+    def __init__(self, cmd_type: EnumCmdType, has_result: bool):
+        Param.__init__(self, EnumDevice.VENTILATION, cmd_type, has_result)
+
+
+class VentilationCapabilityQueryParam(VentilationParam):
+    def __init__(self):
+        VentilationParam.__init__(self, EnumCmdType.VENT_QUERY_CAPABILITY, True)
+        self._vents: list[Ventilation] = []
+
+    def generate_subbody(self, s: Encode, config: Config) -> None:
+        s.write1(len(self._vents))
+        for i in self._vents:
+            s.write1(i.room_id)
+            s.write1(1)
+            s.write1(0)
+
+    @property
+    def vents(self):
+        return self._vents
+
+    @vents.setter
+    def vents(self, value):
+        self._vents = value
+
+
+class VentilationQueryStatusParam(VentilationParam):
+    def __init__(self):
+        super().__init__(EnumCmdType.QUERY_STATUS, True)
+        self._device: Ventilation | None = None
+
+    def generate_subbody(self, s: Encode, config: Config) -> None:
+        s.write1(self._device.room_id)
+        s.write1(self._device.unit_id)
+        t = EnumControl.Type
+        flag = t.SWITCH
+        # 代码中对于SmallVAM是用这个参数，但是查询结果没有区别
+        s.write1(7)
+
+    @property
+    def device(self):
+        return self._device
+
+    @device.setter
+    def device(self, v: Ventilation):
+        self._device = v
+
+
+class VentilationControlParam(VentilationParam):
+    def __init__(self, vent: Ventilation, new_status: VentilationStatus):
+        super().__init__(EnumCmdType.CONTROL, False)
+        self.target = get_device_by_vent(vent)
+        self._vent = vent
+        self._new_status = new_status
+
+    def generate_subbody(self, s: Encode, config: Config) -> None:
+        vent = self._vent
+        status = self._new_status
+        s.write1(vent.room_id)
+        s.write1(vent.unit_id)
+        li = []
+        flag = 0
+        if status.switch is not None:
+            flag = flag | EnumControl.Type.SWITCH
+            li.append((1, status.switch.value))
+        if status.mode is not None:
+            flag = flag | EnumControl.Type.MODE
+            li.append((1, status.mode.value))
+        if status.air_flow is not None:
+            flag = flag | EnumControl.Type.AIR_FLOW
+            li.append((1, status.air_flow.value))
+
+        s.write1(flag)
+        for bit, val in li:
+            if bit == 1:
+                s.write1(val)
+            elif bit == 2:
+                s.write2(val)
+
+
+class VentilationQueryCompositeSituationParam(VentilationParam):
+    def __init__(self):
+        super().__init__(EnumCmdType.SMALL_VAM_QUERY_COMPOSITE_SITUATION, True)
+        self._device: Ventilation | None = None
+
+    def generate_subbody(self, s: Encode, config: Config) -> None:
+        s.write1(self._device.room_id)
+        s.write1(self._device.unit_id)
+
+    @property
+    def device(self):
+        return self._device
+
+    @device.setter
+    def device(self, v: Ventilation):
+        self._device = v
+
+
+# HD 相关参数类
+
+
+class HDParam(Param):
+    def __init__(self, cmd_type: EnumCmdType, has_result: bool):
+        Param.__init__(self, EnumDevice.HD, cmd_type, has_result)
+
+
+class HDQueryStatusParam(HDParam):
+    """HD设备状态查询参数，旧版主动查询，只能返回开关状态"""
+    def __init__(self):
+        super().__init__(EnumCmdType.QUERY_STATUS, True)
+        self._device: HD | None = None
+
+    def generate_subbody(self, s: Encode, config: Config) -> None:
+        if self._device is not None:
+            s.write1(self._device.room_id)
+            s.write1(self._device.unit_id)
+            s.write1(1)
+
+    @property
+    def device(self):
+        return self._device
+
+    @device.setter
+    def device(self, value: HD):
+        self._device = value
+
+
+class HDQueryInfoParam(HDParam):
+    """HD设备信息查询参数（当前没有响应，暂不使用）"""
+    def __init__(self):
+        super().__init__(EnumCmdType.NEW_HD_DEVICE_INFO, True)
+        self._device: HD | None = None
+        self.subbody_ver = 0
+
+    def generate_subbody(self, s: Encode, config: Config) -> None:
+        if self._device is not None:
+            s.write1(self._device.room_id)
+            s.write1(self._device.unit_id)
+
+    @property
+    def device(self):
+        return self._device
+
+    @device.setter
+    def device(self, value: HD):
+        self._device = value
+
+
+class HDBaseControlParam(HDParam):
+    """HD设备基础控制参数"""
+    def __init__(self, hd: HD, new_status: HDStatus):
+        super().__init__(EnumCmdType.NEW_HD_STATE_SETTING, False)
+        self._hd = hd
+        self._new_status = new_status
+
+    def generate_subbody(self, s: Encode, config: Config) -> None:
+        hd = self._hd
+        status = self._new_status
+        s.write1(hd.room_id)
+        s.write1(hd.unit_id)
+
+        li = []
+        flag = 0
+        if status.switch is not None:
+            li.append((1, status.switch.value))
+            flag |= 1
+        if status.mute is not None:
+            li.append((1, status.mute.value))
+            flag |= 2
+        if status.warm_temperature is not None:
+            temp_value = int(status.warm_temperature * 10)
+            li.append((2, temp_value))
+            flag |= 16
+
         s.write1(flag)
         for bit, val in li:
             if bit == 1:
