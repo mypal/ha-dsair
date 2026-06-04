@@ -398,7 +398,7 @@ class HDQueryStatusParam(HDParam):
 class HDQueryInfoParam(HDParam):
     """HD设备信息查询参数（当前没有响应，暂不使用）"""
     def __init__(self):
-        super().__init__(EnumCmdType.HD_INFO_QUERY, True)
+        super().__init__(EnumCmdType.NEW_HD_DEVICE_INFO, True)
         self._device: HD | None = None
         self.subbody_ver = 0
 
@@ -419,7 +419,7 @@ class HDQueryInfoParam(HDParam):
 class HDBaseControlParam(HDParam):
     """HD设备基础控制参数"""
     def __init__(self, hd: HD, new_status: HDStatus):
-        super().__init__(EnumCmdType.HD_CONTROL_BASE, False)
+        super().__init__(EnumCmdType.NEW_HD_STATE_SETTING, False)
         self._hd = hd
         self._new_status = new_status
 

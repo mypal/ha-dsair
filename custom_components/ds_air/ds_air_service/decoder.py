@@ -152,13 +152,13 @@ def result_factory(data: tuple, config: Config):
             result = UnknownResult(cnt, device, cmd_type)
     elif dev_id == EnumDevice.HD.value[1]:
         device = EnumDevice.HD
-        if cmd_type == EnumCmdType.HD_INFO_CHANGE.value:
+        if cmd_type == EnumCmdType.NEW_HD_STATE_UPDATE.value:
             result = HDInfoChangeResult(cnt, device)
         elif cmd_type == EnumCmdType.QUERY_STATUS.value:
             result = HDQueryStatusResult(cnt, device)
         elif cmd_type == EnumCmdType.STATUS_CHANGED.value:
             result = HDStatusChangeResult(cnt, device)
-        elif cmd_type == EnumCmdType.HD_CONTROL_OTHER.value:
+        elif cmd_type == EnumCmdType.NEW_HD_NIGHT_ENERGY_SETTING.value:
             result = HDControlOtherResult(cnt, device)
         else:
             result = UnknownResult(cnt, device, cmd_type)
@@ -1078,7 +1078,7 @@ class VentilationQueryCompositeSituationResult(BaseResult):
 class HDInfoChangeResult(BaseResult):
     """HD设备状态变化结果"""
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.HD_INFO_CHANGE)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.NEW_HD_STATE_UPDATE)
         self._room: int = 0
         self._unit: int = 0
         self._status: HDStatus = HDStatus()
@@ -1203,7 +1203,7 @@ class HDStatusChangeResult(BaseResult):
 class HDControlOtherResult(BaseResult):
     """HD其他控制结果，如夜间节能模式"""
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.HD_CONTROL_OTHER)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.NEW_HD_NIGHT_ENERGY_SETTING)
         self._room: int = 0
         self._unit: int = 0
         self._status: HDStatus = HDStatus()
