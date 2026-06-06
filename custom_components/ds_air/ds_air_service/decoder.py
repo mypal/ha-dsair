@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import struct
 from typing import TYPE_CHECKING
 
@@ -46,6 +47,8 @@ from .param import (
 
 if TYPE_CHECKING:
     from .service import Service
+
+_LOGGER = logging.getLogger(__name__)
 
 
 def decoder(b: bytes, config: Config):
@@ -216,6 +219,112 @@ class Decode:
         pos += length
         self._pos = pos
         return s
+
+
+def _parse_tlv_items(
+    b: bytes, start: int, max_size: int = 32
+) -> tuple[dict[int, int], int] | None:
+    pos = start
+    items: dict[int, int] = {}
+    while pos < len(b):
+        item_type = b[pos]
+        pos += 1
+        if item_type == 0:
+            return items, pos
+        if pos >= len(b):
+            return None
+
+        size = b[pos]
+        pos += 1
+        if size > max_size or pos + size > len(b):
+            return None
+
+        raw = b[pos : pos + size]
+        pos += size
+        if size <= 8:
+            items[item_type] = int.from_bytes(raw, "little")
+
+    return None
+
+
+def _is_readable_name(value: str) -> bool:
+    return bool(value) and all(char.isprintable() for char in value)
+
+
+def _find_d611_named_sensor_tlv(b: bytes) -> dict[int, int] | None:
+    best: tuple[int, dict[int, int], str] | None = None
+    for pos, name_len in enumerate(b):
+        if name_len == 0 or name_len > 32 or pos + 1 + name_len > len(b):
+            continue
+        raw_name = b[pos + 1 : pos + 1 + name_len]
+        try:
+            name = raw_name.decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        if not _is_readable_name(name):
+            continue
+
+        tlv_start = pos + 1 + name_len
+        parsed = _parse_tlv_items(b, tlv_start)
+        if parsed is None:
+            continue
+        items, _end = parsed
+        score = sum(field in items for field in (1, 2, 3, 4))
+        if score < 2:
+            continue
+        if best is None or score > best[0]:
+            best = (score, items, name)
+
+    if best is None:
+        return None
+
+    _LOGGER.debug("[DS-AIR VAM D611] named sensor block %s: %s", best[2], best[1])
+    return best[1]
+
+
+def _find_d611_front_tlv(b: bytes) -> dict[int, int] | None:
+    best: tuple[int, int, dict[int, int]] | None = None
+    for start in range(2, min(len(b), 20)):
+        parsed = _parse_tlv_items(b, start)
+        if parsed is None:
+            continue
+        items, _end = parsed
+        score = sum(field in items for field in (5, 6, 7))
+        if score == 0:
+            continue
+        unknown_count = len([field for field in items if field not in (5, 6, 7)])
+        candidate = (score, -unknown_count, items)
+        if best is None or candidate[:2] > best[:2]:
+            best = candidate
+
+    if best is None:
+        return None
+
+    _LOGGER.debug("[DS-AIR VAM D611] front block: %s", best[2])
+    return best[2]
+
+
+def _parse_d611_vam_composite_status(b: bytes) -> VentilationStatus | None:
+    if len(b) < 4:
+        return None
+
+    front = _find_d611_front_tlv(b)
+    named_sensor = _find_d611_named_sensor_tlv(b)
+    if front is None and named_sensor is None:
+        return None
+
+    status = VentilationStatus()
+    if named_sensor is not None and 1 in named_sensor:
+        status.in_door_temp = named_sensor[1]
+    if front is not None:
+        if 5 in front:
+            status.out_door_temp = front[5]
+        if 6 in front:
+            status.out_door_humidity = front[6]
+        if 7 in front:
+            status.pm25 = front[7]
+
+    return status
 
 
 class BaseResult(BaseBean):
@@ -1039,24 +1148,35 @@ class VentilationQueryCompositeSituationResult(BaseResult):
         self._pm25: int = UNINITIALIZED_VALUE
 
     def load_bytes(self, b: bytes, config: Config) -> None:
-        d = Decode(b)
-        self._room = d.read1()
-        self._unit = d.read1()
-        statusType = d.read1()
-        statusSize = d.read1()
-        while statusType != 0:
-            if statusType == 1 and statusSize == 2:
-                self._in_door_temp = d.read2()
-            elif statusType == 2 and statusSize == 2:
-                self._out_door_humidity = d.read2()
-            elif statusType == 3 and statusSize == 2:
-                pass  # 不知道干什么用的数据
-            elif statusType == 4 and statusSize == 2:
-                self._pm25 = d.read2()
-            else:
-                d.read(statusSize)
-            statusType = d.read1()
-            statusSize = d.read1()
+        if config.is_d611:
+            status = _parse_d611_vam_composite_status(b)
+            if status is not None:
+                self._room = b[0]
+                self._unit = b[1]
+                self._in_door_temp = status.in_door_temp
+                self._out_door_temp = status.out_door_temp
+                self._out_door_humidity = status.out_door_humidity
+                self._pm25 = status.pm25
+                return
+
+        if len(b) < 2:
+            return
+
+        self._room = b[0]
+        self._unit = b[1]
+        parsed = _parse_tlv_items(b, 2)
+        if parsed is None:
+            return
+
+        items, _end = parsed
+        if 1 in items:
+            self._in_door_temp = items[1]
+        if 2 in items:
+            self._out_door_humidity = items[2]
+        if 3 in items:
+            self._out_door_temp = items[3]
+        if 4 in items:
+            self._pm25 = items[4]
 
     def do(self, service: Service) -> None:
         status = VentilationStatus(
