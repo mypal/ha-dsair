@@ -69,10 +69,12 @@ class DsVent(FanEntity):
         _log("create ventilation:")
         _log(vent.__dict__)
         _log(vent.status)
-        self._name = vent.alias
+        self._device_name = f"新风 {vent.alias}"
         self._device_info = vent
         self._unique_id = vent.unique_id
         self._service = service
+        self._attr_has_entity_name = True
+        self._attr_translation_key = "ventilation_switch"
 
         # Set supported features
         if vent.is_small_vam:
@@ -93,6 +95,7 @@ class DsVent(FanEntity):
         if kwargs.get("vent") is not None:
             vent: Ventilation = kwargs["vent"]
             self._device_info = vent
+            self._device_name = f"新风 {vent.alias}"
             _log(display(self._device_info))
 
         if kwargs.get("status") is not None:
@@ -117,11 +120,6 @@ class DsVent(FanEntity):
         return self._unique_id
 
     @property
-    def name(self) -> str:
-        """Get entity name."""
-        return self._name
-
-    @property
     def should_poll(self) -> bool:
         """No polling needed."""
         return False
@@ -131,7 +129,7 @@ class DsVent(FanEntity):
         """Return device info."""
         return DeviceInfo(
             identifiers={(DOMAIN, self._unique_id)},
-            name=f"新风 {self._name}",
+            name=self._device_name,
             manufacturer="Daikin Industries, Ltd.",
         )
 

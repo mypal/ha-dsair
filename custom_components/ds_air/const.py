@@ -96,8 +96,28 @@ def get_fan_direction_enum(name: str) -> EnumControl.FanDirection:
 
 # 新风传感器类型
 SMALL_VAM_SENSOR_TYPES = {
-    "in_door_temp": [UnitOfTemperature.CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
-    "out_door_temp": [UnitOfTemperature.CELSIUS, None, SensorDeviceClass.TEMPERATURE, 10],
-    "out_door_humidity": [PERCENTAGE, None, SensorDeviceClass.HUMIDITY, 1],
-    "pm25": [CONCENTRATION_MICROGRAMS_PER_CUBIC_METER, None, SensorDeviceClass.PM25, 1],
+    "in_door_temp": [
+        UnitOfTemperature.CELSIUS,
+        "indoor_temperature",
+        SensorDeviceClass.TEMPERATURE,
+        10,
+    ],
+    "out_door_temp": [
+        UnitOfTemperature.CELSIUS,
+        "outdoor_temperature",
+        SensorDeviceClass.TEMPERATURE,
+        10,
+    ],
+    "out_door_humidity": [
+        PERCENTAGE,
+        "outdoor_humidity",
+        SensorDeviceClass.HUMIDITY,
+        1,
+    ],
+    "pm25": [
+        CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        "outdoor_pm25",
+        SensorDeviceClass.PM25,
+        1,
+    ],
 }
