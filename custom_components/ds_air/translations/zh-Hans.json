@@ -68,5 +68,34 @@
         "description": "没有可操作的空调"
       }
     }
+  },
+  "entity": {
+    "fan": {
+      "ventilation_switch": {
+        "name": "开关"
+      }
+    },
+    "select": {
+      "ventilation_mode": {
+        "name": "模式"
+      },
+      "ventilation_air_flow": {
+        "name": "风量"
+      }
+    },
+    "sensor": {
+      "indoor_temperature": {
+        "name": "室内温度"
+      },
+      "outdoor_temperature": {
+        "name": "室外温度"
+      },
+      "outdoor_humidity": {
+        "name": "室外湿度"
+      },
+      "outdoor_pm25": {
+        "name": "室外PM2.5"
+      }
+    }
   }
 }

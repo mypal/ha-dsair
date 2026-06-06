@@ -29,6 +29,7 @@ PLATFORMS = [
     Platform.CLIMATE,
     Platform.SENSOR,
     Platform.FAN,
+    Platform.SELECT,
     Platform.SWITCH,
     Platform.WATER_HEATER,
 ]
