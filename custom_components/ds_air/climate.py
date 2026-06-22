@@ -150,6 +150,12 @@ class DsAir(ClimateEntity):
             manufacturer=MANUFACTURER,
             via_device=(DOMAIN, aircon.gateway_id),
         )
+        if not self._device_info.config.is_d611:
+            self._attr_fan_modes = [
+                mode
+                for idx, mode in enumerate(AIR_FLOW_NAME_LIST)
+                if idx != EnumControl.AirFlow.SILENCE
+            ]
 
     async def async_added_to_hass(self) -> None:
         if self.linked_temp_entity_id:
