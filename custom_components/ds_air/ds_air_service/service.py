@@ -107,6 +107,10 @@ class SocketClient:
             self._s = None
             return False
         else:
+            # 该超时只用于建立连接阶段，不能残留到 RecvThread 中常驻的 recv()：
+            # 网关只在状态变化时推送，空闲间隔会远超该超时，否则 recv() 会超时抛错，
+            # 进而静默重连（且不重新握手），导致此后再也收不到状态推送。
+            self._s.settimeout(None)
             _log("connected")
             return True
 
