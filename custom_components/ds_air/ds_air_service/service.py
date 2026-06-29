@@ -130,22 +130,40 @@ class SocketClient:
                     time.sleep(self._retry_sleep(deadline))
                     self.do_connect(deadline)
 
-    def recv(self) -> (list[BaseResult], bytes):
+    def _reconnect(self) -> None:
+        """断线后重连并重新握手。
+
+        网关只会向完成握手的连接推送状态变化，因此重连后必须重新发送握手，
+        否则墙板等设备上的状态变化不会再同步到 HA（只能依赖周期轮询）。
+        本方法仅由 RecvThread 调用，调用时未持有发送锁，故可安全调用 send()。
+        """
+        while self._ready and not self.do_connect():
+            time.sleep(self._retry_sleep(None))
+        if self._ready:
+            self.send(HandShakeParam())
+
+    def recv(self) -> list[BaseResult]:
         res = []
-        done = False
         data = None
 
-        while not done:
+        while True:
             try:
                 data = self._s.recv(1024)
-                done = True
             except Exception:
                 if not self._ready:
-                    return [], None
-                time.sleep(3)
-                self.do_connect()
-        if data is not None:
-            _log("recv hex: 0x" + data.hex())
+                    return []
+                # 真正的连接错误：重连并重新握手
+                self._reconnect()
+                continue
+            if data:
+                break
+            # recv 返回空字节表示对端已正常关闭连接（不会抛异常）。
+            # 必须重连并重新握手，否则会陷入空读忙循环，且网关不再推送状态。
+            if not self._ready:
+                return []
+            self._reconnect()
+
+        _log("recv hex: 0x" + data.hex())
         while data:
             try:
                 r, b = decoder(data, self._config)
