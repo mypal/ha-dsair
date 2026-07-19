@@ -313,6 +313,7 @@ class EnumSensor:
                 return "中"
             if self.value == EnumSensor.Voc.STEP_4:
                 return "高"
+            return "不可用"
 
 
 # 新风模式列表
