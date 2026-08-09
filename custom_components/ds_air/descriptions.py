@@ -22,8 +22,11 @@ FROZEN = MAJOR_VERSION >= 2024
 @dataclass(frozen=FROZEN, kw_only=True)
 class DsSensorEntityDescription(SensorEntityDescription):
     has_entity_name: bool = True
-    state_class: SensorStateClass = SensorStateClass.MEASUREMENT
+    state_class: SensorStateClass | None = SensorStateClass.MEASUREMENT
     value_fn: Callable[[Any], Any] | None = lambda x: x
+
+
+VOC_OPTIONS = ["优", "低", "中", "高"]
 
 
 SENSOR_DESCRIPTORS = {
@@ -59,8 +62,11 @@ SENSOR_DESCRIPTORS = {
     ),
     "voc": DsSensorEntityDescription(
         key="voc",
-        device_class=SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS_PARTS,
-        value_fn=lambda x: str(x),  # EnumSensor.Voc
+        device_class=SensorDeviceClass.ENUM,
+        state_class=None,
+        options=VOC_OPTIONS,
+        # EnumSensor.Voc，不可用/未知等级映射为 None
+        value_fn=lambda x: s if (s := str(x)) in VOC_OPTIONS else None,
     ),
     "hcho": DsSensorEntityDescription(
         key="hcho",
