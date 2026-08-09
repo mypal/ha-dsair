@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 import unittest
+import select  # noqa: F401 — preload stdlib select to prevent clash with custom_components/ds_air/select.py
 
 
 ROOT = Path(__file__).resolve().parents[1]
