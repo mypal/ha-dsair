@@ -61,11 +61,40 @@
           "climate": "空调名称",
           "sensor_temp": "温度传感器实体ID",
           "sensor_humi": "湿度传感器实体ID"
-        },
-        "empty": {
-          "title": "无数据",
-          "description": "没有可操作的空调"
         }
+      },
+      "empty": {
+        "title": "无数据",
+        "description": "没有可操作的空调"
+      }
+    }
+  },
+  "entity": {
+    "fan": {
+      "ventilation_switch": {
+        "name": "开关"
+      }
+    },
+    "select": {
+      "ventilation_mode": {
+        "name": "模式"
+      },
+      "ventilation_air_flow": {
+        "name": "风量"
+      }
+    },
+    "sensor": {
+      "indoor_temperature": {
+        "name": "室内温度"
+      },
+      "outdoor_temperature": {
+        "name": "室外温度"
+      },
+      "outdoor_humidity": {
+        "name": "室外湿度"
+      },
+      "outdoor_pm25": {
+        "name": "室外PM2.5"
       }
     }
   }

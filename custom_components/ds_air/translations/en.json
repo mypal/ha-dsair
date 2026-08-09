@@ -61,11 +61,40 @@
           "climate": "Climate name",
           "sensor_temp": "Temperature sensor entity_id",
           "sensor_humi": "Humidity sensor entity_id"
-        },
-        "empty": {
-          "title": "No data",
-          "description": "No AC for link"
         }
+      },
+      "empty": {
+        "title": "No data",
+        "description": "No AC for link"
+      }
+    }
+  },
+  "entity": {
+    "fan": {
+      "ventilation_switch": {
+        "name": "Switch"
+      }
+    },
+    "select": {
+      "ventilation_mode": {
+        "name": "Mode"
+      },
+      "ventilation_air_flow": {
+        "name": "Air flow"
+      }
+    },
+    "sensor": {
+      "indoor_temperature": {
+        "name": "Indoor temperature"
+      },
+      "outdoor_temperature": {
+        "name": "Outdoor temperature"
+      },
+      "outdoor_humidity": {
+        "name": "Outdoor humidity"
+      },
+      "outdoor_pm25": {
+        "name": "Outdoor PM2.5"
       }
     }
   }

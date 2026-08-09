@@ -1,4 +1,4 @@
-from .ctrl_enum import EnumDevice, EnumCmdType
+from .ctrl_enum import EnumCmdType, EnumDevice
 
 
 class BaseBean:

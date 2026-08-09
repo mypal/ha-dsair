@@ -1,12 +1,84 @@
 import time
-from typing import Optional
+from collections.abc import Iterable
 
-from .ctrl_enum import EnumOutDoorRunCond, EnumFanDirection, EnumFanVolume, EnumSwitch, EnumControl, EnumDevice
+from .config import Config
+from .ctrl_enum import (
+    EnumControl,
+    EnumDevice,
+    EnumFanDirection,
+    EnumFanVolume,
+    EnumOutDoorRunCond,
+    EnumSwitch,
+)
+
+
+def build_device_unique_id(gateway_id: str, room_id: int, unit_id: int) -> str:
+    return f"daikin_{gateway_id}_{room_id}_{unit_id}"
+
+
+def migrate_legacy_unique_id(
+    unique_id: str, gateway_id: str, sensor_keys: Iterable[str] = ()
+) -> str | None:
+    parts = unique_id.split("_")
+    if len(parts) == 3 and parts[0] == "daikin":
+        room_id, unit_id = parts[1:]
+        if room_id.isdigit() and unit_id.isdigit():
+            return build_device_unique_id(gateway_id, int(room_id), int(unit_id))
+
+    for sensor_key in sensor_keys:
+        prefix = f"{sensor_key}_"
+        if not unique_id.startswith(prefix):
+            continue
+        migrated_device_id = migrate_legacy_unique_id(
+            unique_id.removeprefix(prefix), gateway_id
+        )
+        if migrated_device_id is not None:
+            return f"{sensor_key}_{migrated_device_id}"
+
+    return None
+
+
+def migrate_legacy_sensor_links(
+    links: list, aircons: Iterable["Device"]
+) -> tuple[list, bool]:
+    alias_to_unique_id = {
+        aircon.alias: aircon.unique_id for aircon in aircons if aircon.alias
+    }
+    unique_ids = {aircon.unique_id for aircon in aircons}
+    migrated_links = []
+    changed = False
+
+    for link in links:
+        if not isinstance(link, dict):
+            migrated_links.append(link)
+            continue
+
+        migrated_link = dict(link)
+        climate_id = migrated_link.get("climate")
+        if (
+            isinstance(climate_id, str)
+            and climate_id not in unique_ids
+            and climate_id in alias_to_unique_id
+        ):
+            migrated_link["climate"] = alias_to_unique_id[climate_id]
+            changed = True
+        migrated_links.append(migrated_link)
+
+    return migrated_links, changed
+
+
+def build_aircon_device_name(alias: str) -> str:
+    return alias if "空调" in alias else f"{alias} 空调"
+
+
+def build_sensor_device_name(alias: str) -> str:
+    return f"{alias} 传感器"
 
 
 class Device:
     def __init__(self):
         self.alias: str = ""
+        self.gateway_id: str = ""
         self.id: int = 0
         self.name: str = ""
         self.room_id: int = 0
@@ -15,67 +87,68 @@ class Device:
 
     @property
     def unique_id(self):
-        return "daikin_%d_%d" % (self.room_id, self.unit_id)
-
-
-def _nothing():
-    """do nothing"""
+        return build_device_unique_id(self.gateway_id, self.room_id, self.unit_id)
 
 
 class AirConStatus:
-    def __init__(self, current_temp: int = None, setted_temp: int = None,
-                 switch: EnumControl.Switch = None,
-                 air_flow: EnumControl.AirFlow = None,
-                 breathe: EnumControl.Breathe = None,
-                 fan_direction1: EnumControl.FanDirection = None,
-                 fan_direction2: EnumControl.FanDirection = None,
-                 humidity: EnumControl.Humidity = None,
-                 mode: EnumControl.Mode = None):
-        self.current_temp = current_temp  # type: int
-        self.setted_temp = setted_temp  # type: int
-        self.switch = switch  # type: EnumControl.Switch
-        self.air_flow = air_flow  # type: EnumControl.AirFlow
-        self.breathe = breathe  # type: EnumControl.Breathe
-        self.fan_direction1 = fan_direction1  # type: EnumControl.FanDirection
-        self.fan_direction2 = fan_direction2  # type: EnumControl.FanDirection
-        self.humidity = humidity  # type: EnumControl.Humidity
-        self.mode = mode  # type: EnumControl.Mode
+    def __init__(
+        self,
+        current_temp: int | None = None,
+        setted_temp: int | None = None,
+        switch: EnumControl.Switch | None = None,
+        air_flow: EnumControl.AirFlow | None = None,
+        breathe: EnumControl.Breathe | None = None,
+        fan_direction1: EnumControl.FanDirection | None = None,
+        fan_direction2: EnumControl.FanDirection | None = None,
+        humidity: EnumControl.Humidity | None = None,
+        mode: EnumControl.Mode | None = None,
+    ):
+        self.current_temp: int | None = current_temp
+        self.setted_temp: int | None = setted_temp
+        self.switch: EnumControl.Switch | None = switch
+        self.air_flow: EnumControl.AirFlow | None = air_flow
+        self.breathe: EnumControl.Breathe | None = breathe
+        self.fan_direction1: EnumControl.FanDirection | None = fan_direction1
+        self.fan_direction2: EnumControl.FanDirection | None = fan_direction2
+        self.humidity: EnumControl.Humidity | None = humidity
+        self.mode: EnumControl.Mode | None = mode
 
 
 class AirCon(Device):
-    def __init__(self):
+    def __init__(self, config: Config):
         super().__init__()
-        self.auto_dry_mode = 0  # type: int
-        self.auto_mode = 0  # type: int
-        self.bath_room = False  # type: bool
-        self.new_air_con = False  # type: bool
-        self.cool_mode = 0  # type: int
-        self.dry_mode = 0  # type: int
-        self.fan_dire_auto = False  # type: bool
-        self.fan_direction1 = EnumFanDirection.FIX  # type: EnumFanDirection
-        self.fan_direction2 = EnumFanDirection.FIX  # type: EnumFanDirection
-        self.fan_volume = EnumFanVolume.FIX  # type: EnumFanVolume
-        self.fan_volume_auto = False  # type: bool
-        self.temp_set = False  # type: bool
-        self.hum_fresh_air_allow = False  # type: bool
-        self.three_d_fresh_allow = False  # type: bool
-        self.heat_mode = 0  # type: int
-        self.more_dry_mode = 0  # type: int
-        self.out_door_run_cond = EnumOutDoorRunCond.VENT  # type: EnumOutDoorRunCond
-        self.pre_heat_mode = 0  # type: int
-        self.relax_mode = 0  # type: int
-        self.sleep_mode = 0  # type: int
-        self.ventilation_mode = 0  # type: int
-        self.status = AirConStatus()  # type: AirConStatus
+        self.config = config
+        self.gateway_id = config.gateway_id
+        self.auto_dry_mode: int = 0
+        self.auto_mode: int = 0
+        self.bath_room: bool = False
+        self.new_air_con: bool = False
+        self.cool_mode: int = 0
+        self.dry_mode: int = 0
+        self.fan_dire_auto: bool = False
+        self.fan_direction1: EnumFanDirection = EnumFanDirection.FIX
+        self.fan_direction2: EnumFanDirection = EnumFanDirection.FIX
+        self.fan_volume: EnumFanVolume = EnumFanVolume.FIX
+        self.fan_volume_auto: bool = False
+        self.temp_set: bool = False
+        self.hum_fresh_air_allow: bool = False
+        self.three_d_fresh_allow: bool = False
+        self.heat_mode: int = 0
+        self.more_dry_mode: int = 0
+        self.out_door_run_cond: EnumOutDoorRunCond = EnumOutDoorRunCond.VENT
+        self.pre_heat_mode: int = 0
+        self.relax_mode: int = 0
+        self.sleep_mode: int = 0
+        self.ventilation_mode: int = 0
+        self.status: AirConStatus = AirConStatus()
 
 
 def get_device_by_aircon(aircon: AirCon):
     if aircon.new_air_con:
         return EnumDevice.NEWAIRCON
-    elif aircon.bath_room:
+    if aircon.bath_room:
         return EnumDevice.BATHROOM
-    else:
-        return EnumDevice.AIRCON
+    return EnumDevice.AIRCON
 
 
 class Geothermic(Device):
@@ -83,30 +156,138 @@ class Geothermic(Device):
 
 
 class Ventilation(Device):
-    def __init__(self):
-        Device.__init__(self)
-        self.is_small_vam = False  # type: bool
+    def __init__(self, config: Config | None = None):
+        super().__init__()
+        if config:
+            self.config = config
+            self.gateway_id = config.gateway_id
+        self.is_small_vam: bool = False
+        self.capability: int = 0
+        self.status: VentilationStatus = VentilationStatus()
+
+
+def get_device_by_vent(vent: Ventilation):
+    if vent.is_small_vam:
+        return EnumDevice.SMALL_VAM
+    return EnumDevice.VENTILATION
+
+
+class VentilationStatus:
+    def __init__(
+        self,
+        switch: EnumControl.Switch | None = None,
+        mode: EnumControl.Mode | None = None,
+        air_flow: EnumControl.AirFlow | None = None,
+        in_door_temp: int | None = None,
+        out_door_temp: int | None = None,
+        out_door_humidity: int | None = None,
+        pm25: int | None = None,
+    ):
+        self.switch: EnumControl.Switch | None = switch
+        self.mode: EnumControl.Mode | None = mode
+        self.air_flow: EnumControl.AirFlow | None = air_flow
+        self.in_door_temp: int | None = in_door_temp
+        self.out_door_temp: int | None = out_door_temp
+        self.out_door_humidity: int | None = out_door_humidity
+        self.pm25: int | None = pm25
 
 
 class HD(Device):
-    def __init__(self):
-        Device.__init__(self)
-        self.switch: EnumSwitch
+    def __init__(self, config: Config | None = None):
+        super().__init__()
+        if config:
+            self.config = config
+            self.gateway_id = config.gateway_id
+        self.switch_enable: EnumControl.Switch | None = None
+        self.night_energy_switch: EnumControl.Switch | None = None
+        self.temperature_set: int | None = None
+        self.status: HDStatus = HDStatus()
 
 
-STATUS_ATTR = ["mac", "type1", "type2", "start_time", "stop_time", "sensor_type", "temp", "humidity", "pm25", "co2",
-               "voc", "tvoc", "hcho", "switch_on_off", "temp_upper", "temp_lower", "humidity_upper",
-               "humidity_lower", "pm25_upper", "pm25_lower", "co2_upper", "co2_lower", "voc_lower", "tvoc_upper",
-               "hcho_upper", "connected", "sleep_mode_count", "time_millis"]
+class HDStatus:
+    def __init__(
+        self,
+        switch: EnumControl.Switch | None = None,
+        cold_lower: float | None = None,
+        cold_temperature: float | None = None,
+        cold_upper: float | None = None,
+        mute: EnumControl.Switch | None = None,
+        mute_enable: EnumControl.Switch | None = None,
+        night_energy_end_hour: int | None = None,
+        night_energy_end_minute: int | None = None,
+        night_energy_reduce_temp: int | None = None,
+        night_energy_start_hour: int | None = None,
+        night_energy_start_minute: int | None = None,
+        night_energy_switch: EnumControl.Switch | None = None,
+        outdoor_temp: float | None = None,
+        preheat: int | None = None,
+        switch_enable: EnumControl.Switch | None = None,
+        temperature_set: int | None = None,
+        warm_cold: int | None = None,
+        warm_lower: float | None = None,
+        warm_temperature: float | None = None,
+        warm_upper: float | None = None,
+    ):
+        self.switch: EnumControl.Switch | None = switch
+        self.cold_lower: float | None = cold_lower
+        self.cold_temperature: float | None = cold_temperature
+        self.cold_upper: float | None = cold_upper
+        self.mute: EnumControl.Switch | None = mute
+        self.mute_enable: EnumControl.Switch | None = mute_enable
+        self.night_energy_end_hour: int | None = night_energy_end_hour
+        self.night_energy_end_minute: int | None = night_energy_end_minute
+        self.night_energy_reduce_temp: int | None = night_energy_reduce_temp
+        self.night_energy_start_hour: int | None = night_energy_start_hour
+        self.night_energy_start_minute: int | None = night_energy_start_minute
+        self.night_energy_switch: EnumControl.Switch | None = night_energy_switch
+        self.outdoor_temp: float | None = outdoor_temp
+        self.preheat: int | None = preheat
+        self.switch_enable: EnumControl.Switch | None = switch_enable
+        self.temperature_set: int | None = temperature_set
+        self.warm_cold: int | None = warm_cold
+        self.warm_lower: float | None = warm_lower
+        self.warm_temperature: float | None = warm_temperature
+        self.warm_upper: float | None = warm_upper
+
+
+STATUS_ATTR = [
+    "mac",
+    "type1",
+    "type2",
+    "start_time",
+    "stop_time",
+    "sensor_type",
+    "temp",
+    "humidity",
+    "pm25",
+    "co2",
+    "voc",
+    "tvoc",
+    "hcho",
+    "switch_on_off",
+    "temp_upper",
+    "temp_lower",
+    "humidity_upper",
+    "humidity_lower",
+    "pm25_upper",
+    "pm25_lower",
+    "co2_upper",
+    "co2_lower",
+    "voc_lower",
+    "tvoc_upper",
+    "hcho_upper",
+    "connected",
+    "sleep_mode_count",
+    "time_millis",
+]
 
 UNINITIALIZED_VALUE = -1000
 
 
 class Sensor(Device):
-
     def __init__(self):
         Device.__init__(self)
-        self.mac: str = ''
+        self.mac: str = ""
         self.type1: int = 0
         self.type2: int = 0
         self.start_time: int = 0
@@ -139,13 +320,13 @@ class Sensor(Device):
 class Room:
     def __init__(self):
         self.air_con = None
-        self.alias = ''  # type: str
-        self.geothermic = None  # type: Optional[Geothermic]
-        self.hd = None  # type: Optional[HD]
-        self.hd_room = False  # type: bool
-        self.sensor_room = False  # type: bool
-        self.icon = ''  # type: str
-        self.id = 0  # type: int
-        self.name = ''  # type: str
-        self.type = 0  # type: int
-        self.ventilation = Ventilation()  # type: Optional[Ventilation]
+        self.alias: str = ""
+        self.geothermic: Geothermic | None = None
+        self.hd: HD | None = None
+        self.hd_room: bool = False
+        self.sensor_room: bool = False
+        self.icon: str = ""
+        self.id: int = 0
+        self.name: str = ""
+        self.type: int = 0
+        self.ventilation: Ventilation | None = None

@@ -1,32 +1,92 @@
+from __future__ import annotations
+
+import logging
 import struct
-import typing
+from typing import TYPE_CHECKING
 
 from .base_bean import BaseBean
 from .config import Config
-from .ctrl_enum import EnumDevice, EnumCmdType, EnumFanDirection, EnumOutDoorRunCond, EnumFanVolume, EnumControl, \
-    EnumSensor, FreshAirHumidification, ThreeDFresh
-from .dao import Room, AirCon, Geothermic, Ventilation, HD, Device, AirConStatus, get_device_by_aircon, Sensor, \
-    UNINITIALIZED_VALUE
-from .param import GetRoomInfoParam, AirConRecommendedIndoorTempParam, AirConCapabilityQueryParam, \
-    AirConQueryStatusParam, Sensor2InfoParam
+from .ctrl_enum import (
+    EnumCmdType,
+    EnumControl,
+    EnumDevice,
+    EnumFanDirection,
+    EnumFanVolume,
+    EnumOutDoorRunCond,
+    EnumSensor,
+    FreshAirHumidification,
+    ThreeDFresh,
+)
+from .dao import (
+    HD,
+    HDStatus,
+    UNINITIALIZED_VALUE,
+    AirCon,
+    AirConStatus,
+    Device,
+    Geothermic,
+    Room,
+    Sensor,
+    Ventilation,
+    VentilationStatus,
+    get_device_by_aircon,
+    get_device_by_vent,
+)
+from .param import (
+    AirConCapabilityQueryParam,
+    AirConQueryStatusParam,
+    AirConRecommendedIndoorTempParam,
+    GetRoomInfoParam,
+    HDQueryInfoParam,
+    HDQueryStatusParam,
+    Sensor2InfoParam,
+    VentilationCapabilityQueryParam,
+    VentilationQueryCompositeSituationParam,
+    VentilationQueryStatusParam,
+)
+
+if TYPE_CHECKING:
+    from .service import Service
+
+_LOGGER = logging.getLogger(__name__)
 
 
-def decoder(b):
+def decoder(b: bytes, config: Config):
     if b[0] != 2:
         return None, None
 
-    length = struct.unpack('<H', b[1:3])[0]
-    if length == 0 or len(b) - 4 < length or struct.unpack('<B', b[length + 3:length + 4])[0] != 3:
+    length = struct.unpack("<H", b[1:3])[0]
+    if (
+        length == 0
+        or len(b) - 4 < length
+        or struct.unpack("<B", b[length + 3 : length + 4])[0] != 3
+    ):
         if length == 0:
             return HeartbeatResult(), None
-        else:
-            return None, None
+        return None, None
 
-    return result_factory(struct.unpack('<BHBBBBIBIBH' + str(length - 16) + 'sB', b[:length + 4])), b[length + 4:]
+    return result_factory(
+        struct.unpack("<BHBBBBIBIBH" + str(length - 16) + "sB", b[: length + 4]),
+        config,
+    ), b[length + 4 :]
 
 
-def result_factory(data):
-    r1, length, r2, r3, subbody_ver, r4, cnt, dev_type, dev_id, need_ack, cmd_type, subbody, r5 = data
+def result_factory(data: tuple, config: Config):
+    (
+        r1,
+        length,
+        r2,
+        r3,
+        subbody_ver,
+        r4,
+        cnt,
+        dev_type,
+        dev_id,
+        need_ack,
+        cmd_type,
+        subbody,
+        r5,
+    ) = data
     if dev_id == EnumDevice.SYSTEM.value[1]:
         if cmd_type == EnumCmdType.SYS_ACK.value:
             result = AckResult(cnt, EnumDevice.SYSTEM)
@@ -44,6 +104,8 @@ def result_factory(data):
             result = ChangePWResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_GET_ROOM_INFO.value:
             result = GetRoomInfoResult(cnt, EnumDevice.SYSTEM)
+        elif cmd_type == EnumCmdType.SYS_GET_ROOM_INFO_V1.value:
+            result = GetRoomInfoResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_QUERY_SCHEDULE_SETTING.value:
             result = QueryScheduleSettingResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_QUERY_SCHEDULE_ID.value:
@@ -60,8 +122,12 @@ def result_factory(data):
             result = Sensor2InfoResult(cnt, EnumDevice.SYSTEM)
         else:
             result = UnknownResult(cnt, EnumDevice.SYSTEM, cmd_type)
-    elif dev_id == EnumDevice.NEWAIRCON.value[1] or dev_id == EnumDevice.AIRCON.value[1] \
-            or dev_id == EnumDevice.BATHROOM.value[1] or dev_id == EnumDevice.SENSOR.value[1]:
+    elif dev_id in (
+        EnumDevice.NEWAIRCON.value[1],
+        EnumDevice.AIRCON.value[1],
+        EnumDevice.BATHROOM.value[1],
+        EnumDevice.SENSOR.value[1],
+    ):
         device = EnumDevice((8, dev_id))
         if cmd_type == EnumCmdType.STATUS_CHANGED.value:
             result = AirConStatusChangedResult(cnt, device)
@@ -77,12 +143,36 @@ def result_factory(data):
             result = Sensor2InfoResult(cnt, device)
         else:
             result = UnknownResult(cnt, device, cmd_type)
+    elif dev_id in (EnumDevice.VENTILATION.value[1], EnumDevice.SMALL_VAM.value[1]):
+        device = EnumDevice((8, dev_id))
+        if cmd_type == EnumCmdType.STATUS_CHANGED.value:
+            result = VentilationStatusChangedResult(cnt, device)
+        elif cmd_type == EnumCmdType.VENT_QUERY_CAPABILITY.value:
+            result = VentilationCapabilityQueryResult(cnt, device)
+        elif cmd_type == EnumCmdType.QUERY_STATUS.value:
+            result = VentilationQueryStatusResult(cnt, device)
+        elif cmd_type == EnumCmdType.SMALL_VAM_QUERY_COMPOSITE_SITUATION.value:
+            result = VentilationQueryCompositeSituationResult(cnt, device)
+        else:
+            result = UnknownResult(cnt, device, cmd_type)
+    elif dev_id == EnumDevice.HD.value[1]:
+        device = EnumDevice.HD
+        if cmd_type == EnumCmdType.NEW_HD_STATE_UPDATE.value:
+            result = HDInfoChangeResult(cnt, device)
+        elif cmd_type == EnumCmdType.QUERY_STATUS.value:
+            result = HDQueryStatusResult(cnt, device)
+        elif cmd_type == EnumCmdType.STATUS_CHANGED.value:
+            result = HDStatusChangeResult(cnt, device)
+        elif cmd_type == EnumCmdType.NEW_HD_NIGHT_ENERGY_SETTING.value:
+            result = HDControlOtherResult(cnt, device)
+        else:
+            result = UnknownResult(cnt, device, cmd_type)
     else:
         """ignore other device"""
         result = UnknownResult(cnt, EnumDevice.SYSTEM, cmd_type)
 
     result.subbody_ver = subbody_ver
-    result.load_bytes(subbody)
+    result.load_bytes(subbody, config)
 
     return result
 
@@ -94,52 +184,158 @@ class Decode:
 
     def read1(self):
         pos = self._pos
-        s = struct.unpack('<B', self._b[pos:pos + 1])[0]
+        s = struct.unpack("<B", self._b[pos : pos + 1])[0]
         pos += 1
         self._pos = pos
         return s
 
     def read2(self):
         pos = self._pos
-        s = struct.unpack('<H', self._b[pos:pos + 2])[0]
+        s = struct.unpack("<H", self._b[pos : pos + 2])[0]
         pos += 2
         self._pos = pos
         return s
 
     def read4(self):
         pos = self._pos
-        s = struct.unpack('<I', self._b[pos:pos + 4])[0]
+        s = struct.unpack("<I", self._b[pos : pos + 4])[0]
         pos += 4
         self._pos = pos
         return s
 
-    def read(self, l):
+    def read(self, length: int):
         pos = self._pos
-        s = self._b[pos:pos + l]
-        pos += l
+        s = self._b[pos : pos + length]
+        pos += length
         self._pos = pos
         return s
 
-    def read_utf(self, l):
+    def read_utf(self, length: int):
         pos = self._pos
         try:
-            s = self._b[pos:pos + l].decode('utf-8')
+            s = self._b[pos : pos + length].decode("utf-8")
         except UnicodeDecodeError:
             s = None
-        pos += l
+        pos += length
         self._pos = pos
         return s
+
+
+def _parse_tlv_items(
+    b: bytes, start: int, max_size: int = 32
+) -> tuple[dict[int, int], int] | None:
+    pos = start
+    items: dict[int, int] = {}
+    while pos < len(b):
+        item_type = b[pos]
+        pos += 1
+        if item_type == 0:
+            return items, pos
+        if pos >= len(b):
+            return None
+
+        size = b[pos]
+        pos += 1
+        if size > max_size or pos + size > len(b):
+            return None
+
+        raw = b[pos : pos + size]
+        pos += size
+        if size <= 8:
+            items[item_type] = int.from_bytes(raw, "little")
+
+    return None
+
+
+def _is_readable_name(value: str) -> bool:
+    return bool(value) and all(char.isprintable() for char in value)
+
+
+def _find_d611_named_sensor_tlv(b: bytes) -> dict[int, int] | None:
+    best: tuple[int, dict[int, int], str] | None = None
+    for pos, name_len in enumerate(b):
+        if name_len == 0 or name_len > 32 or pos + 1 + name_len > len(b):
+            continue
+        raw_name = b[pos + 1 : pos + 1 + name_len]
+        try:
+            name = raw_name.decode("utf-8")
+        except UnicodeDecodeError:
+            continue
+        if not _is_readable_name(name):
+            continue
+
+        tlv_start = pos + 1 + name_len
+        parsed = _parse_tlv_items(b, tlv_start)
+        if parsed is None:
+            continue
+        items, _end = parsed
+        score = sum(field in items for field in (1, 2, 3, 4))
+        if score < 2:
+            continue
+        if best is None or score > best[0]:
+            best = (score, items, name)
+
+    if best is None:
+        return None
+
+    _LOGGER.debug("[DS-AIR VAM D611] named sensor block %s: %s", best[2], best[1])
+    return best[1]
+
+
+def _find_d611_front_tlv(b: bytes) -> dict[int, int] | None:
+    best: tuple[int, int, dict[int, int]] | None = None
+    for start in range(2, min(len(b), 20)):
+        parsed = _parse_tlv_items(b, start)
+        if parsed is None:
+            continue
+        items, _end = parsed
+        score = sum(field in items for field in (5, 6, 7))
+        if score == 0:
+            continue
+        unknown_count = len([field for field in items if field not in (5, 6, 7)])
+        candidate = (score, -unknown_count, items)
+        if best is None or candidate[:2] > best[:2]:
+            best = candidate
+
+    if best is None:
+        return None
+
+    _LOGGER.debug("[DS-AIR VAM D611] front block: %s", best[2])
+    return best[2]
+
+
+def _parse_d611_vam_composite_status(b: bytes) -> VentilationStatus | None:
+    if len(b) < 4:
+        return None
+
+    front = _find_d611_front_tlv(b)
+    named_sensor = _find_d611_named_sensor_tlv(b)
+    if front is None and named_sensor is None:
+        return None
+
+    status = VentilationStatus()
+    if named_sensor is not None and 1 in named_sensor:
+        status.in_door_temp = named_sensor[1]
+    if front is not None:
+        if 5 in front:
+            status.out_door_temp = front[5]
+        if 6 in front:
+            status.out_door_humidity = front[6]
+        if 7 in front:
+            status.pm25 = front[7]
+
+    return status
 
 
 class BaseResult(BaseBean):
     def __init__(self, cmd_id: int, targe: EnumDevice, cmd_type: EnumCmdType):
         BaseBean.__init__(self, cmd_id, targe, cmd_type)
 
-    def load_bytes(self, b):
-        """do nothing"""
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        """Do nothing"""
 
-    def do(self):
-        """do nothing"""
+    def do(self, service: Service) -> None:
+        """Do nothing"""
 
 
 class HeartbeatResult(BaseResult):
@@ -151,8 +347,8 @@ class AckResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_ACK)
 
-    def load_bytes(self, b):
-        Config.is_new_version = struct.unpack('<B', b)[0] == 2
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        config.is_new_version = struct.unpack("<B", b)[0] == 2
 
 
 class ScheduleQueryVersionV3Result(BaseResult):
@@ -167,9 +363,9 @@ class Sensor2InfoResult(BaseResult):
         self._mode = 0
         self._room_id = 0
         self._sensor_type = 0
-        self._sensors: typing.List[Sensor] = []
+        self._sensors: list[Sensor] = []
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         data = Decode(b)
         self._mode = data.read1()
         count = data.read1()
@@ -180,6 +376,7 @@ class Sensor2InfoResult(BaseResult):
             self._sensor_type = d.read1()
             unit_id = d.read1()
             sensor = Sensor()
+            sensor.gateway_id = config.gateway_id
             sensor.mac = d.read(6).hex()
             sensor.room_id = self._room_id
             sensor.unit_id = unit_id
@@ -253,9 +450,8 @@ class Sensor2InfoResult(BaseResult):
             self._sensors.append(sensor)
             count = count - 1
 
-    def do(self):
-        from .service import Service
-        Service.set_sensors_status(self._sensors)
+    def do(self, service: Service) -> None:
+        service.set_sensors_status(self._sensors)
 
     @property
     def count(self):
@@ -284,8 +480,8 @@ class CmdRspResult(BaseResult):
         self._cmdId = None
         self._code = None
 
-    def load_bytes(self, b):
-        self._cmdId, self._code = struct.unpack('<IB', b)
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        self._cmdId, self._code = struct.unpack("<IB", b)
 
     @property
     def cmd_id(self):
@@ -301,8 +497,8 @@ class TimeSyncResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_TIME_SYNC)
         self._time = None
 
-    def load_bytes(self, b):
-        self._time = struct.unpack('<I', b)[0]
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        self._time = struct.unpack("<I", b)[0]
 
     @property
     def time(self):
@@ -317,12 +513,12 @@ class ErrCodeResult(BaseResult):
         self._room = None
         self._unit = None
 
-    def load_bytes(self, b):
-        dev_id, room, unit = struct.unpack('<iBB', b[:6])
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        dev_id, room, unit = struct.unpack("<iBB", b[:6])
         self._device = EnumDevice((8, dev_id))
         self._room = room
         self._unit = unit
-        self._code = b[6:].decode('ASCII')
+        self._code = b[6:].decode("ASCII")
 
     @property
     def code(self):
@@ -350,9 +546,14 @@ class GetWeatherResult(BaseResult):
         self._wind_dire = None
         self._wind_speed = None
 
-    def load_bytes(self, b):
-        self._condition, self._humidity, self._temp, self._wind_dire, self._wind_speed \
-            = struct.unpack('<BBHBB', b)
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        (
+            self._condition,
+            self._humidity,
+            self._temp,
+            self._wind_dire,
+            self._wind_speed,
+        ) = struct.unpack("<BBHBB", b)
 
     @property
     def condition(self):
@@ -380,8 +581,8 @@ class LoginResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_LOGIN)
         self._status = None
 
-    def load_bytes(self, b):
-        self._status = struct.unpack('<BB', b)[1]
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        self._status = struct.unpack("<BB", b)[1]
 
     @property
     def status(self):
@@ -393,8 +594,8 @@ class ChangePWResult(BaseResult):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_CHANGE_PW)
         self._status = None
 
-    def load_bytes(self, b):
-        self._status = struct.unpack('<B', b)[0]
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        self._status = struct.unpack("<B", b)[0]
 
     @property
     def status(self):
@@ -405,16 +606,16 @@ class GetRoomInfoResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_GET_ROOM_INFO)
         self._count: int = 0
-        self._hds: typing.List[HD] = []
-        self._sensors: typing.List[Sensor] = []
-        self._rooms: typing.List[Room] = []
+        self._hds: list[HD] = []
+        self._sensors: list[Sensor] = []
+        self._rooms: list[Room] = []
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         ver_flag = 1
         d = Decode(b)
         self._count = d.read2()
         room_count = d.read1()
-        for i in range(room_count):
+        for _i in range(room_count):
             room = Room()
             room.id = d.read2()
             if self.subbody_ver == 1:
@@ -427,33 +628,38 @@ class GetRoomInfoResult(BaseResult):
                 length = d.read1()
                 room.icon = d.read_utf(length)
             unit_count = d.read2()
-            for j in range(unit_count):
+            for _j in range(unit_count):
                 device = EnumDevice((8, d.read4()))
                 device_count = d.read2()
                 for unit_id in range(device_count):
-                    if EnumDevice.AIRCON == device or EnumDevice.NEWAIRCON == device or EnumDevice.BATHROOM == device:
-                        dev = AirCon()
+                    if device in (
+                        EnumDevice.AIRCON,
+                        EnumDevice.NEWAIRCON,
+                        EnumDevice.BATHROOM,
+                    ):
+                        dev = AirCon(config)
                         room.air_con = dev
-                        dev.new_air_con = EnumDevice.NEWAIRCON == device
-                        dev.bath_room = EnumDevice.BATHROOM == device
-                    elif EnumDevice.GEOTHERMIC == device:
+                        dev.new_air_con = device == EnumDevice.NEWAIRCON
+                        dev.bath_room = device == EnumDevice.BATHROOM
+                    elif device == EnumDevice.GEOTHERMIC:
                         dev = Geothermic()
                         room.geothermic = dev
-                    elif EnumDevice.HD == device:
-                        dev = HD()
+                    elif device == EnumDevice.HD:
+                        dev = HD(config)
                         self.hds.append(dev)
                         room.hd_room = True
                         room.hd = dev
-                    elif EnumDevice.SENSOR == device:
+                    elif device == EnumDevice.SENSOR:
                         dev = Sensor()
                         self.sensors.append(dev)
                         room.sensor_room = True
-                    elif EnumDevice.VENTILATION == device or EnumDevice.SMALL_VAM == device:
-                        dev = Ventilation()
+                    elif device in (EnumDevice.VENTILATION, EnumDevice.SMALL_VAM):
+                        dev = Ventilation(config)
                         room.ventilation = dev
-                        dev.is_small_vam = EnumDevice.SMALL_VAM == device
+                        dev.is_small_vam = device == EnumDevice.SMALL_VAM
                     else:
                         dev = Device()
+                    dev.gateway_id = config.gateway_id
                     dev.room_id = room.id
                     dev.unit_id = unit_id
                     if ver_flag > 2:
@@ -465,16 +671,23 @@ class GetRoomInfoResult(BaseResult):
                             dev.alias = room.alias
             self.rooms.append(room)
 
-    def do(self):
-        from .service import Service
-        Service.set_rooms(self.rooms)
-        Service.send_msg(AirConRecommendedIndoorTempParam())
-        Service.set_sensors(self.sensors)
+    def do(self, service: Service) -> None:
+        service.set_rooms(self.rooms)
+        if not service._config.is_d611:
+            # DTA117D611 似乎不支持这个参数
+            service.send_msg(AirConRecommendedIndoorTempParam())
+        service.set_sensors(self.sensors)
+
+        # 设置 HD 设备
+        if self.hds:
+            service.set_hds(self.hds)
 
         aircons = []
         new_aircons = []
         bathrooms = []
-        for room in Service.get_rooms():
+        ventilations = []
+        small_vam = []
+        for room in service.get_rooms():
             if room.air_con is not None:
                 room.air_con.alias = room.alias
                 if room.air_con.new_air_con:
@@ -483,19 +696,38 @@ class GetRoomInfoResult(BaseResult):
                     bathrooms.append(room.air_con)
                 else:
                     aircons.append(room.air_con)
+            if room.ventilation is not None:
+                if room.ventilation.is_small_vam:
+                    small_vam.append(room.ventilation)
+                else:
+                    ventilations.append(room.ventilation)
 
         p = AirConCapabilityQueryParam()
         p.aircons = aircons
         p.target = EnumDevice.AIRCON
-        Service.send_msg(p)
+        service.send_msg(p)
         p = AirConCapabilityQueryParam()
         p.aircons = new_aircons
         p.target = EnumDevice.NEWAIRCON
-        Service.send_msg(p)
+        service.send_msg(p)
         p = AirConCapabilityQueryParam()
         p.aircons = bathrooms
         p.target = EnumDevice.BATHROOM
-        Service.send_msg(p)
+        service.send_msg(p)
+
+        # 始终发送新风设备能力查询
+        p = VentilationCapabilityQueryParam()
+        p.vents = ventilations
+        p.target = EnumDevice.VENTILATION
+        service.send_msg(p)
+
+        p = VentilationCapabilityQueryParam()
+        p.vents = small_vam
+        p.target = EnumDevice.SMALL_VAM
+        service.send_msg(p)
+        # 没有检测到HD设备，设置空列表以完成初始化
+        if not self.hds:
+            service.set_hds([])
 
     @property
     def count(self):
@@ -516,73 +748,78 @@ class GetRoomInfoResult(BaseResult):
 
 class QueryScheduleSettingResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_SETTING)
+        BaseResult.__init__(
+            self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_SETTING
+        )
 
-    def load_bytes(self, b):
-        """todo"""
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        """Todo"""
 
 
 class QueryScheduleIDResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_ID)
 
-    def load_bytes(self, b):
-        """todo"""
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        """Todo"""
 
 
 class HandShakeResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_HAND_SHAKE)
-        self._time: str = ''
+        self._time: str = ""
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         self._time = d.read_utf(14)
 
-    def do(self):
-        p = GetRoomInfoParam()
-        p.room_ids.append(0xffff)
-        from .service import Service
-        Service.send_msg(p)
-        Service.send_msg(Sensor2InfoParam())
+    def do(self, service: Service) -> None:
+        if service._config.is_d611:
+            p = GetRoomInfoParam(EnumCmdType.SYS_GET_ROOM_INFO_V1)
+        else:
+            p = GetRoomInfoParam(EnumCmdType.SYS_GET_ROOM_INFO)
+        p.room_ids.append(0xFFFF)
+
+        service.send_msg(p)
+        service.send_msg(Sensor2InfoParam())
 
 
 class GetGWInfoResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_HAND_SHAKE)
-        self._time: str = ''
+        self._time: str = ""
 
-    def load_bytes(self, b):
-        """todo"""
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        """Todo"""
 
-    def do(self):
-        """todo"""
+    def do(self, service: Service) -> None:
+        """Todo"""
 
 
 class CmdTransferResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_CMD_TRANSFER)
 
-    def load_bytes(self, b):
-        """todo"""
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        """Todo"""
 
 
 class QueryScheduleFinish(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_QUERY_SCHEDULE_FINISH)
 
-    def load_bytes(self, b):
-        """todo"""
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        """Todo"""
 
 
 class AirConStatusChangedResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.STATUS_CHANGED)
-        self._room = 0  # type: int
-        self._unit = 0  # type: int
-        self._status = AirConStatus()  # type: AirConStatus
+        self._room: int = 0
+        self._unit: int = 0
+        self._status: AirConStatus = AirConStatus()
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         self._room = d.read1()
         self._unit = d.read1()
@@ -598,15 +835,14 @@ class AirConStatusChangedResult(BaseResult):
             status.current_temp = d.read2()
         if flag & EnumControl.Type.SETTED_TEMP:
             status.setted_temp = d.read2()
-        if Config.is_new_version:
+        if config.is_new_version:
             if flag & EnumControl.Type.FAN_DIRECTION:
                 direction = d.read1()
                 status.fan_direction1 = EnumControl.FanDirection(direction & 0xF)
                 status.fan_direction2 = EnumControl.FanDirection((direction >> 4) & 0xF)
 
-    def do(self):
-        from .service import Service
-        Service.update_aircon(self.target, self._room, self._unit, status=self._status)
+    def do(self, service: Service) -> None:
+        service.update_aircon(self.target, self._room, self._unit, status=self._status)
 
 
 class AirConQueryStatusResult(BaseResult):
@@ -628,7 +864,7 @@ class AirConQueryStatusResult(BaseResult):
         self.fresh_air_humidification = FreshAirHumidification.OFF
         self.three_d_fresh = ThreeDFresh.CLOSE
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         self.room = d.read1()
         self.unit = d.read1()
@@ -639,7 +875,7 @@ class AirConQueryStatusResult(BaseResult):
             self.mode = EnumControl.Mode(d.read1())
         if flag >> 2 & 1:
             self.air_flow = EnumControl.AirFlow(d.read1())
-        if Config.is_c611:
+        if config.is_c611 or config.is_d611:
             if flag >> 3 & 1:
                 bt = d.read1()
                 self.hum_allow = bt & 8 == 8
@@ -648,11 +884,11 @@ class AirConQueryStatusResult(BaseResult):
 
             if flag >> 4 & 1:
                 self.setted_temp = d.read2()
-            if Config.is_new_version:
+            if config.is_new_version:
                 if flag >> 5 & 1:
                     b = d.read1()
-                    self.fan_direction1 = EnumControl.FanDirection(b & 0xf)
-                    self.fan_direction2 = EnumControl.FanDirection(b >> 4 & 0xf)
+                    self.fan_direction1 = EnumControl.FanDirection(b & 0xF)
+                    self.fan_direction2 = EnumControl.FanDirection(b >> 4 & 0xF)
                 if flag >> 6 & 1:
                     self.humidity = EnumControl.Humidity(d.read1())
                 if self.target == EnumDevice.BATHROOM:
@@ -666,32 +902,41 @@ class AirConQueryStatusResult(BaseResult):
                 self.current_temp = d.read2()
             if flag >> 4 & 1:
                 self.setted_temp = d.read2()
-            if Config.is_new_version:
+            if config.is_new_version:
                 if flag >> 5 & 1:
                     b = d.read1()
-                    self.fan_direction1 = EnumControl.FanDirection(b & 0xf)
-                    self.fan_direction2 = EnumControl.FanDirection(b >> 4 & 0xf)
+                    self.fan_direction1 = EnumControl.FanDirection(b & 0xF)
+                    self.fan_direction2 = EnumControl.FanDirection(b >> 4 & 0xF)
                 if self.target == EnumDevice.NEWAIRCON:
                     if flag >> 6 & 1:
                         self.humidity = EnumControl.Humidity(d.read1())
-                else:
-                    if flag >> 7 & 1:
-                        self.breathe = EnumControl.Breathe(d.read1())
+                elif flag >> 7 & 1:
+                    self.breathe = EnumControl.Breathe(d.read1())
 
-    def do(self):
-        from .service import Service
-        status = AirConStatus(self.current_temp, self.setted_temp, self.switch, self.air_flow, self.breathe,
-                              self.fan_direction1, self.fan_direction2, self.humidity, self.mode)
-        Service.set_aircon_status(self.target, self.room, self.unit, status)
+    def do(self, service: Service) -> None:
+        status = AirConStatus(
+            self.current_temp,
+            self.setted_temp,
+            self.switch,
+            self.air_flow,
+            self.breathe,
+            self.fan_direction1,
+            self.fan_direction2,
+            self.humidity,
+            self.mode,
+        )
+        service.set_aircon_status(self.target, self.room, self.unit, status)
 
 
 class AirConRecommendedIndoorTempResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.AIR_RECOMMENDED_INDOOR_TEMP)
+        BaseResult.__init__(
+            self, cmd_id, target, EnumCmdType.AIR_RECOMMENDED_INDOOR_TEMP
+        )
         self._temp: int = 0
         self._outdoor_temp: int = 0
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         self._temp = d.read2()
         self._outdoor_temp = d.read2()
@@ -708,16 +953,16 @@ class AirConRecommendedIndoorTempResult(BaseResult):
 class AirConCapabilityQueryResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.AIR_CAPABILITY_QUERY)
-        self._air_cons: typing.List[AirCon] = []
+        self._air_cons: list[AirCon] = []
 
-    def load_bytes(self, b):
+    def load_bytes(self, b: bytes, config: Config) -> None:
         d = Decode(b)
         room_size = d.read1()
-        for i in range(room_size):
+        for _i in range(room_size):
             room_id = d.read1()
             unit_size = d.read1()
-            for j in range(unit_size):
-                aircon = AirCon()
+            for _j in range(unit_size):
+                aircon = AirCon(config)
                 aircon.unit_id = d.read1()
                 aircon.room_id = room_id
                 aircon.new_air_con = self.target == EnumDevice.NEWAIRCON
@@ -729,7 +974,7 @@ class AirConCapabilityQueryResult(BaseResult):
                 aircon.heat_mode = flag >> 2 & 1
                 aircon.cool_mode = flag >> 1 & 1
                 aircon.ventilation_mode = flag & 1
-                if Config.is_new_version:
+                if config.is_new_version:
                     flag = d.read1()
                     if flag & 1:
                         aircon.fan_direction1 = EnumFanDirection.STEP_5
@@ -758,20 +1003,20 @@ class AirConCapabilityQueryResult(BaseResult):
                     d.read1()
                 self._air_cons.append(aircon)
 
-    def do(self):
-        from .service import Service
-        if Service.is_ready():
+    def do(self, service: Service) -> None:
+        if service.is_ready():
             if len(self._air_cons):
                 for i in self._air_cons:
-                    Service.update_aircon(get_device_by_aircon(i), i.room_id, i.unit_id, aircon=i)
+                    service.update_aircon(
+                        get_device_by_aircon(i), i.room_id, i.unit_id, aircon=i
+                    )
         else:
             for i in self._air_cons:
                 p = AirConQueryStatusParam()
                 p.target = self.target
                 p.device = i
-                from .service import Service
-                Service.send_msg(p)
-            Service.set_device(self.target, self._air_cons)
+                service.send_msg(p)
+            service.set_device(self.target, self._air_cons)
 
     @property
     def aircons(self):
@@ -782,18 +1027,324 @@ class AirConQueryScenarioSettingResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.QUERY_SCENARIO_SETTING)
 
-    def load_bytes(self, b):
-        """todo"""
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        """Todo"""
 
 
 class UnknownResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice, cmd_type: EnumCmdType):
         BaseResult.__init__(self, cmd_id, target, cmd_type)
-        self._subbody = ''
+        self._subbody = ""
 
-    def load_bytes(self, b):
-        self._subbody = struct.pack('<' + str(len(b)) + 's', b).hex()
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        self._subbody = struct.pack("<" + str(len(b)) + "s", b).hex()
 
     @property
     def subbody(self):
         return self._subbody
+
+
+# 新风相关的 Result 类
+
+
+class VentilationStatusChangedResult(BaseResult):
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.STATUS_CHANGED)
+        self._room: int = 0
+        self._unit: int = 0
+        self._status: VentilationStatus = VentilationStatus()
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        self._room = d.read1()
+        self._unit = d.read1()
+        status = self._status
+        flag = d.read1()
+        if flag & EnumControl.Type.SWITCH:
+            status.switch = EnumControl.Switch(d.read1())
+        if flag & EnumControl.Type.MODE:
+            status.mode = EnumControl.Mode(d.read1())
+        if flag & EnumControl.Type.AIR_FLOW:
+            status.air_flow = EnumControl.AirFlow(d.read1())
+
+    def do(self, service: Service) -> None:
+        service.update_ventilation(self._room, self._unit, status=self._status)
+
+
+class VentilationCapabilityQueryResult(BaseResult):
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.VENT_QUERY_CAPABILITY)
+        self._vents: list[Ventilation] = []
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        room_size = d.read1()
+        for _i in range(room_size):
+            room_id = d.read1()
+            unit_size = d.read1()
+            for _j in range(unit_size):
+                vent = Ventilation(config)
+                vent.room_id = room_id
+                vent.unit_id = d.read1()
+                vent.is_small_vam = self.target == EnumDevice.SMALL_VAM
+                vent.capability = d.read1()
+                self._vents.append(vent)
+
+    def do(self, service: Service) -> None:
+        if service.is_ready():
+            if len(self._vents):
+                for i in self._vents:
+                    service.update_ventilation(
+                        i.room_id, i.unit_id, vent=i
+                    )
+        else:
+            for i in self._vents:
+                p = VentilationQueryStatusParam()
+                p.target = self.target
+                p.device = i
+                service.send_msg(p)
+                if i.is_small_vam:
+                    p = VentilationQueryCompositeSituationParam()
+                    p.target = self.target
+                    p.device = i
+                    service.send_msg(p)
+            service.set_device(self.target, self._vents)
+
+
+class VentilationQueryStatusResult(BaseResult):
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.QUERY_STATUS)
+        self._room: int = 0
+        self._unit: int = 0
+        self._status: VentilationStatus = VentilationStatus()
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        self._room = d.read1()
+        self._unit = d.read1()
+        status = self._status
+        flag = d.read1()
+        if flag & EnumControl.Type.SWITCH:
+            status.switch = EnumControl.Switch(d.read1())
+        if flag & EnumControl.Type.MODE:
+            status.mode = EnumControl.Mode(d.read1())
+        if flag & EnumControl.Type.AIR_FLOW:
+            status.air_flow = EnumControl.AirFlow(d.read1())
+
+    def do(self, service: Service) -> None:
+        service.set_ventilation_status(self._room, self._unit, self._status)
+
+
+class VentilationQueryCompositeSituationResult(BaseResult):
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        BaseResult.__init__(
+            self, cmd_id, target, EnumCmdType.SMALL_VAM_QUERY_COMPOSITE_SITUATION
+        )
+        self._room: int = 0
+        self._unit: int = 0
+        self._in_door_temp: int = UNINITIALIZED_VALUE
+        self._out_door_temp: int = UNINITIALIZED_VALUE
+        self._out_door_humidity: int = UNINITIALIZED_VALUE
+        self._pm25: int = UNINITIALIZED_VALUE
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        if config.is_d611:
+            status = _parse_d611_vam_composite_status(b)
+            if status is not None:
+                self._room = b[0]
+                self._unit = b[1]
+                self._in_door_temp = status.in_door_temp
+                self._out_door_temp = status.out_door_temp
+                self._out_door_humidity = status.out_door_humidity
+                self._pm25 = status.pm25
+                return
+
+        if len(b) < 2:
+            return
+
+        self._room = b[0]
+        self._unit = b[1]
+        parsed = _parse_tlv_items(b, 2)
+        if parsed is None:
+            return
+
+        items, _end = parsed
+        if 1 in items:
+            self._in_door_temp = items[1]
+        if 2 in items:
+            self._out_door_humidity = items[2]
+        if 3 in items:
+            self._out_door_temp = items[3]
+        if 4 in items:
+            self._pm25 = items[4]
+
+    def do(self, service: Service) -> None:
+        status = VentilationStatus(
+            in_door_temp=self._in_door_temp,
+            out_door_temp=self._out_door_temp,
+            out_door_humidity=self._out_door_humidity,
+            pm25=self._pm25,
+        )
+        service.set_ventilation_status(self._room, self._unit, status)
+
+
+# HD 相关的 Result 类
+
+
+class HDInfoChangeResult(BaseResult):
+    """HD设备状态变化结果"""
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.NEW_HD_STATE_UPDATE)
+        self._room: int = 0
+        self._unit: int = 0
+        self._status: HDStatus = HDStatus()
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        self._room = d.read1()
+        self._unit = d.read1()
+        d.read1()  # skip another byte
+
+        # 读取第一个标志字节
+        flag_byte = d.read1()
+
+        while flag_byte != 0:
+            field_length = d.read1()
+
+            if flag_byte == 1:  # muteEnable
+                if field_length == 1:
+                    mute_enable_value = d.read1()
+                    self._status.mute_enable = EnumControl.Switch(mute_enable_value)
+                else:
+                    d.read(field_length)
+
+            elif flag_byte == 2:  # 温度设置相关字段
+                if field_length == 9:
+                    temperature_set = d.read1()
+                    cold_upper_value = d.read2() / 10.0
+                    cold_lower_value = d.read2() / 10.0
+                    warm_upper_value = d.read2() / 10.0
+                    warm_lower_value = d.read2() / 10.0
+
+                    self._status.temperature_set = temperature_set
+                    self._status.cold_upper = cold_upper_value
+                    self._status.cold_lower = cold_lower_value
+                    self._status.warm_upper = warm_upper_value
+                    self._status.warm_lower = warm_lower_value
+                else:
+                    d.read(field_length)
+
+            elif flag_byte == 33:  # switchStatus
+                if field_length == 1:
+                    switch_value = d.read1()
+                    self._status.switch = EnumControl.Switch(switch_value)
+                else:
+                    d.read(field_length)
+
+            elif flag_byte == 34:  # mute
+                if field_length == 1:
+                    mute_value = d.read1()
+                    self._status.mute = EnumControl.Switch(mute_value)
+                else:
+                    d.read(field_length)
+
+            elif flag_byte == 35:  # warmTemperature
+                if field_length == 2:
+                    warm_temp_value = d.read2() / 10.0
+                    self._status.warm_temperature = warm_temp_value
+                else:
+                    d.read(field_length)
+
+            elif flag_byte == 36:  # coldTemperature
+                if field_length == 2:
+                    cold_temp_value = d.read2() / 10.0
+                    self._status.cold_temperature = cold_temp_value
+                else:
+                    d.read(field_length)
+
+            else:
+                d.read(field_length)
+
+            flag_byte = d.read1()
+
+    def do(self, service: Service) -> None:
+        service.update_hd(self._room, self._unit, status=self._status)
+
+
+class HDQueryStatusResult(BaseResult):
+    """HD设备状态查询结果，旧版主动查询，只能返回开关状态"""
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.QUERY_STATUS)
+        self._room: int = 0
+        self._unit: int = 0
+        self._status: HDStatus = HDStatus()
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        self._room = d.read1()
+        self._unit = d.read1()
+
+        # 解析状态标志位
+        flag = d.read1()
+
+        if flag & EnumControl.Type.SWITCH:
+            switch_value = d.read1()
+            self._status.switch = EnumControl.Switch(switch_value)
+
+    def do(self, service: Service) -> None:
+        service.set_hd_status(self._room, self._unit, self._status)
+
+
+class HDStatusChangeResult(BaseResult):
+    """HD设备状态变化通知（旧版），目前已废弃，只做处理和解析，没有动作"""
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.STATUS_CHANGED)
+        self._room: int = 0
+        self._unit: int = 0
+        self._status: HDStatus = HDStatus()
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        self._room = d.read1()
+        self._unit = d.read1()
+
+        # 解析状态标志位
+        flag = d.read1()
+
+        if flag & EnumControl.Type.SWITCH:
+            switch_value = d.read1()
+            self._status.switch = EnumControl.Switch(switch_value)
+
+
+class HDControlOtherResult(BaseResult):
+    """HD其他控制结果，如夜间节能模式"""
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.NEW_HD_NIGHT_ENERGY_SETTING)
+        self._room: int = 0
+        self._unit: int = 0
+        self._status: HDStatus = HDStatus()
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        self._room = d.read1()
+        self._unit = d.read1()
+
+        # 读取第一个标志字节
+        flag_byte = d.read1()
+
+        while flag_byte != 0:
+            field_length = d.read1()
+
+            if flag_byte == 51:  # night_energy_switch
+                if field_length == 1:
+                    night_energy_switch_value = d.read1()
+                    self._status.night_energy_switch = EnumControl.Switch(night_energy_switch_value)
+                else:
+                    d.read(field_length)
+            else:
+                d.read(field_length)
+
+            flag_byte = d.read1()
+
+    def do(self, service: Service) -> None:
+        service.update_hd(self._room, self._unit, status=self._status)
