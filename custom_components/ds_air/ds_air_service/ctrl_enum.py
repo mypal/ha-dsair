@@ -245,6 +245,7 @@ class EnumControl:
         STRONG = 3
         SUPER_STRONG = 4
         AUTO = 5
+        SILENCE = 6
 
     class Breathe(IntEnum):
         CLOSE = 0
