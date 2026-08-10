@@ -8,11 +8,10 @@ from homeassistant.components.sensor import (
     SensorStateClass,
 )
 from homeassistant.const import (
-    CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
-    CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
-    CONCENTRATION_PARTS_PER_MILLION,
     MAJOR_VERSION,
     PERCENTAGE,
+    UnitOfDensity,
+    UnitOfRatio,
     UnitOfTemperature,
 )
 
@@ -44,18 +43,18 @@ SENSOR_DESCRIPTORS = {
     ),
     "pm25": DsSensorEntityDescription(
         key="pm25",
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
         device_class=SensorDeviceClass.PM25,
     ),
     "co2": DsSensorEntityDescription(
         key="co2",
-        native_unit_of_measurement=CONCENTRATION_PARTS_PER_MILLION,
+        native_unit_of_measurement=UnitOfRatio.PARTS_PER_MILLION,
         device_class=SensorDeviceClass.CO2,
     ),
     "tvoc": DsSensorEntityDescription(
         key="tvoc",
         name="TVOC",
-        native_unit_of_measurement=CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=UnitOfDensity.MICROGRAMS_PER_CUBIC_METER,
         device_class=SensorDeviceClass.VOLATILE_ORGANIC_COMPOUNDS,
         suggested_display_precision=0,
         value_fn=lambda x: x * 10,
@@ -71,7 +70,7 @@ SENSOR_DESCRIPTORS = {
     "hcho": DsSensorEntityDescription(
         key="hcho",
         name="HCHO",
-        native_unit_of_measurement=CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
+        native_unit_of_measurement=UnitOfDensity.MILLIGRAMS_PER_CUBIC_METER,
         value_fn=lambda x: x / 100,
     ),
 }

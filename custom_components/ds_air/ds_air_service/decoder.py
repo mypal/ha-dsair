@@ -430,10 +430,11 @@ class Sensor2InfoResult(BaseResult):
             sensor.pm25 = pm25
             sensor.co2 = co2
             sensor.voc = voc
-            if self._sensor_type == 3:
-                sensor.tvoc = tvoc
-                sensor.hcho = hcho
+            sensor.tvoc = tvoc
+            sensor.hcho = hcho
+            if tvoc != UNINITIALIZED_VALUE:
                 sensor.tvoc_upper = tvoc_upper
+            if hcho != UNINITIALIZED_VALUE:
                 sensor.hcho_upper = hcho_upper
             sensor.switch_on_off = switch_on_off
             sensor.temp_upper = temp_upper
