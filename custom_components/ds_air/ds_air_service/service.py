@@ -77,7 +77,10 @@ class SocketClient:
             self._recv_thread.terminate()
             self._recv_thread = None
         if self._s is not None:
-            self._s.close()
+            try:
+                self._s.close()
+            except OSError:
+                pass
             self._s = None
 
     def _raise_if_expired(self, deadline: float | None, action: str) -> None:
@@ -103,7 +106,10 @@ class SocketClient:
         except OSError as exc:
             _log("connected error")
             _log(str(exc))
-            self._s.close()
+            try:
+                self._s.close()
+            except OSError:
+                pass
             self._s = None
             return False
         else:
@@ -218,7 +224,10 @@ class HeartBeatThread(Thread):
             return
         cnt = 0
         while self._running:
-            self.service.send_msg(HeartbeatParam())
+            try:
+                self.service.send_msg(HeartbeatParam())
+            except Exception as exc:
+                _log(f"heartbeat send failed (ignored, will retry): {exc}")
             cnt += 1
             if cnt == self.service.get_scan_interval():
                 _log("poll_status")
