@@ -330,7 +330,7 @@ class BathroomFan(FanEntity):
         new_status = AirConStatus()
         
         # 使用传入的 percentage 参数，默认低速
-        percentage = kwargs.get("percentage", 50)
+        percentage = kwargs.get("percentage") or 50
         if percentage > 50:
             breathe = EnumControl.Breathe.STRONG
         else:
