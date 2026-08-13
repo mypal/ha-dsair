@@ -715,6 +715,9 @@ class GetRoomInfoResult(BaseResult):
         p.target = EnumDevice.BATHROOM
         service.send_msg(p)
 
+        # 注册浴室空调设备
+        service.set_device(EnumDevice.BATHROOM, bathrooms)
+
         # 始终发送新风设备能力查询
         p = VentilationCapabilityQueryParam()
         p.vents = ventilations
