@@ -257,6 +257,17 @@ class AirConControlParam(AirconParam):
                     if status.humidity is not None:
                         flag = flag | EnumControl.Type.HUMIDITY
                         li.append((1, status.humidity))
+            else:
+                # BATHROOM 设备：breathe 占 bit 7
+                if status.breathe is not None:
+                    flag = flag | EnumControl.Type.BREATHE
+                    li.append((1, status.breathe.value))
+        else:
+            # 非 new_version：只有 BATHROOM 设备发 breathe
+            if self.target == EnumDevice.BATHROOM:
+                if status.breathe is not None:
+                    flag = flag | EnumControl.Type.BREATHE
+                    li.append((1, status.breathe.value))
         s.write1(flag)
         for bit, val in li:
             if bit == 1:

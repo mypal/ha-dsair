@@ -277,6 +277,8 @@ class BathroomFan(FanEntity):
                 status.air_flow = new_status.air_flow
             if new_status.mode is not None:
                 status.mode = new_status.mode
+            if new_status.breathe is not None:
+                status.breathe = new_status.breathe
 
         self.schedule_update_ha_state()
 
@@ -316,10 +318,6 @@ class BathroomFan(FanEntity):
             breathe = EnumControl.Breathe.WEAK
         else:
             breathe = aircon.status.breathe
-
-        if percentage > 0 and aircon.status.switch != EnumControl.Switch.ON:
-            new_status.switch = EnumControl.Switch.ON
-            aircon.status.switch = EnumControl.Switch.ON
 
         aircon.status.breathe = breathe
         new_status.breathe = breathe

@@ -477,6 +477,12 @@ class Service:
             p.target = EnumDevice.NEWAIRCON
             p.device = i
             self.send_msg(p)
+        if self._bathrooms is not None:
+            for i in self._bathrooms:
+                p = AirConQueryStatusParam()
+                p.target = EnumDevice.BATHROOM
+                p.device = i
+                self.send_msg(p)
         if self._ventilations is not None:
             for v in self._ventilations:
                 p = VentilationQueryStatusParam()
