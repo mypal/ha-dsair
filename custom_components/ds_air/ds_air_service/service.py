@@ -364,6 +364,12 @@ class Service:
             return []
         return self._hds
 
+    def get_bathrooms(self) -> list[AirCon]:
+        """获取所有浴室空调设备"""
+        if self._bathrooms is None:
+            return []
+        return self._bathrooms
+
     def control(self, aircon: AirCon, status: AirConStatus):
         p = AirConControlParam(aircon, status)
         self.send_msg(p)
