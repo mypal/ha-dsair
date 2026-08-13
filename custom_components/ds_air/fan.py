@@ -11,12 +11,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
 
-from homeassistant.components.climate import (
-    FAN_AUTO,
-    FAN_HIGH,
-    FAN_LOW,
-    FAN_MEDIUM,
-)
 from .const import DOMAIN
 from .ds_air_service import (
     AirCon,
@@ -55,8 +49,8 @@ if (MAJOR_VERSION, MINOR_VERSION) >= (2024, 8):
 _MODE_VENT_NAME_LIST_SMALL_VAM = ["内循环", "热交换", "自动", "防污染", "排异味"]
 _MODE_VENT_NAME_LIST_STANDARD_VAM = ["旁通", "热交换", "自动"]
 
-# 浴室排风扇风速名称列表
-BATHROOM_FAN_SPEED_LIST = [FAN_LOW, FAN_MEDIUM, FAN_HIGH, FAN_AUTO]
+# 浴室排风扇风速名称列表（APP 金制空气只有两个挡位：低/高）
+BATHROOM_FAN_SPEED_LIST = ["低", "高"]
 
 
 async def async_setup_entry(
@@ -254,9 +248,9 @@ class BathroomFan(FanEntity):
         self._device_info = aircon
         self._unique_id = f"{aircon.unique_id}_exhaust_fan"
         self._service = service
-        self._attr_name = f"排风扇 {aircon.alias}"
+        self._attr_name = f"换气 {aircon.alias}"
         self._attr_supported_features = BATHROOM_FAN_SUPPORT
-        self._attr_speed_count = len(BATHROOM_FAN_SPEED_LIST) - 1
+        self._attr_speed_count = 2  # 两个挡位：低/高
 
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, aircon.unique_id)},
@@ -294,24 +288,20 @@ class BathroomFan(FanEntity):
     @property
     def is_on(self) -> bool | None:
         """Return true if device is on."""
-        if self._device_info.status.switch is None:
+        if self._device_info.status.breathe is None:
             return None
-        return self._device_info.status.switch == EnumControl.Switch.ON
+        return self._device_info.status.breathe != EnumControl.Breathe.CLOSE
 
     @property
     def percentage(self) -> int | None:
         """Return the current speed percentage."""
-        if self._device_info.status.air_flow is None:
+        if self._device_info.status.breathe is None:
             return None
-        air_flow = self._device_info.status.air_flow
-        if air_flow == EnumControl.AirFlow.WEAK:
-            return 33
-        elif air_flow == EnumControl.AirFlow.MIDDLE:
-            return 66
-        elif air_flow == EnumControl.AirFlow.STRONG:
-            return 100
-        elif air_flow == EnumControl.AirFlow.AUTO:
-            return 100
+        breathe = self._device_info.status.breathe
+        if breathe == EnumControl.Breathe.WEAK:
+            return 50  # 低
+        elif breathe == EnumControl.Breathe.STRONG:
+            return 100  # 高
         return None
 
     def set_percentage(self, percentage: int) -> None:
@@ -319,23 +309,20 @@ class BathroomFan(FanEntity):
         aircon = self._device_info
         new_status = AirConStatus()
 
-        if percentage > 66:
-            air_flow = EnumControl.AirFlow.STRONG
-        elif percentage > 33:
-            air_flow = EnumControl.AirFlow.MIDDLE
+        # 两个挡位：低 (50%) = WEAK, 高 (100%) = STRONG
+        if percentage > 50:
+            breathe = EnumControl.Breathe.STRONG
         elif percentage > 0:
-            air_flow = EnumControl.AirFlow.WEAK
+            breathe = EnumControl.Breathe.WEAK
         else:
-            air_flow = aircon.status.air_flow
+            breathe = aircon.status.breathe
 
         if percentage > 0 and aircon.status.switch != EnumControl.Switch.ON:
             new_status.switch = EnumControl.Switch.ON
             aircon.status.switch = EnumControl.Switch.ON
 
-        aircon.status.air_flow = air_flow
-        new_status.air_flow = air_flow
-        new_status.mode = EnumControl.Mode.VENTILATION
-        aircon.status.mode = EnumControl.Mode.VENTILATION
+        aircon.status.breathe = breathe
+        new_status.breathe = breathe
         self._service.control(aircon, new_status)
         self.schedule_update_ha_state()
 
@@ -343,12 +330,16 @@ class BathroomFan(FanEntity):
         """Turn on the fan."""
         aircon = self._device_info
         new_status = AirConStatus()
-        new_status.switch = EnumControl.Switch.ON
-        new_status.mode = EnumControl.Mode.VENTILATION
-        new_status.air_flow = EnumControl.AirFlow.MIDDLE
-        aircon.status.switch = EnumControl.Switch.ON
-        aircon.status.mode = EnumControl.Mode.VENTILATION
-        aircon.status.air_flow = EnumControl.AirFlow.MIDDLE
+        
+        # 使用传入的 percentage 参数，默认低速
+        percentage = kwargs.get("percentage", 50)
+        if percentage > 50:
+            breathe = EnumControl.Breathe.STRONG
+        else:
+            breathe = EnumControl.Breathe.WEAK
+        
+        new_status.breathe = breathe
+        aircon.status.breathe = breathe
         self._service.control(aircon, new_status)
         self.schedule_update_ha_state()
 
@@ -356,7 +347,7 @@ class BathroomFan(FanEntity):
         """Turn the fan off."""
         aircon = self._device_info
         new_status = AirConStatus()
-        new_status.switch = EnumControl.Switch.OFF
-        aircon.status.switch = EnumControl.Switch.OFF
+        new_status.breathe = EnumControl.Breathe.CLOSE
+        aircon.status.breathe = EnumControl.Breathe.CLOSE
         self._service.control(aircon, new_status)
         self.schedule_update_ha_state()
