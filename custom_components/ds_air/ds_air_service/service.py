@@ -293,38 +293,11 @@ class Service:
                     time.sleep(1)
                 else:
                     time.sleep(min(1, max(0.0, deadline - time.monotonic())))
-            for i in self._aircons:
-                for j in self._rooms:
-                    if i.room_id == j.id:
-                        i.alias = j.alias
-                        if i.unit_id:
-                            i.alias += str(i.unit_id)
-            for i in self._new_aircons:
-                for j in self._rooms:
-                    if i.room_id == j.id:
-                        i.alias = j.alias
-                        if i.unit_id:
-                            i.alias += str(i.unit_id)
-            for i in self._bathrooms:
-                for j in self._rooms:
-                    if i.room_id == j.id:
-                        i.alias = j.alias
-                        if i.unit_id:
-                            i.alias += str(i.unit_id)
-            if self._ventilations is not None:
-                for i in self._ventilations:
-                    for j in self._rooms:
-                        if i.room_id == j.id:
-                            i.alias = j.alias
-                            if i.unit_id:
-                                i.alias += str(i.unit_id)
-            if self._hds is not None:
-                for i in self._hds:
-                    for j in self._rooms:
-                        if i.room_id == j.id:
-                            i.alias = j.alias
-                            if i.unit_id:
-                                i.alias += str(i.unit_id)
+            self._assign_aliases(self._aircons)
+            self._assign_aliases(self._new_aircons)
+            self._assign_aliases(self._bathrooms)
+            self._assign_aliases(self._ventilations)
+            self._assign_aliases(self._hds)
             self._ready = True
         except Exception:
             self.destroy()
@@ -351,6 +324,18 @@ class Service:
         self._sensors = []
         self._ready = False
         self._config = None
+
+    def _assign_aliases(self, devices) -> None:
+        """为设备列表中的每个设备分配房间别名。"""
+        if devices is None:
+            return
+        for dev in devices:
+            for room in self._rooms:
+                if dev.room_id == room.id:
+                    dev.alias = room.alias
+                    if dev.unit_id:
+                        dev.alias += str(dev.unit_id)
+                    break
 
     def get_aircons(self) -> list[AirCon]:
         aircons = []

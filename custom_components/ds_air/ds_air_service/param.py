@@ -47,6 +47,7 @@ class Encode:
     def writes(self, d):
         self._fmt += str(len(d)) + "s"
         self._len += len(d)
+        self._list.append(d)
 
     def pack(self, rewrite_length: bool = True) -> bytes:
         if rewrite_length:
