@@ -182,42 +182,49 @@ class Decode:
         self._b = b
         self._pos = 0
 
+    def _check(self, n: int):
+        if self._pos + n > len(self._b):
+            raise BufferError(
+                f"Decode underflow: need {n} bytes at pos {self._pos}, "
+                f"buffer has {len(self._b)}"
+            )
+
     def read1(self):
+        self._check(1)
         pos = self._pos
         s = struct.unpack("<B", self._b[pos : pos + 1])[0]
-        pos += 1
-        self._pos = pos
+        self._pos = pos + 1
         return s
 
     def read2(self):
+        self._check(2)
         pos = self._pos
         s = struct.unpack("<H", self._b[pos : pos + 2])[0]
-        pos += 2
-        self._pos = pos
+        self._pos = pos + 2
         return s
 
     def read4(self):
+        self._check(4)
         pos = self._pos
         s = struct.unpack("<I", self._b[pos : pos + 4])[0]
-        pos += 4
-        self._pos = pos
+        self._pos = pos + 4
         return s
 
     def read(self, length: int):
+        self._check(length)
         pos = self._pos
         s = self._b[pos : pos + length]
-        pos += length
-        self._pos = pos
+        self._pos = pos + length
         return s
 
     def read_utf(self, length: int):
+        self._check(length)
         pos = self._pos
         try:
             s = self._b[pos : pos + length].decode("utf-8")
         except UnicodeDecodeError:
             s = None
-        pos += length
-        self._pos = pos
+        self._pos = pos + length
         return s
 
 
@@ -714,6 +721,9 @@ class GetRoomInfoResult(BaseResult):
         p.aircons = bathrooms
         p.target = EnumDevice.BATHROOM
         service.send_msg(p)
+
+        # 注册浴室空调设备
+        service.set_device(EnumDevice.BATHROOM, bathrooms)
 
         # 始终发送新风设备能力查询
         p = VentilationCapabilityQueryParam()

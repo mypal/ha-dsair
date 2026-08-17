@@ -77,7 +77,10 @@ class SocketClient:
             self._recv_thread.terminate()
             self._recv_thread = None
         if self._s is not None:
-            self._s.close()
+            try:
+                self._s.close()
+            except OSError:
+                pass
             self._s = None
 
     def _raise_if_expired(self, deadline: float | None, action: str) -> None:
@@ -103,7 +106,10 @@ class SocketClient:
         except OSError as exc:
             _log("connected error")
             _log(str(exc))
-            self._s.close()
+            try:
+                self._s.close()
+            except OSError:
+                pass
             self._s = None
             return False
         else:
@@ -218,7 +224,10 @@ class HeartBeatThread(Thread):
             return
         cnt = 0
         while self._running:
-            self.service.send_msg(HeartbeatParam())
+            try:
+                self.service.send_msg(HeartbeatParam())
+            except Exception as exc:
+                _log(f"heartbeat send failed (ignored, will retry): {exc}")
             cnt += 1
             if cnt == self.service.get_scan_interval():
                 _log("poll_status")
@@ -284,38 +293,11 @@ class Service:
                     time.sleep(1)
                 else:
                     time.sleep(min(1, max(0.0, deadline - time.monotonic())))
-            for i in self._aircons:
-                for j in self._rooms:
-                    if i.room_id == j.id:
-                        i.alias = j.alias
-                        if i.unit_id:
-                            i.alias += str(i.unit_id)
-            for i in self._new_aircons:
-                for j in self._rooms:
-                    if i.room_id == j.id:
-                        i.alias = j.alias
-                        if i.unit_id:
-                            i.alias += str(i.unit_id)
-            for i in self._bathrooms:
-                for j in self._rooms:
-                    if i.room_id == j.id:
-                        i.alias = j.alias
-                        if i.unit_id:
-                            i.alias += str(i.unit_id)
-            if self._ventilations is not None:
-                for i in self._ventilations:
-                    for j in self._rooms:
-                        if i.room_id == j.id:
-                            i.alias = j.alias
-                            if i.unit_id:
-                                i.alias += str(i.unit_id)
-            if self._hds is not None:
-                for i in self._hds:
-                    for j in self._rooms:
-                        if i.room_id == j.id:
-                            i.alias = j.alias
-                            if i.unit_id:
-                                i.alias += str(i.unit_id)
+            self._assign_aliases(self._aircons)
+            self._assign_aliases(self._new_aircons)
+            self._assign_aliases(self._bathrooms)
+            self._assign_aliases(self._ventilations)
+            self._assign_aliases(self._hds)
             self._ready = True
         except Exception:
             self.destroy()
@@ -343,6 +325,18 @@ class Service:
         self._ready = False
         self._config = None
 
+    def _assign_aliases(self, devices) -> None:
+        """为设备列表中的每个设备分配房间别名。"""
+        if devices is None:
+            return
+        for dev in devices:
+            for room in self._rooms:
+                if dev.room_id == room.id:
+                    dev.alias = room.alias
+                    if dev.unit_id:
+                        dev.alias += str(dev.unit_id)
+                    break
+
     def get_aircons(self) -> list[AirCon]:
         aircons = []
         if self._new_aircons is not None:
@@ -363,6 +357,12 @@ class Service:
         if self._hds is None:
             return []
         return self._hds
+
+    def get_bathrooms(self) -> list[AirCon]:
+        """获取所有浴室空调设备"""
+        if self._bathrooms is None:
+            return []
+        return self._bathrooms
 
     def control(self, aircon: AirCon, status: AirConStatus):
         p = AirConControlParam(aircon, status)
@@ -471,6 +471,12 @@ class Service:
             p.target = EnumDevice.NEWAIRCON
             p.device = i
             self.send_msg(p)
+        if self._bathrooms is not None:
+            for i in self._bathrooms:
+                p = AirConQueryStatusParam()
+                p.target = EnumDevice.BATHROOM
+                p.device = i
+                self.send_msg(p)
         if self._ventilations is not None:
             for v in self._ventilations:
                 p = VentilationQueryStatusParam()

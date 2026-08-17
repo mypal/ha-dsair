@@ -99,7 +99,7 @@ class DsVentSensor(SensorEntity):
         sensor_info = SMALL_VAM_SENSOR_TYPES.get(data_key)
         self._attr_has_entity_name = True
         self._attr_translation_key = sensor_info[1] if sensor_info else data_key
-        self._attr_unit_of_measurement = sensor_info[0] if sensor_info else None
+        self._attr_native_unit_of_measurement = sensor_info[0] if sensor_info else None
         self._attr_device_class = sensor_info[2] if sensor_info else None
 
         self._attr_device_info = DeviceInfo(

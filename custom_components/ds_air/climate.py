@@ -47,6 +47,7 @@ from .const import (
     get_mode_name,
 )
 from .ds_air_service import AirCon, AirConStatus, EnumControl, Service, display
+from .ds_air_service.ctrl_enum import EnumFanVolume
 from .ds_air_service.dao import build_aircon_device_name
 
 _SUPPORT_FLAGS = (
@@ -151,11 +152,27 @@ class DsAir(ClimateEntity):
             via_device=(DOMAIN, aircon.gateway_id),
         )
         if not self._device_info.config.is_d611:
-            self._attr_fan_modes = [
-                mode
-                for idx, mode in enumerate(AIR_FLOW_NAME_LIST)
-                if idx != EnumControl.AirFlow.SILENCE
-            ]
+            # 根据 fan_volume 能力过滤可用风速
+            fan_volume = aircon.fan_volume
+            if fan_volume == EnumFanVolume.STEP_2:
+                # 2挡：低/高
+                self._attr_fan_modes = ["low", "high"]
+            elif fan_volume == EnumFanVolume.STEP_3:
+                # 3挡：低/中/高
+                self._attr_fan_modes = ["low", "medium", "high"]
+            elif fan_volume == EnumFanVolume.STEP_4:
+                # 4挡：低/稍弱/稍强/高
+                self._attr_fan_modes = ["low", "稍弱", "稍强", "high"]
+            elif fan_volume in (EnumFanVolume.STEP_5, EnumFanVolume.STEPLESS):
+                # 5挡或无级：全部
+                self._attr_fan_modes = [
+                    mode
+                    for idx, mode in enumerate(AIR_FLOW_NAME_LIST)
+                    if idx != EnumControl.AirFlow.SILENCE
+                ]
+            else:
+                # FIX 或 NO：不支持调速
+                self._attr_fan_modes = []
 
     async def async_added_to_hass(self) -> None:
         if self.linked_temp_entity_id:
