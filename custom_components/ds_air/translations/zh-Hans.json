@@ -3,7 +3,14 @@
     "step": {
       "user": {
         "title": "金制空气",
-        "description": "本插件支持大金DTA117B611/DTA117C611两款空调网关",
+        "menu_options": {
+          "local": "本地网关",
+          "cloud": "金制空气云端 API"
+        }
+      },
+      "local": {
+        "title": "本地网关",
+        "description": "支持大金金制空气网关（B611/C611/D611）与金制智联 Smart Mesh 系统",
         "data": {
           "host": "网关IP",
           "port": "网关端口",
@@ -18,12 +25,25 @@
           "voc": "创建voc实体",
           "hcho": "创建hcho实体"
         }
+      },
+      "cloud": {
+        "title": "金制空气云端 API",
+        "description": "直接通过金制空气 App 账号发现并控制云端空调，不需要本地网关。",
+        "data": {
+          "cloud_username": "金制空气手机号 / 账号",
+          "cloud_password": "登录密码"
+        }
       }
     },
     "error": {
+      "cannot_connect": "无法连接，请检查网络和服务器状态",
+      "invalid_auth": "账号或密码错误，请检查输入",
+      "no_homes": "云端账号下没有家庭",
+      "no_devices": "云端账号下没有可直接控制的 RA 空调"
     },
     "abort": {
-      "single_instance_allowed": "只允许创建一个实例"
+      "single_instance_allowed": "只允许创建一个实例",
+      "already_configured": "该设备已配置"
     },
     "flow_title": "金制空气"
   },
@@ -33,7 +53,8 @@
         "title": "金制空气",
         "menu_options": {
             "adjust_config": "调整设置",
-            "bind_sensors": "关联传感器"
+            "bind_sensors": "关联传感器",
+            "bind_cloud": "云端账号设置"
         }
       },
       "adjust_config": {
@@ -63,10 +84,22 @@
           "sensor_humi": "湿度传感器实体ID"
         }
       },
+      "bind_cloud": {
+        "title": "金制空气云端账号设置",
+        "description": "更新此纯云端实例使用的金制空气 App 账号。",
+        "data": {
+          "cloud_username": "金制空气手机号 / 账号",
+          "cloud_password": "登录密码"
+        }
+      },
       "empty": {
         "title": "无数据",
         "description": "没有可操作的空调"
       }
+    },
+    "error": {
+      "invalid_auth": "账号或密码错误，请检查输入",
+      "cannot_connect": "无法连接到云端服务器"
     }
   },
   "entity": {
