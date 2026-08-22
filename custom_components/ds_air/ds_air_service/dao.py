@@ -84,9 +84,12 @@ class Device:
         self.room_id: int = 0
         self.unit_id: int = 0
         self.mac: str = ""
+        self.cloud_id: str = ""
 
     @property
     def unique_id(self):
+        if self.cloud_id:
+            return f"daikin_{self.gateway_id}_{self.cloud_id}"
         return build_device_unique_id(self.gateway_id, self.room_id, self.unit_id)
 
 
@@ -119,6 +122,8 @@ class AirCon(Device):
         super().__init__()
         self.config = config
         self.gateway_id = config.gateway_id
+        self.is_mesh: bool = False
+        self.soft_id: str = ""
         self.auto_dry_mode: int = 0
         self.auto_mode: int = 0
         self.bath_room: bool = False
@@ -144,6 +149,8 @@ class AirCon(Device):
 
 
 def get_device_by_aircon(aircon: AirCon):
+    if aircon.is_mesh:
+        return EnumDevice.MESHID_MESH_COMMON
     if aircon.new_air_con:
         return EnumDevice.NEWAIRCON
     if aircon.bath_room:

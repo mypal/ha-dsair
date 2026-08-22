@@ -7,7 +7,7 @@ from threading import Event, Lock, Thread
 import time
 
 from .config import Config
-from .ctrl_enum import EnumDevice
+from .ctrl_enum import EnumControl, EnumDevice
 from .dao import (
     STATUS_ATTR,
     AirCon,
@@ -27,8 +27,13 @@ from .display import display
 from .param import (
     AirConControlParam,
     AirConQueryStatusParam,
+    GetRoomInfoParam,
     HandShakeParam,
     HeartbeatParam,
+    MeshGetBasicInfoParam,
+    MeshGetNodeListParam,
+    MeshNodeQueryParam,
+    MeshRAInfoParam,
     Param,
     Sensor2InfoParam,
     VentilationControlParam,
@@ -45,7 +50,7 @@ CONNECT_RETRY_INTERVAL_SECONDS = 3.0
 def _log(s: str):
     s = str(s)
     for i in s.split("\n"):
-        _LOGGER.debug(i)
+        _LOGGER.info(i)
 
 
 class SocketClient:
@@ -93,26 +98,32 @@ class SocketClient:
 
     def do_connect(self, deadline: float | None = None):
         self._raise_if_expired(deadline, "connecting")
-        self._s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         timeout = SOCKET_TIMEOUT_SECONDS
         if deadline is not None:
             timeout = min(timeout, max(0.001, deadline - time.monotonic()))
-        self._s.settimeout(timeout)
-        try:
-            self._s.connect((self._host, self._port))
-        except OSError as exc:
-            _log("connected error")
-            _log(str(exc))
-            self._s.close()
-            self._s = None
-            return False
-        else:
-            # 该超时只用于建立连接阶段，不能残留到 RecvThread 中常驻的 recv()：
-            # 网关只在状态变化时推送，空闲间隔会远超该超时，否则 recv() 会超时抛错，
-            # 进而静默重连（且不重新握手），导致此后再也收不到状态推送。
-            self._s.settimeout(None)
-            _log("connected")
-            return True
+
+        # Smart port detection: try configured port, then alternative port (8008 <-> 8009)
+        candidate_ports = [self._port]
+        alt_port = 8009 if self._port == 8008 else 8008
+        candidate_ports.append(alt_port)
+
+        for p in candidate_ports:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(timeout)
+            try:
+                s.connect((self._host, p))
+                s.settimeout(None)
+                self._s = s
+                self._port = p
+                self._config.detected_port = p
+                _log(f"connected to {self._host}:{p}")
+                return True
+            except OSError as exc:
+                _log(f"connect error on port {p}: {exc}")
+                s.close()
+
+        self._s = None
+        return False
 
     def send(self, p: Param, deadline: float | None = None):
         data = p.to_string(self._config)
@@ -229,6 +240,22 @@ class HeartBeatThread(Thread):
                 return
 
 
+class CloudPollThread(Thread):
+    """Poll Mesh live state because its MQTT topic has no retained snapshot."""
+
+    def __init__(self, service: Service):
+        super().__init__(daemon=True)
+        self.service = service
+        self._stop_event = Event()
+
+    def terminate(self):
+        self._stop_event.set()
+
+    def run(self) -> None:
+        while not self._stop_event.wait(60):
+            self.service.poll_cloud_status()
+
+
 class Service:
     def __init__(self):
         self._socket_client: SocketClient = None
@@ -249,6 +276,106 @@ class Service:
         self._scan_interval: int = 5
         self.state_change_listener: Callable[[], None] | None = None
         self._config: Config = None
+        self._cloud_client = None
+        self._cloud_only = False
+
+    @staticmethod
+    def _cloud_enum(enum_cls, value):
+        if value is None:
+            return None
+        try:
+            return enum_cls(int(value))
+        except (TypeError, ValueError):
+            return None
+
+    def _apply_cloud_status(self, aircon: AirCon, status: dict) -> None:
+        """Merge an NLSPSmartClient RAModel status into a DS-AIR device."""
+        if "switches" in status:
+            aircon.status.switch = self._cloud_enum(EnumControl.Switch, status["switches"])
+        if "mode" in status:
+            aircon.status.mode = self._cloud_enum(EnumControl.Mode, status["mode"])
+        if "volume" in status:
+            aircon.status.air_flow = self._cloud_enum(EnumControl.AirFlow, status["volume"])
+        if "direction1" in status:
+            aircon.status.fan_direction1 = self._cloud_enum(EnumControl.FanDirection, status["direction1"])
+        if "direction2" in status:
+            aircon.status.fan_direction2 = self._cloud_enum(EnumControl.FanDirection, status["direction2"])
+        if status.get("temp") is not None:
+            aircon.status.setted_temp = round(float(status["temp"]) * 10)
+
+    def init_cloud(self, cloud_client, devices: list[dict], config: Config) -> None:
+        """Initialize a service solely from Daikin Cloud direct RA snapshots."""
+        self._config = config
+        self._cloud_client = cloud_client
+        self._cloud_only = True
+        self._rooms = []
+        self._aircons = []
+        self._new_aircons = []
+        self._bathrooms = []
+        self._ventilations = []
+        self._hds = []
+        for index, item in enumerate(devices, start=1):
+            physics = item.get("physics") or {}
+            mac = physics.get("mac") or item.get("key") or ""
+            if not mac:
+                continue
+            device = AirCon(config)
+            device.is_mesh = True
+            device.mac = str(mac).upper()
+            device.cloud_id = "cloud_" + "".join(c for c in device.mac.lower() if c.isalnum())
+            device.room_id = int(item.get("homeId") or 0)
+            device.unit_id = index
+            device.alias = physics.get("name") or physics.get("model_alias") or f"云端空调 {index}"
+            device.name = physics.get("model_alias") or physics.get("name") or "Daikin RA"
+            device.cool_mode = device.dry_mode = device.heat_mode = device.auto_mode = 1
+            device.ventilation_mode = device.temp_set = True
+            device.fan_volume_auto = True
+            device.soft_id = str(physics.get("soft_id") or "")
+            device.cloud_gateway = item.get("mesh_gateway")
+            self._apply_cloud_status(device, item.get("status") or {})
+            self._aircons.append(device)
+        self._ready = True
+        self._heartbeat_thread = CloudPollThread(self)
+        self._heartbeat_thread.start()
+
+    def poll_cloud_status(self) -> None:
+        """Refresh cloud-only Mesh entities using the authenticated socket."""
+        for aircon in self.get_aircons():
+            gateway = getattr(aircon, "cloud_gateway", None)
+            if not gateway:
+                continue
+            try:
+                status = self._cloud_client.get_mesh_ra_status(
+                    gateway, aircon.mac, aircon.soft_id
+                )
+                if not status:
+                    continue
+                self._apply_cloud_status(aircon, status)
+                for device, hook in self._status_hook:
+                    if device is aircon:
+                        hook()
+            except Exception:
+                _LOGGER.exception("Cloud Mesh status refresh failed for %s", aircon.mac)
+
+    def handle_cloud_message(self, topic: str, payload: dict) -> None:
+        """Apply cloud snapshot events and notify registered HA entities."""
+        if "/event/snapshot_change" not in topic:
+            return
+        topic_mac = topic.split("/", 1)[0].removeprefix("RA:").upper()
+        data = payload.get("data") or {}
+        candidates = data.get("ra") if isinstance(data, dict) else None
+        if not isinstance(candidates, list):
+            candidates = [data]
+        for item in candidates:
+            physics = item.get("physics") or {}
+            mac = str(physics.get("mac") or item.get("key") or topic_mac).upper()
+            for aircon in self.get_aircons():
+                if aircon.mac.upper() != mac:
+                    continue
+                self._apply_cloud_status(aircon, item.get("status") or item)
+                for dev, hook in self._status_hook:
+                    if dev is aircon:
+                        hook()
 
     def init(
         self,
@@ -268,54 +395,98 @@ class Service:
             self._socket_client.send(HandShakeParam(), deadline)
             self._heartbeat_thread = HeartBeatThread(self)
             self._heartbeat_thread.start()
-            while (
-                self._rooms is None
-                or self._aircons is None
-                or self._new_aircons is None
-                or self._bathrooms is None
-                or self._ventilations is None
-                or self._hds is None
-            ):
+
+            # Broadcast multi-protocol discovery queries
+            self._socket_client.send(GetRoomInfoParam(), deadline)
+            self._socket_client.send(MeshNodeQueryParam(), deadline)
+            self._socket_client.send(MeshGetNodeListParam(), deadline)
+
+            start_time = time.monotonic()
+            probe_sent = False
+            while True:
+                # 1. Check if Mesh AC nodes discovered
+                if self._config.is_mesh and self.get_aircons():
+                    _log("Mesh Smart AC node discovery completed!")
+                    break
+
+                # 2. Check if Standard VRV multi-room discovery completed
+                if (
+                    self._rooms is not None
+                    and self._aircons is not None
+                    and self._new_aircons is not None
+                    and self._bathrooms is not None
+                    and self._ventilations is not None
+                    and self._hds is not None
+                ):
+                    _log("Standard VRV topology discovery completed!")
+                    break
+
+                # 3. Direct probe fallback if no topology received after 3 seconds
+                if not probe_sent and (time.monotonic() - start_time) >= 3.0:
+                    probe_sent = True
+                    _log("Probing direct Mesh / Standalone AC targets...")
+                    self._socket_client.send(MeshGetBasicInfoParam(1, 1))
+                    self._socket_client.send(MeshGetBasicInfoParam(0, 0))
+
                 if deadline is not None and time.monotonic() >= deadline:
+                    if self.get_aircons() or (self._ventilations is not None and len(self._ventilations) > 0):
+                        break
                     raise TimeoutError(
                         f"Timed out initializing DS-AIR gateway {host}:{port}"
                     )
-                if deadline is None:
-                    time.sleep(1)
-                else:
-                    time.sleep(min(1, max(0.0, deadline - time.monotonic())))
+                time.sleep(0.5)
+
+            # Ensure all device lists are initialized
+            if self._rooms is None:
+                self._rooms = []
+            if self._aircons is None:
+                self._aircons = []
+            if self._new_aircons is None:
+                self._new_aircons = []
+            if self._bathrooms is None:
+                self._bathrooms = []
+            if self._ventilations is None:
+                self._ventilations = []
+            if self._hds is None:
+                self._hds = []
+
             for i in self._aircons:
                 for j in self._rooms:
                     if i.room_id == j.id:
-                        i.alias = j.alias
-                        if i.unit_id:
-                            i.alias += str(i.unit_id)
+                        if not i.alias:
+                            i.alias = j.alias
+                            if i.unit_id:
+                                i.alias += str(i.unit_id)
             for i in self._new_aircons:
                 for j in self._rooms:
                     if i.room_id == j.id:
-                        i.alias = j.alias
-                        if i.unit_id:
-                            i.alias += str(i.unit_id)
+                        if not i.alias:
+                            i.alias = j.alias
+                            if i.unit_id:
+                                i.alias += str(i.unit_id)
             for i in self._bathrooms:
                 for j in self._rooms:
                     if i.room_id == j.id:
-                        i.alias = j.alias
-                        if i.unit_id:
-                            i.alias += str(i.unit_id)
+                        if not i.alias:
+                            i.alias = j.alias
+                            if i.unit_id:
+                                i.alias += str(i.unit_id)
             if self._ventilations is not None:
                 for i in self._ventilations:
                     for j in self._rooms:
                         if i.room_id == j.id:
-                            i.alias = j.alias
-                            if i.unit_id:
-                                i.alias += str(i.unit_id)
+                            if not i.alias:
+                                i.alias = j.alias
+                                if i.unit_id:
+                                    i.alias += str(i.unit_id)
             if self._hds is not None:
                 for i in self._hds:
                     for j in self._rooms:
                         if i.room_id == j.id:
-                            i.alias = j.alias
-                            if i.unit_id:
-                                i.alias += str(i.unit_id)
+                            if not i.alias:
+                                i.alias = j.alias
+                                if i.unit_id:
+                                    i.alias += str(i.unit_id)
             self._ready = True
         except Exception:
             self.destroy()
@@ -342,6 +513,7 @@ class Service:
         self._sensors = []
         self._ready = False
         self._config = None
+        self._cloud_only = False
 
     def get_aircons(self) -> list[AirCon]:
         aircons = []
@@ -364,9 +536,59 @@ class Service:
             return []
         return self._hds
 
+    def set_cloud_client(self, cloud_client) -> None:
+        """Set the Daikin China cloud client for MQTT synchronization."""
+        self._cloud_client = cloud_client
+
     def control(self, aircon: AirCon, status: AirConStatus):
-        p = AirConControlParam(aircon, status)
-        self.send_msg(p)
+        control_ok = True
+        if not self._cloud_only:
+            p = AirConControlParam(aircon, status)
+            self.send_msg(p)
+
+        # Dispatch to Daikin Cloud MQTT if configured
+        cloud_client = getattr(self, "_cloud_client", None)
+        if cloud_client is not None:
+            mac = getattr(aircon, "mac", "")
+            if mac:
+                try:
+                    gateway = getattr(aircon, "cloud_gateway", None)
+                    if self._cloud_only and gateway:
+                        control_ok = cloud_client.control_mesh_ra(
+                            gateway, aircon, status, self._config
+                        )
+                    else:
+                        control_ok = cloud_client.control_ra(
+                            mac=mac,
+                            switch=int(status.switch) if status.switch is not None else None,
+                            mode=int(status.mode) if status.mode is not None else None,
+                            temp=(float(status.setted_temp) / 10) if status.setted_temp is not None else None,
+                            volume=int(status.air_flow) if status.air_flow is not None else None,
+                            direction1=int(status.fan_direction1) if status.fan_direction1 is not None else None,
+                            direction2=int(status.fan_direction2) if status.fan_direction2 is not None else None,
+                        )
+                    if not control_ok:
+                        _LOGGER.error("Cloud control was not acknowledged for %s", mac)
+                except Exception as e:
+                    control_ok = False
+                    _LOGGER.error(f"Cloud control failed: {e}")
+
+        if control_ok and aircon.status is not None:
+            if status.switch is not None:
+                aircon.status.switch = status.switch
+            if status.mode is not None:
+                aircon.status.mode = status.mode
+            if status.setted_temp is not None:
+                aircon.status.setted_temp = status.setted_temp
+            if status.air_flow is not None:
+                aircon.status.air_flow = status.air_flow
+            for dev, hook in self._status_hook:
+                if (dev.mac and dev.mac == aircon.mac) or (dev.room_id == aircon.room_id and dev.unit_id == aircon.unit_id):
+                    try:
+                        hook()
+                    except Exception as e:
+                        _LOGGER.error(f"Status hook error on control: {e}")
+        return control_ok
 
     def control_vent(self, ventilation: Ventilation, status: VentilationStatus):
         p = VentilationControlParam(ventilation, status)
@@ -398,6 +620,8 @@ class Service:
 
     def send_msg(self, p: Param):
         """Send msg to climate gateway"""
+        if self._socket_client is None:
+            raise RuntimeError("Local gateway is not configured")
         self._socket_client.send(p)
 
     def get_rooms(self):
@@ -465,12 +689,155 @@ class Service:
                     except Exception as e:
                         _log(str(e))
 
+    def register_mesh_node(
+        self, mac: str, node_type: int, room_id: int, unit_id: int, name: str, code: str, soft_id: str = ""
+    ):
+        """Register a discovered Mesh Smart AC node."""
+        self._config.is_mesh = True
+        self._config.is_vrv = False
+        if self._rooms is None:
+            self._rooms = []
+        if self._aircons is None:
+            self._aircons = []
+        if self._new_aircons is None:
+            self._new_aircons = []
+        if self._bathrooms is None:
+            self._bathrooms = []
+        if self._ventilations is None:
+            self._ventilations = []
+        if self._hds is None:
+            self._hds = []
+
+        room = None
+        for r in self._rooms:
+            if r.id == room_id:
+                room = r
+                break
+        if room is None:
+            room = Room()
+            room.id = room_id
+            room.name = name
+            room.alias = name
+            self._rooms.append(room)
+
+        aircon = None
+        for ac in self._aircons:
+            if (mac and ac.mac == mac) or (ac.room_id == room_id and ac.unit_id == unit_id):
+                aircon = ac
+                break
+
+        if aircon is None:
+            aircon = AirCon(self._config)
+            aircon.is_mesh = True
+            aircon.mac = mac
+            aircon.soft_id = soft_id
+            aircon.room_id = room_id
+            aircon.unit_id = unit_id
+            aircon.alias = name
+            aircon.name = name
+            aircon.temp_set = True
+            aircon.cool_mode = 1
+            aircon.heat_mode = 1
+            aircon.dry_mode = 1
+            aircon.ventilation_mode = 1
+            aircon.auto_mode = 1
+            room.air_con = aircon
+            self._aircons.append(aircon)
+
+        # Immediately query live telemetry via RA.INFO
+        self.send_msg(MeshRAInfoParam(mac, soft_id))
+
+    def update_mesh_status(
+        self, mac: str, room_id: int, unit_id: int, status: AirConStatus, name: str = "", soft_id: str = ""
+    ):
+        """Update telemetry for a Mesh Smart AC node."""
+        if self._aircons is None:
+            self._aircons = []
+        aircon = None
+        for ac in self._aircons:
+            if (mac and ac.mac == mac) or (ac.room_id == room_id and ac.unit_id == unit_id):
+                aircon = ac
+                break
+
+        if aircon is None:
+            self.register_mesh_node(
+                mac=mac,
+                node_type=34,
+                room_id=room_id,
+                unit_id=unit_id,
+                name=name or f"AC_{room_id}_{unit_id}",
+                code="00",
+                soft_id=soft_id,
+            )
+            for ac in self._aircons:
+                if (mac and ac.mac == mac) or (ac.room_id == room_id and ac.unit_id == unit_id):
+                    aircon = ac
+                    break
+
+        if aircon is not None:
+            if soft_id:
+                aircon.soft_id = soft_id
+            if status.current_temp is not None:
+                aircon.status.current_temp = status.current_temp
+            if status.setted_temp is not None:
+                aircon.status.setted_temp = status.setted_temp
+            if status.switch is not None:
+                aircon.status.switch = status.switch
+            if status.mode is not None:
+                aircon.status.mode = status.mode
+            if status.air_flow is not None:
+                aircon.status.air_flow = status.air_flow
+            if status.fan_direction1 is not None:
+                aircon.status.fan_direction1 = status.fan_direction1
+            if status.fan_direction2 is not None:
+                aircon.status.fan_direction2 = status.fan_direction2
+
+            for item in self._status_hook:
+                hook_dev, func = item
+                if hook_dev.room_id == room_id and hook_dev.unit_id == unit_id:
+                    try:
+                        func(status=aircon.status)
+                    except Exception as e:
+                        _log(f"mesh status hook error: {e}")
+
+        if self.state_change_listener is not None:
+            try:
+                self.state_change_listener()
+            except Exception as e:
+                _log(f"state_change_listener error: {e}")
+
+    def set_mesh_node_list(self, gw_mac: str, nodes: list[str]):
+        """Handle Mesh Node list discovery frame."""
+        self._config.is_mesh = True
+        self._config.is_vrv = False
+        if not nodes:
+            self.send_msg(MeshGetBasicInfoParam(1, 1))
+        for _ in nodes:
+            self.send_msg(MeshGetBasicInfoParam(1, 1))
+
     def poll_status(self):
-        for i in self._new_aircons:
-            p = AirConQueryStatusParam()
-            p.target = EnumDevice.NEWAIRCON
-            p.device = i
-            self.send_msg(p)
+        if self._aircons is not None:
+            for i in self._aircons:
+                if i.is_mesh:
+                    p = MeshRAInfoParam(i.mac, getattr(i, "soft_id", ""))
+                    self.send_msg(p)
+                else:
+                    p = AirConQueryStatusParam()
+                    p.target = EnumDevice.AIRCON
+                    p.device = i
+                    self.send_msg(p)
+        if self._new_aircons is not None:
+            for i in self._new_aircons:
+                p = AirConQueryStatusParam()
+                p.target = EnumDevice.NEWAIRCON
+                p.device = i
+                self.send_msg(p)
+        if self._bathrooms is not None:
+            for i in self._bathrooms:
+                p = AirConQueryStatusParam()
+                p.target = EnumDevice.BATHROOM
+                p.device = i
+                self.send_msg(p)
         if self._ventilations is not None:
             for v in self._ventilations:
                 p = VentilationQueryStatusParam()
@@ -488,8 +855,9 @@ class Service:
                 p = HDQueryStatusParam()
                 p.device = hd
                 self.send_msg(p)
-        p = Sensor2InfoParam()
-        self.send_msg(p)
+        if self._config is None or not self._config.is_mesh:
+            p = Sensor2InfoParam()
+            self.send_msg(p)
 
     def update_aircon(self, target: EnumDevice, room: int, unit: int, **kwargs):
         li = self._status_hook
@@ -498,7 +866,7 @@ class Service:
             if (
                 i.unit_id == unit
                 and i.room_id == room
-                and get_device_by_aircon(i) == target
+                and (get_device_by_aircon(i) == target or i.is_mesh)
             ):
                 try:
                     func(**kwargs)

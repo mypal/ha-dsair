@@ -3,7 +3,14 @@
     "step": {
       "user": {
         "title": "DS-AIR",
-        "description": "Support DTA117B611/DTA117C611",
+        "menu_options": {
+          "local": "Local gateway",
+          "cloud": "Daikin Cloud API"
+        }
+      },
+      "local": {
+        "title": "Local gateway",
+        "description": "Supports Daikin VRV Gateways (B611/C611/D611) & Smart Mesh Hub Systems",
         "data": {
           "host": "Host",
           "port": "Port",
@@ -18,12 +25,25 @@
           "voc": "Create VOC entity",
           "hcho": "Create HCHO entity"
         }
+      },
+      "cloud": {
+        "title": "Daikin Cloud API",
+        "description": "Discover and control cloud RA devices without a local gateway.",
+        "data": {
+          "cloud_username": "Daikin account / mobile",
+          "cloud_password": "Password"
+        }
       }
     },
     "error": {
+      "cannot_connect": "Unable to connect",
+      "invalid_auth": "Invalid account or password",
+      "no_homes": "No homes were found in this account",
+      "no_devices": "No directly controllable RA devices were found"
     },
     "abort": {
-      "single_instance_allowed": "Only one instance is allowed."
+      "single_instance_allowed": "Only one instance is allowed.",
+      "already_configured": "Device is already configured"
     },
     "flow_title": "DS-AIR"
   },
@@ -33,7 +53,8 @@
         "title": "DS-AIR",
         "menu_options": {
             "adjust_config": "Adjust config",
-            "bind_sensors": "Link sensors"
+            "bind_sensors": "Link sensors",
+            "bind_cloud": "Cloud account settings"
         }
       },
       "adjust_config": {
@@ -63,10 +84,22 @@
           "sensor_humi": "Humidity sensor entity_id"
         }
       },
+      "bind_cloud": {
+        "title": "Daikin Cloud Account Settings",
+        "description": "Update the Daikin account used by this cloud-only instance.",
+        "data": {
+          "cloud_username": "Mobile Number / Account",
+          "cloud_password": "Password"
+        }
+      },
       "empty": {
         "title": "No data",
         "description": "No AC for link"
       }
+    },
+    "error": {
+      "invalid_auth": "Invalid username or password",
+      "cannot_connect": "Failed to connect to Daikin Cloud"
     }
   },
   "entity": {

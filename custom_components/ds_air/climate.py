@@ -237,17 +237,20 @@ class DsAir(ClimateEntity):
         """Return the list of available hvac operation modes."""
         li: list[HVACMode] = []
         aircon = self._device_info
-        if aircon.cool_mode:
+        if aircon.is_mesh or aircon.cool_mode:
             li.append(HVACMode.COOL)
-        if aircon.heat_mode or aircon.pre_heat_mode:
+        if aircon.is_mesh or aircon.heat_mode or aircon.pre_heat_mode:
             li.append(HVACMode.HEAT)
-        if aircon.auto_dry_mode or aircon.dry_mode or aircon.more_dry_mode:
+        if aircon.is_mesh or aircon.auto_dry_mode or aircon.dry_mode or aircon.more_dry_mode:
             li.append(HVACMode.DRY)
-        if aircon.ventilation_mode:
+        if aircon.is_mesh or aircon.ventilation_mode:
             li.append(HVACMode.FAN_ONLY)
-        if aircon.relax_mode or aircon.sleep_mode or aircon.auto_mode:
+        if aircon.is_mesh or aircon.relax_mode or aircon.sleep_mode or aircon.auto_mode:
             li.append(HVACMode.AUTO)
-        li.append(HVACMode.OFF)
+        if not li:
+            li = [HVACMode.COOL, HVACMode.HEAT, HVACMode.DRY, HVACMode.FAN_ONLY, HVACMode.AUTO]
+        if HVACMode.OFF not in li:
+            li.append(HVACMode.OFF)
         return li
 
     @property
@@ -255,7 +258,7 @@ class DsAir(ClimateEntity):
         """Return the current temperature."""
         if self._link_cur_temp:
             return self._attr_current_temperature
-        if self._device_info.config.is_c611 or self._device_info.config.is_d611:
+        if (self._device_info.config.is_c611 or self._device_info.config.is_d611) and not self._device_info.is_mesh:
             return None
         current_temp = self._device_info.status.current_temp
         return current_temp / 10 if current_temp is not None else None
@@ -313,41 +316,34 @@ class DsAir(ClimateEntity):
         """Set new target temperatures."""
         if (temperate := kwargs.get(ATTR_TEMPERATURE)) is not None:
             status = self._device_info.status
-            if status.switch == EnumControl.Switch.ON and status.mode not in [
-                EnumControl.Mode.VENTILATION,
-                EnumControl.Mode.MOREDRY,
-            ]:
-                new_status = AirConStatus()
-                status.setted_temp = round(temperate * 10.0)
-                new_status.setted_temp = round(temperate * 10.0)
-                self.service.control(self._device_info, new_status)
-                self.schedule_update_ha_state()
+            new_status = AirConStatus()
+            target_t = round(temperate * 10.0)
+            status.setted_temp = target_t
+            new_status.setted_temp = target_t
+            if status.switch == EnumControl.Switch.OFF:
+                status.switch = EnumControl.Switch.ON
+                new_status.switch = EnumControl.Switch.ON
+            self.service.control(self._device_info, new_status)
+            self.schedule_update_ha_state()
 
     def set_humidity(self, humidity: int) -> None:
         """Set new humidity level."""
         status = self._device_info.status
-        if status.switch == EnumControl.Switch.ON and status.mode in [
-            EnumControl.Mode.RELAX,
-            EnumControl.Mode.SLEEP,
-        ]:
-            new_status = AirConStatus()
-            status.humidity = EnumControl.Humidity(humidity)
-            new_status.humidity = EnumControl.Humidity(humidity)
-            self.service.control(self._device_info, new_status)
-            self.schedule_update_ha_state()
+        new_status = AirConStatus()
+        status.humidity = EnumControl.Humidity(humidity)
+        new_status.humidity = EnumControl.Humidity(humidity)
+        self.service.control(self._device_info, new_status)
+        self.schedule_update_ha_state()
 
     def set_fan_mode(self, fan_mode: str) -> None:
         """Set new target fan mode."""
         status = self._device_info.status
-        if status.switch == EnumControl.Switch.ON and status.mode not in [
-            EnumControl.Mode.MOREDRY,
-            EnumControl.Mode.SLEEP,
-        ]:
-            new_status = AirConStatus()
-            status.air_flow = get_air_flow_enum(fan_mode)
-            new_status.air_flow = get_air_flow_enum(fan_mode)
-            self.service.control(self._device_info, new_status)
-            self.schedule_update_ha_state()
+        new_status = AirConStatus()
+        flow = get_air_flow_enum(fan_mode)
+        status.air_flow = flow
+        new_status.air_flow = flow
+        self.service.control(self._device_info, new_status)
+        self.schedule_update_ha_state()
 
     def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
@@ -362,16 +358,18 @@ class DsAir(ClimateEntity):
             status.switch = EnumControl.Switch.ON
             new_status.switch = EnumControl.Switch.ON
             m = EnumControl.Mode
-            mode = None
+            mode = m.COLD
             if hvac_mode == HVACMode.COOL:
                 mode = m.COLD
             elif hvac_mode == HVACMode.HEAT:
-                if aircon.heat_mode:
+                if aircon.is_mesh or aircon.heat_mode:
                     mode = m.HEAT
                 else:
                     mode = m.PREHEAT
             elif hvac_mode == HVACMode.DRY:
-                if aircon.auto_dry_mode:
+                if aircon.is_mesh:
+                    mode = m.DRY
+                elif aircon.auto_dry_mode:
                     mode = m.AUTODRY
                 elif aircon.more_dry_mode:
                     mode = m.MOREDRY
@@ -380,7 +378,7 @@ class DsAir(ClimateEntity):
             elif hvac_mode == HVACMode.FAN_ONLY:
                 mode = m.VENTILATION
             elif hvac_mode == HVACMode.AUTO:
-                if aircon.auto_mode:
+                if aircon.is_mesh or aircon.auto_mode:
                     mode = m.AUTO
                 elif aircon.relax_mode:
                     mode = m.RELAX

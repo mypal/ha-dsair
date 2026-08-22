@@ -12,12 +12,18 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 
 from .const import (
+    CONF_CLOUD_HOME_ID,
+    CONF_CLOUD_PASSWORD,
+    CONF_CLOUD_USERNAME,
+    CONF_CONNECTION_TYPE,
+    CONNECTION_CLOUD,
     CONF_GW,
     C611,
     D611,
     DEFAULT_GW,
     DOMAIN,
     MANUFACTURER,
+    SMART_MESH,
 )
 from .descriptions import SENSOR_DESCRIPTORS
 from .ds_air_service import Config, Service
@@ -172,10 +178,23 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
-    host = entry.data[CONF_HOST]
-    port = entry.data[CONF_PORT]
-    gw = entry.data[CONF_GW]
-    scan_interval = entry.data[CONF_SCAN_INTERVAL]
+    cloud_only = entry.data.get(CONF_CONNECTION_TYPE) == CONNECTION_CLOUD
+    if not cloud_only and any(
+        key in entry.options
+        for key in ("cloud_enable", CONF_CLOUD_USERNAME, CONF_CLOUD_PASSWORD)
+    ):
+        # Hybrid local+cloud binding is no longer supported.  Remove legacy
+        # credentials instead of leaving a password stored in local options.
+        local_options = {
+            key: value
+            for key, value in entry.options.items()
+            if key not in ("cloud_enable", CONF_CLOUD_USERNAME, CONF_CLOUD_PASSWORD)
+        }
+        hass.config_entries.async_update_entry(entry, options=local_options)
+    host = entry.data.get(CONF_HOST, "cloud")
+    port = entry.data.get(CONF_PORT, 0)
+    gw = entry.data.get(CONF_GW, SMART_MESH if cloud_only else DEFAULT_GW)
+    scan_interval = entry.data.get(CONF_SCAN_INTERVAL, 5)
 
     _LOGGER.debug("%s:%s %s %s", host, port, gw, scan_interval)
 
@@ -183,6 +202,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config.gateway_id = entry.entry_id
     config.is_c611 = gw == C611
     config.is_d611 = gw == D611
+    config.is_mesh = gw == SMART_MESH
 
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(
@@ -195,11 +215,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     service = Service()
     hass.data[DOMAIN][entry.entry_id] = service
+    cloud_client = None
     try:
-        await hass.async_add_executor_job(
-            service.init, host, port, scan_interval, config
-        )
-    except TimeoutError as exc:
+        if cloud_only:
+            from .ds_air_cloud import DaikinCloudClient
+
+            cloud_client = DaikinCloudClient(
+                entry.data.get(CONF_CLOUD_USERNAME),
+                entry.data.get(CONF_CLOUD_PASSWORD),
+            )
+            if not await hass.async_add_executor_job(cloud_client.login):
+                raise ConfigEntryNotReady("Unable to authenticate with Daikin Cloud")
+            _, devices = await hass.async_add_executor_job(cloud_client.discover)
+            home_id = entry.data.get(CONF_CLOUD_HOME_ID)
+            if home_id:
+                devices = [d for d in devices if int(d.get("homeId", 0)) == int(home_id)]
+            if not devices:
+                raise ConfigEntryNotReady("No Daikin Cloud RA devices found")
+            service.init_cloud(cloud_client, devices, config)
+            macs = [device.mac for device in service.get_aircons()]
+            connected = await hass.async_add_executor_job(
+                cloud_client.start_mqtt,
+                int(home_id or devices[0]["homeId"]),
+                service.handle_cloud_message,
+                macs,
+            )
+            if not connected:
+                raise ConfigEntryNotReady("Unable to connect to Daikin Cloud MQTT")
+        else:
+            await hass.async_add_executor_job(
+                service.init, host, port, scan_interval, config
+            )
+    except (TimeoutError, ConfigEntryNotReady) as exc:
+        if cloud_client is not None:
+            cloud_client.close()
         hass.data[DOMAIN].pop(entry.entry_id, None)
         raise ConfigEntryNotReady(str(exc)) from exc
     _migrate_legacy_sensor_links(hass, entry, service)
@@ -212,6 +261,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     service: Service = hass.data[DOMAIN].pop(entry.entry_id)
+
+    if getattr(service, "_cloud_client", None) is not None:
+        service._cloud_client.close()
 
     if service.state_change_listener is not None:
         service.state_change_listener()

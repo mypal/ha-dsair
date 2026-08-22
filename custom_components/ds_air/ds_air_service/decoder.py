@@ -52,17 +52,18 @@ _LOGGER = logging.getLogger(__name__)
 
 
 def decoder(b: bytes, config: Config):
-    if b[0] != 2:
+    if not b or b[0] != 2:
         return None, None
 
     length = struct.unpack("<H", b[1:3])[0]
+    if length == 0 and len(b) >= 4 and b[3] == 3:
+        return HeartbeatResult(), b[4:]
+
     if (
         length == 0
         or len(b) - 4 < length
         or struct.unpack("<B", b[length + 3 : length + 4])[0] != 3
     ):
-        if length == 0:
-            return HeartbeatResult(), None
         return None, None
 
     return result_factory(
@@ -94,6 +95,8 @@ def result_factory(data: tuple, config: Config):
             result = CmdRspResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_TIME_SYNC.value:
             result = TimeSyncResult(cnt, EnumDevice.SYSTEM)
+        elif cmd_type == 0x000A or cmd_type == EnumCmdType.MESH_ERROR_CODE.value:
+            result = MeshNodeInfoResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_ERR_CODE.value:
             result = ErrCodeResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_GET_WEATHER.value:
@@ -165,6 +168,36 @@ def result_factory(data: tuple, config: Config):
             result = HDStatusChangeResult(cnt, device)
         elif cmd_type == EnumCmdType.NEW_HD_NIGHT_ENERGY_SETTING.value:
             result = HDControlOtherResult(cnt, device)
+        else:
+            result = UnknownResult(cnt, device, cmd_type)
+    elif dev_id in (
+        EnumDevice.IP_MESH_COMMON.value[1],
+        EnumDevice.MESHID_MESH_COMMON.value[1],
+        EnumDevice.IP_RA.value[1],
+        EnumDevice.MESHID_RA.value[1],
+    ) or cmd_type in (
+        EnumCmdType.MESH_GET_BASIC_INFO.value,
+        EnumCmdType.MESH_GET_NODE_LIST.value,
+        EnumCmdType.MESH_ERROR_CODE.value,
+        0x000A,
+    ):
+        try:
+            device = EnumDevice((dev_type, dev_id))
+        except ValueError:
+            device = EnumDevice.MESHID_MESH_COMMON
+
+        if cmd_type == EnumCmdType.MESH_GET_BASIC_INFO.value or cmd_type == 0x0083:
+            result = MeshGetBasicInfoResult(cnt, device)
+        elif cmd_type == EnumCmdType.MESH_GET_NODE_LIST.value or cmd_type == 0x0081:
+            result = MeshGetNodeListResult(cnt, device)
+        elif cmd_type == EnumCmdType.MESH_ERROR_CODE.value or cmd_type == 0x000A:
+            result = MeshNodeInfoResult(cnt, device)
+        elif cmd_type == EnumCmdType.RA0x01.value:
+            result = MeshRAInfoResult(cnt, device)
+        elif cmd_type == EnumCmdType.STATUS_CHANGED.value:
+            result = AirConStatusChangedResult(cnt, device)
+        elif cmd_type == EnumCmdType.QUERY_STATUS.value:
+            result = AirConQueryStatusResult(cnt, device)
         else:
             result = UnknownResult(cnt, device, cmd_type)
     else:
@@ -1348,3 +1381,235 @@ class HDControlOtherResult(BaseResult):
 
     def do(self, service: Service) -> None:
         service.update_hd(self._room, self._unit, status=self._status)
+
+
+class MeshNodeInfoResult(BaseResult):
+    """Mesh Node Announcement / Info packet (0x000A)"""
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        super().__init__(cmd_id, target, EnumCmdType.MESH_ERROR_CODE)
+        self.mac: str = ""
+        self.node_type: int = 0
+        self.room_id: int = 1
+        self.unit_id: int = 1
+        self.name: str = "Mesh_Node"
+        self.code: str = "00"
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        if len(b) >= 6:
+            mac_bytes = d.read(6)
+            self.mac = ":".join(f"{x:02X}" for x in mac_bytes)
+            if len(b) > 6:
+                self.node_type = d.read1()
+            if len(b) >= 9:
+                self.room_id = d.read1()
+                self.unit_id = d.read1()
+            if len(b) > 9:
+                name_len = d.read1()
+                if len(b) >= 10 + name_len:
+                    parsed_name = d.read_utf(name_len)
+                    if parsed_name:
+                        self.name = parsed_name
+                    else:
+                        self.name = f"AC_{self.room_id}_{self.unit_id}"
+            if d._pos < len(b):
+                code_len = d.read1()
+                if d._pos + code_len <= len(b):
+                    self.code = d.read_utf(code_len) or ""
+
+    def do(self, service: Service) -> None:
+        service.register_mesh_node(
+            mac=self.mac,
+            node_type=self.node_type,
+            room_id=self.room_id,
+            unit_id=self.unit_id,
+            name=self.name,
+            code=self.code,
+        )
+
+
+class MeshGetBasicInfoResult(BaseResult):
+    """Mesh Node Basic Info / Device List packet (0x0083)
+
+    Format matches the official app's MeshCommonDeviceQueryMeshDTO.
+    """
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        super().__init__(cmd_id, target, EnumCmdType.MESH_GET_BASIC_INFO)
+        self.room_id: int = 1
+        self.unit_id: int = 1
+        self.status: AirConStatus = AirConStatus()
+        self.hub_mac: str = ""
+        self.node_mac: str = ""
+        self.name: str = ""
+        self.soft_id: str = ""
+        self.device_type: int = 34
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        if len(b) >= 7:
+            # gateway id: 7 bytes -> hex string
+            self.hub_mac = d.read(7).hex()
+        if len(b) < 8:
+            return
+        count = d.read1()
+        if count <= 0 or len(b) < d._pos + 1:
+            return
+
+        self.device_type = d.read1()
+        if len(b) >= d._pos + 6:
+            self.node_mac = ":".join(f"{x:02X}" for x in d.read(6))
+        if len(b) >= d._pos + 1:
+            icon_len = d.read1()
+            if len(b) >= d._pos + icon_len:
+                d.read(icon_len)
+        if len(b) >= d._pos + 1:
+            name_len = d.read1()
+            if len(b) >= d._pos + name_len:
+                self.name = d.read_utf(name_len) or ""
+        if len(b) >= d._pos + 1:
+            pair_cnt = d.read1()
+            for _ in range(pair_cnt):
+                if d._pos + 8 > len(b):
+                    break
+                d.read1()   # pair deviceType
+                d.read(6)   # pair mac
+                d.read1()   # pair status
+        if self.device_type == 33:      # LSM
+            if len(b) >= d._pos + 1:
+                d.read1()   # lsmLinkAirType
+            if len(b) >= d._pos + 4:
+                d.read(4)   # lsmLinkSerialNo
+            if len(b) >= d._pos + 1:
+                d.read1()   # lsmLinkControlAble
+        elif self.device_type == 34:    # RA
+            if len(b) >= d._pos + 2:
+                d.read(2)   # raEepId
+            if len(b) >= d._pos + 4:
+                self.soft_id = d.read(4).hex()
+        # version info (8 bytes, big-endian shorts)
+        if len(b) >= d._pos + 8:
+            d.read(8)
+        if self.device_type == 33:
+            if len(b) >= d._pos + 1:
+                d.read1()   # lsmLinkSwitch
+        elif self.device_type == 34:
+            if len(b) >= d._pos + 1:
+                d.read1()   # raLinkSwitch
+
+    def do(self, service: Service) -> None:
+        service.update_mesh_status(
+            mac=self.node_mac,
+            room_id=self.room_id,
+            unit_id=self.unit_id,
+            status=self.status,
+            name=self.name,
+            soft_id=self.soft_id,
+        )
+
+
+class MeshRAInfoResult(BaseResult):
+    """Mesh RA device status packet (cmd 0x0001 = RA.INFO).
+
+    Format matches the official app's RAInfoDTO response:
+      count(1) then per device:
+        mac(6) softId(4) controlEnable(1) controlType1(1) controlType2(1) length(1)
+        switch(1) mode(1) rawTemperature(1) airVolume(2 LE) ...
+    """
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        super().__init__(cmd_id, target, EnumCmdType.RA0x01)
+        self.room_id: int = 1
+        self.unit_id: int = 1
+        self.status: AirConStatus = AirConStatus()
+        self.node_mac: str = ""
+        self.soft_id: str = ""
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        if len(b) < 2:
+            return
+        d.read1()  # skip (sub-device type, e.g. 0x22)
+        count = d.read1()
+        if count <= 0 or len(b) < d._pos + 1:
+            return
+        if len(b) >= d._pos + 6:
+            self.node_mac = ":".join(f"{x:02X}" for x in d.read(6))
+        if len(b) >= d._pos + 4:
+            self.soft_id = d.read(4).hex()
+        if len(b) >= d._pos + 1:
+            d.read1()  # controlEnable
+        if len(b) >= d._pos + 1:
+            ctrl_type1 = d.read1()
+        else:
+            ctrl_type1 = 0
+        if len(b) >= d._pos + 1:
+            d.read1()  # controlType2
+        if len(b) >= d._pos + 1:
+            d.read1()  # length (unused, we rely on ctrl_type1 bits)
+
+        if ctrl_type1 & 1 and len(b) >= d._pos + 1:
+            sw = d.read1()
+            self.status.switch = EnumControl.Switch.ON if sw == 1 else EnumControl.Switch.OFF
+        if (ctrl_type1 >> 1) & 1 and len(b) >= d._pos + 1:
+            mode_raw = d.read1()
+            mode_map = {
+                1: EnumControl.Mode.AUTO,
+                2: EnumControl.Mode.DRY,
+                3: EnumControl.Mode.COLD,
+                4: EnumControl.Mode.HEAT,
+                6: EnumControl.Mode.VENTILATION,
+            }
+            self.status.mode = mode_map.get(mode_raw, EnumControl.Mode.COLD)
+        if (ctrl_type1 >> 2) & 1 and len(b) >= d._pos + 1:
+            raw_temp = d.read1()
+            self.status.setted_temp = int((raw_temp - 28) / 2 * 10)
+        if (ctrl_type1 >> 3) & 1 and len(b) >= d._pos + 2:
+            vol_raw = d.read2()
+            volume_map = {
+                1: EnumControl.AirFlow.SUPER_WEAK,
+                3: EnumControl.AirFlow.WEAK,
+                5: EnumControl.AirFlow.MIDDLE,
+                7: EnumControl.AirFlow.STRONG,
+                9: EnumControl.AirFlow.SUPER_STRONG,
+                10: EnumControl.AirFlow.AUTO,
+                11: EnumControl.AirFlow.SILENCE,
+            }
+            self.status.air_flow = volume_map.get(vol_raw, EnumControl.AirFlow.AUTO)
+        if (ctrl_type1 >> 4) & 1 and len(b) >= d._pos + 2:
+            d1 = d.read1()
+            d2 = d.read1()
+            # RA: 1 = swing on, 0 = swing off. Map swing-on to FanDirection.SWING(7).
+            self.status.fan_direction1 = EnumControl.FanDirection.SWING if d1 == 1 else EnumControl.FanDirection.INVALID
+            self.status.fan_direction2 = EnumControl.FanDirection.SWING if d2 == 1 else EnumControl.FanDirection.INVALID
+
+    def do(self, service: Service) -> None:
+        service.update_mesh_status(
+            mac=self.node_mac,
+            room_id=self.room_id,
+            unit_id=self.unit_id,
+            status=self.status,
+            name="",
+            soft_id=self.soft_id,
+        )
+
+
+class MeshGetNodeListResult(BaseResult):
+    """Mesh Node List packet (0x0081)"""
+    def __init__(self, cmd_id: int, target: EnumDevice):
+        super().__init__(cmd_id, target, EnumCmdType.MESH_GET_NODE_LIST)
+        self.gw_mac: str = ""
+        self.nodes: list[str] = []
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        if len(b) >= 7:
+            d.read1()
+            self.gw_mac = ":".join(f"{x:02X}" for x in d.read(6))
+            if len(b) > 7:
+                cnt = d.read1()
+                for _ in range(cnt):
+                    if d._pos + 6 <= len(b):
+                        self.nodes.append(":".join(f"{x:02X}" for x in d.read(6)))
+
+    def do(self, service: Service) -> None:
+        service.set_mesh_node_list(self.gw_mac, self.nodes)
+
