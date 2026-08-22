@@ -588,6 +588,7 @@ class Service:
                         hook()
                     except Exception as e:
                         _LOGGER.error(f"Status hook error on control: {e}")
+        return control_ok
 
     def control_vent(self, ventilation: Ventilation, status: VentilationStatus):
         p = VentilationControlParam(ventilation, status)

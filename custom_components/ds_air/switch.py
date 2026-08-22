@@ -155,12 +155,12 @@ class DsMeshSwingSwitch(SwitchEntity):
         new_status = AirConStatus()
         swing = EnumControl.FanDirection.SWING
         if self._axis == "vertical":
-            self._device_info.status.fan_direction1 = swing
             new_status.fan_direction1 = swing
         else:
-            self._device_info.status.fan_direction2 = swing
             new_status.fan_direction2 = swing
-        self.service.control(self._device_info, new_status)
+        await self.hass.async_add_executor_job(
+            self.service.control, self._device_info, new_status
+        )
         self.async_write_ha_state()
 
     async def async_turn_off(self, **kwargs) -> None:
@@ -169,10 +169,10 @@ class DsMeshSwingSwitch(SwitchEntity):
         new_status = AirConStatus()
         invalid = EnumControl.FanDirection.INVALID
         if self._axis == "vertical":
-            self._device_info.status.fan_direction1 = invalid
             new_status.fan_direction1 = invalid
         else:
-            self._device_info.status.fan_direction2 = invalid
             new_status.fan_direction2 = invalid
-        self.service.control(self._device_info, new_status)
+        await self.hass.async_add_executor_job(
+            self.service.control, self._device_info, new_status
+        )
         self.async_write_ha_state()
