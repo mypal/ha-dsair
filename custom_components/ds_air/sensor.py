@@ -1,18 +1,46 @@
-"""Support for Daikin sensors."""
+import logging
+from typing import Any
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorStateClass,
+)
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER, SMALL_VAM_SENSOR_TYPES
+from .const import (
+    CONF_ENTRY_TYPE,
+    DOMAIN,
+    ENTRY_TYPE_POWER,
+    MANUFACTURER,
+    SMALL_VAM_SENSOR_TYPES,
+)
+from .coordinator import DsAirPowerCoordinator
 from .descriptions import SENSOR_DESCRIPTORS, DsSensorEntityDescription
 from .ds_air_service import UNINITIALIZED_VALUE, Sensor, Service, Ventilation, VentilationStatus
 from .ds_air_service.dao import build_sensor_device_name
 from .ds_air_service.display import display
 
-import logging
+try:
+    from homeassistant.const import UnitOfEnergy
+    ENERGY_KWH = UnitOfEnergy.KILO_WATT_HOUR
+except ImportError:
+    ENERGY_KWH = "kWh"
+
+try:
+    STATE_CLASS_TOTAL = SensorStateClass.TOTAL
+except (ImportError, AttributeError):
+    STATE_CLASS_TOTAL = "total"
+
+try:
+    STATE_CLASS_TOTAL_INCREASING = SensorStateClass.TOTAL_INCREASING
+except (ImportError, AttributeError):
+    STATE_CLASS_TOTAL_INCREASING = "total_increasing"
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,6 +57,14 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Perform the setup for Daikin devices."""
+    if config_entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_POWER or CONF_HOST not in config_entry.data:
+        coordinator: DsAirPowerCoordinator = hass.data[DOMAIN][config_entry.entry_id]
+        async_add_entities([
+            DsAirYesterdayPowerSensor(coordinator, config_entry),
+            DsAirMonthPowerSensor(coordinator, config_entry),
+        ])
+        return
+
     service: Service = hass.data[DOMAIN][config_entry.entry_id]
     entities = []
     for device in service.get_sensors():
@@ -137,3 +173,127 @@ class DsVentSensor(SensorEntity):
             self._parse_data(vent.status)
             _log(display(vent.status))
         self.schedule_update_ha_state()
+
+
+class DsAirYesterdayPowerSensor(CoordinatorEntity[DsAirPowerCoordinator], SensorEntity):
+    """大金金制空气昨日用电传感器"""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "yesterday_power"
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_native_unit_of_measurement = ENERGY_KWH
+    _attr_state_class = STATE_CLASS_TOTAL
+
+    def __init__(
+        self,
+        coordinator: DsAirPowerCoordinator,
+        config_entry: ConfigEntry,
+    ) -> None:
+        """Initialize the yesterday power sensor."""
+        super().__init__(coordinator)
+        self.config_entry = config_entry
+        self._attr_name = "昨日用电"
+        self._attr_unique_id = f"dsair_power_{coordinator.home_id}_yesterday"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"power_{coordinator.home_id}")},
+            name=f"金制空气 ({coordinator.home_name})",
+            manufacturer=MANUFACTURER,
+            model="金制空气云服务",
+        )
+
+    @property
+    def native_value(self) -> float | None:
+        """Return yesterday's power consumption in kWh."""
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get("yesterday_used")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return extra state attributes."""
+        if not self.coordinator.data:
+            return {}
+        data = self.coordinator.data
+        return {
+            "home_id": data.get("home_id"),
+            "home_name": data.get("home_name"),
+            "yesterday_date": data.get("yesterday_date"),
+            "yesterday_used": data.get("yesterday_used"),
+            "month_total": data.get("total"),
+            "price": data.get("price"),
+            "estimated_cost": data.get("estimated_cost"),
+            "last_updated": data.get("last_updated"),
+        }
+
+
+class DsAirMonthPowerSensor(CoordinatorEntity[DsAirPowerCoordinator], SensorEntity):
+    """大金金制空气当月累计用电传感器"""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "month_power"
+    _attr_device_class = SensorDeviceClass.ENERGY
+    _attr_native_unit_of_measurement = ENERGY_KWH
+    _attr_state_class = STATE_CLASS_TOTAL_INCREASING
+
+    def __init__(
+        self,
+        coordinator: DsAirPowerCoordinator,
+        config_entry: ConfigEntry,
+    ) -> None:
+        """Initialize the month power sensor."""
+        super().__init__(coordinator)
+        self.config_entry = config_entry
+        self._attr_name = "当月累计用电"
+        self._attr_unique_id = f"dsair_power_{coordinator.home_id}_month"
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, f"power_{coordinator.home_id}")},
+            name=f"金制空气 ({coordinator.home_name})",
+            manufacturer=MANUFACTURER,
+            model="金制空气云服务",
+        )
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity added to hass."""
+        await super().async_added_to_hass()
+        self.coordinator.set_month_statistic_id(self.entity_id)
+        if self.coordinator.data:
+            from datetime import datetime
+            self.hass.async_create_task(
+                self.coordinator.async_import_month_statistics(
+                    self.coordinator.data.get("year", datetime.now().year),
+                    self.coordinator.data.get("month", datetime.now().month),
+                    self.coordinator.data,
+                    statistic_id=self.entity_id,
+                )
+            )
+
+    @property
+    def native_value(self) -> float | None:
+        """Return current month's accumulated power consumption in kWh."""
+        if not self.coordinator.data:
+            return None
+        return self.coordinator.data.get("total")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """Return attributes including monthly total, unit price, and daily breakdown."""
+        if not self.coordinator.data:
+            return {}
+        data = self.coordinator.data
+        return {
+            "home_id": data.get("home_id"),
+            "home_name": data.get("home_name"),
+            "year": data.get("year"),
+            "month": data.get("month"),
+            "total": data.get("total"),
+            "month_total": data.get("total"),
+            "price": data.get("price"),
+            "estimated_cost": data.get("estimated_cost"),
+            "daily_consumptions": data.get("consumptions", []),
+            "last_updated": data.get("last_updated"),
+        }
+
+
+# 保持向下兼容别名
+DsAirPowerSensor = DsAirYesterdayPowerSensor
+

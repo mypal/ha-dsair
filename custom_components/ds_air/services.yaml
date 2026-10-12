@@ -1,0 +1,39 @@
+get_power_data:
+  name: 获取电量统计数据
+  description: 查询大金金制空气指定年月的每日电量明细，并可选择直接导入长期统计库供能源面板使用。
+  fields:
+    year:
+      name: 年份
+      description: 需要查询的年份（如 2026），默认当前年份。
+      required: false
+      example: 2026
+      selector:
+        number:
+          min: 2020
+          max: 2099
+          mode: box
+    month:
+      name: 月份
+      description: 需要查询的月份（1-12），默认当前月份。
+      required: false
+      example: 10
+      selector:
+        number:
+          min: 1
+          max: 12
+          mode: box
+    home_id:
+      name: 家庭 ID
+      description: 大金家庭 ID（若仅配置了一个家庭则可留空）。
+      required: false
+      example: 68293
+      selector:
+        number:
+          mode: box
+    import_to_statistics:
+      name: 导入至长期统计
+      description: 是否将每日历史电量导入 HA 长期统计库 (LTS)，让原生能源面板直接可用。
+      required: false
+      default: true
+      selector:
+        boolean:

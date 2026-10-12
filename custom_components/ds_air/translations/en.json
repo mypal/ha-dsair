@@ -3,6 +3,14 @@
     "step": {
       "user": {
         "title": "DS-AIR",
+        "description": "Please select configuration type:",
+        "menu_options": {
+          "gateway": "Configure Gateway",
+          "power": "Configure Power Statistics"
+        }
+      },
+      "gateway": {
+        "title": "DS-AIR - Configure Gateway",
         "description": "Support DTA117B611/DTA117C611",
         "data": {
           "host": "Host",
@@ -18,12 +26,32 @@
           "voc": "Create VOC entity",
           "hcho": "Create HCHO entity"
         }
+      },
+      "power": {
+        "title": "DS-AIR - Login",
+        "description": "Please enter your Daikin account phone number and password:",
+        "data": {
+          "username": "Phone / Username",
+          "password": "Password"
+        }
+      },
+      "power_home": {
+        "title": "DS-AIR - Select Home",
+        "description": "Please select the home for power statistics:",
+        "data": {
+          "home_id": "Home"
+        }
       }
     },
     "error": {
+      "invalid_auth": "Login failed, please check username and password",
+      "cannot_connect": "Cannot connect to Daikin server",
+      "no_homes": "No homes found for this account"
     },
     "abort": {
-      "single_instance_allowed": "Only one instance is allowed."
+      "single_instance_allowed": "Only one instance is allowed.",
+      "already_configured": "This home power statistics is already configured.",
+      "not_supported": "Power statistics does not require additional options."
     },
     "flow_title": "DS-AIR"
   },
@@ -32,8 +60,8 @@
       "init": {
         "title": "DS-AIR",
         "menu_options": {
-            "adjust_config": "Adjust config",
-            "bind_sensors": "Link sensors"
+          "adjust_config": "Adjust config",
+          "bind_sensors": "Link sensors"
         }
       },
       "adjust_config": {
@@ -95,6 +123,39 @@
       },
       "outdoor_pm25": {
         "name": "Outdoor PM2.5"
+      },
+      "power_consumption": {
+        "name": "Yesterday Power"
+      },
+      "yesterday_power": {
+        "name": "Yesterday Power"
+      },
+      "month_power": {
+        "name": "Current Month Power"
+      }
+    }
+  },
+  "services": {
+    "get_power_data": {
+      "name": "Get Power Data",
+      "description": "Query daily power consumption details for a specified year and month, with optional import to long-term statistics.",
+      "fields": {
+        "year": {
+          "name": "Year",
+          "description": "Year to query (e.g. 2026), defaults to current year."
+        },
+        "month": {
+          "name": "Month",
+          "description": "Month to query (1-12), defaults to current month."
+        },
+        "home_id": {
+          "name": "Home ID",
+          "description": "Daikin home ID (optional if only one home configured)."
+        },
+        "import_to_statistics": {
+          "name": "Import to Statistics",
+          "description": "Whether to import historical daily data into HA long-term statistics for the Energy Dashboard."
+        }
       }
     }
   }

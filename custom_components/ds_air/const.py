@@ -20,6 +20,20 @@ CONF_GW = "gw"
 DEFAULT_HOST = "192.168.1."
 DEFAULT_PORT = 8008
 
+# 条目类型
+CONF_ENTRY_TYPE = "entry_type"
+ENTRY_TYPE_GATEWAY = "gateway"
+ENTRY_TYPE_POWER = "power"
+
+# 电量统计相关常量
+CONF_USERNAME = "username"
+CONF_PASSWORD = "password"
+CONF_TOKEN = "token"
+CONF_HOME_ID = "home_id"
+CONF_HOME_NAME = "home_name"
+CONF_CONFIG_TYPE = "config_type"
+SERVICE_GET_POWER_DATA = "get_power_data"
+
 # 网关型号常量
 B611 = "DTA117B611"
 C611 = "DTA117C611"

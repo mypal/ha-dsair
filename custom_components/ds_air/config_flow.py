@@ -19,14 +19,24 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 
 from .const import (
+    CONF_CONFIG_TYPE,
+    CONF_ENTRY_TYPE,
     CONF_GW,
+    CONF_HOME_ID,
+    CONF_HOME_NAME,
+    CONF_PASSWORD,
+    CONF_TOKEN,
+    CONF_USERNAME,
     DEFAULT_GW,
     DEFAULT_HOST,
     DEFAULT_PORT,
     DOMAIN,
+    ENTRY_TYPE_GATEWAY,
+    ENTRY_TYPE_POWER,
     GW_LIST,
     get_default_gateway_name,
 )
+from .daikin_power import DaikinPowerClient
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,21 +52,41 @@ class DsAirFlowHandler(ConfigFlow, domain=DOMAIN):
 
     def __init__(self):
         self.user_input = {}
+        self._power_data: dict[str, Any] = {}
+        self._homes: list[dict[str, Any]] = []
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
+        """First step: choose between gateway configuration and power consumption."""
+        if user_input is not None:
+            config_type = user_input.get(CONF_CONFIG_TYPE)
+            if config_type == ENTRY_TYPE_POWER:
+                return await self.async_step_power()
+            if config_type == ENTRY_TYPE_GATEWAY or CONF_HOST in user_input:
+                return await self.async_step_gateway(user_input)
+
+        return self.async_show_menu(
+            step_id="user",
+            menu_options=["gateway", "power"],
+        )
+
+    async def async_step_gateway(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Configure gateway (original flow)."""
         errors = {}
         if user_input is not None:
             self.user_input.update(user_input)
             if not user_input.get(CONF_SENSORS) or user_input.get("temp") is not None:
+                self.user_input[CONF_ENTRY_TYPE] = ENTRY_TYPE_GATEWAY
                 return self.async_create_entry(
                     title=get_default_gateway_name(),
                     data=self.user_input,
                 )
 
             return self.async_show_form(
-                step_id="user",
+                step_id="gateway",
                 data_schema=vol.Schema(
                     {
                         vol.Required("temp", default=True): bool,
@@ -72,7 +102,7 @@ class DsAirFlowHandler(ConfigFlow, domain=DOMAIN):
             )
 
         return self.async_show_form(
-            step_id="user",
+            step_id="gateway",
             data_schema=vol.Schema(
                 {
                     vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
@@ -85,11 +115,119 @@ class DsAirFlowHandler(ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_power(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 1: Input username and password."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            username = user_input[CONF_USERNAME].strip()
+            password = user_input[CONF_PASSWORD].strip()
+
+            cert_cache_dir = self.hass.config.path(".storage", "ds_air_cert")
+            client = DaikinPowerClient(cert_cache_dir=cert_cache_dir)
+
+            try:
+                token = await self.hass.async_add_executor_job(
+                    client.login_by_password, username, password
+                )
+                homes = await self.hass.async_add_executor_job(client.get_homes)
+                if not homes:
+                    errors["base"] = "no_homes"
+                else:
+                    self._power_data = {
+                        CONF_ENTRY_TYPE: ENTRY_TYPE_POWER,
+                        CONF_USERNAME: username,
+                        CONF_PASSWORD: password,
+                        CONF_TOKEN: token,
+                    }
+                    self._homes = homes
+                    return await self.async_step_power_home()
+            except Exception as err:
+                _LOGGER.exception("Daikin power login failed: %s", err)
+                errors["base"] = "invalid_auth"
+
+        return self.async_show_form(
+            step_id="power",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_USERNAME): str,
+                    vol.Required(CONF_PASSWORD): str,
+                }
+            ),
+            errors=errors,
+        )
+
+    async def async_step_power_home(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 2: Choose home and create power consumption entry."""
+        errors: dict[str, str] = {}
+
+        home_options: dict[str, str] = {}
+        for h in self._homes:
+            h_id = str(h["homeId"])
+            h_name = h.get("homeName") or "家庭"
+            home_options[h_id] = f"{h_name} (ID: {h_id})"
+
+        default_home_id = str(self._homes[0]["homeId"]) if self._homes else ""
+
+        if user_input is not None:
+            selected_id = str(user_input[CONF_HOME_ID])
+            selected_home = next(
+                (h for h in self._homes if str(h["homeId"]) == selected_id),
+                None,
+            )
+            home_name = (
+                selected_home.get("homeName") if selected_home else f"家庭 {selected_id}"
+            )
+            home_id = int(selected_id)
+
+            await self.async_set_unique_id(f"dsair_power_{home_id}")
+            self._abort_if_unique_id_configured()
+
+            entry_data = {
+                **self._power_data,
+                CONF_HOME_ID: home_id,
+                CONF_HOME_NAME: home_name,
+            }
+
+            title = f"{home_name} 电量统计"
+            return self.async_create_entry(title=title, data=entry_data)
+
+        return self.async_show_form(
+            step_id="power_home",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_HOME_ID, default=default_home_id): vol.In(
+                        home_options
+                    ),
+                }
+            ),
+            errors=errors,
+        )
+
     @staticmethod
     @callback
     def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
         """Options callback for DS-AIR."""
+        if config_entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_POWER:
+            return DsAirPowerOptionsFlowHandler(config_entry)
         return DsAirOptionsFlowHandler(config_entry)
+
+
+class DsAirPowerOptionsFlowHandler(OptionsFlow):
+    """Options flow for power consumption entries."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        self._config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage power options."""
+        return self.async_abort(reason="not_supported")
 
 
 class DsAirOptionsFlowHandler(OptionsFlow):

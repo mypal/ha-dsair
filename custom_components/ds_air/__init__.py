@@ -4,21 +4,28 @@ https://www.daikin-china.com.cn/newha/products/4/19/DS-AIR/
 """
 
 import logging
+from datetime import datetime
+import voluptuous as vol
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, CONF_PORT, CONF_SCAN_INTERVAL, Platform
-from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.core import HomeAssistant, ServiceCall, ServiceResponse, SupportsResponse
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers import device_registry as dr, entity_registry as er
+import homeassistant.helpers.config_validation as cv
 
 from .const import (
+    CONF_ENTRY_TYPE,
     CONF_GW,
     C611,
     D611,
     DEFAULT_GW,
     DOMAIN,
+    ENTRY_TYPE_POWER,
     MANUFACTURER,
+    SERVICE_GET_POWER_DATA,
 )
+from .coordinator import DsAirPowerCoordinator
 from .descriptions import SENSOR_DESCRIPTORS
 from .ds_air_service import Config, Service
 from .ds_air_service.dao import migrate_legacy_sensor_links, migrate_legacy_unique_id
@@ -150,6 +157,9 @@ def _migrate_legacy_sensor_links(
 
 async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Migrate old config entries to gateway-scoped unique IDs."""
+    if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_POWER or CONF_HOST not in entry.data:
+        return True
+
     if entry.version > 2:
         return False
     if entry.version == 2:
@@ -170,8 +180,119 @@ async def async_migrate_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
+GET_POWER_DATA_SCHEMA = vol.Schema(
+    {
+        vol.Optional("year"): cv.positive_int,
+        vol.Optional("month"): vol.All(cv.positive_int, vol.Range(min=1, max=12)),
+        vol.Optional("home_id"): cv.positive_int,
+        vol.Optional("import_to_statistics", default=True): cv.boolean,
+    }
+)
+
+
+def _async_register_services(hass: HomeAssistant) -> None:
+    """Register ds_air integration services."""
+    if hass.services.has_service(DOMAIN, SERVICE_GET_POWER_DATA):
+        return
+
+    async def _async_handle_get_power_data(call: ServiceCall) -> ServiceResponse:
+        now = datetime.now()
+        year = call.data.get("year", now.year)
+        month = call.data.get("month", now.month)
+        home_id = call.data.get("home_id")
+        import_to_stats = call.data.get("import_to_statistics", True)
+
+        coordinators: list[DsAirPowerCoordinator] = [
+            coord
+            for coord in hass.data.get(DOMAIN, {}).values()
+            if isinstance(coord, DsAirPowerCoordinator)
+        ]
+
+        if not coordinators:
+            raise HomeAssistantError("未找到任何已配置的大金电量统计集成条目")
+
+        target_coordinator: DsAirPowerCoordinator | None = None
+        if home_id is not None:
+            for coord in coordinators:
+                if coord.home_id == home_id:
+                    target_coordinator = coord
+                    break
+            if target_coordinator is None:
+                raise HomeAssistantError(f"未找到 home_id={home_id} 的电量统计配置")
+        else:
+            if len(coordinators) == 1:
+                target_coordinator = coordinators[0]
+            else:
+                available_ids = [c.home_id for c in coordinators]
+                raise HomeAssistantError(
+                    f"当前配置了多个家庭电量统计 ({available_ids})，请在调用服务时指定 home_id"
+                )
+
+        try:
+            power_data = await hass.async_add_executor_job(
+                target_coordinator.fetch_historical_power, year, month
+            )
+        except Exception as err:
+            raise HomeAssistantError(f"获取历史电量数据失败: {err}") from err
+
+        imported = False
+        if import_to_stats:
+            try:
+                await target_coordinator.async_import_month_statistics(
+                    year, month, power_data, statistic_id=target_coordinator.month_statistic_id
+                )
+                imported = bool(target_coordinator.month_statistic_id)
+            except Exception as err:
+                _LOGGER.warning("服务导入长期统计失败: %s", err)
+
+        return {
+            "home_id": power_data.get("home_id"),
+            "home_name": power_data.get("home_name"),
+            "year": power_data.get("year"),
+            "month": power_data.get("month"),
+            "total": power_data.get("total"),
+            "price": power_data.get("price"),
+            "estimated_cost": power_data.get("estimated_cost"),
+            "yesterday_used": power_data.get("yesterday_used"),
+            "consumptions": power_data.get("consumptions", []),
+            "daily_details": power_data.get("daily_details", []),
+            "imported_to_statistics": imported,
+        }
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_GET_POWER_DATA,
+        _async_handle_get_power_data,
+        schema=GET_POWER_DATA_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
+
+async def async_setup(hass: HomeAssistant, config: dict) -> bool:
+    """Set up the DS-AIR component."""
+    hass.data.setdefault(DOMAIN, {})
+    _async_register_services(hass)
+    return True
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     hass.data.setdefault(DOMAIN, {})
+    _async_register_services(hass)
+
+    # 电量统计条目设置
+    if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_POWER or CONF_HOST not in entry.data:
+        coordinator = DsAirPowerCoordinator(hass, entry)
+        hass.data[DOMAIN][entry.entry_id] = coordinator
+
+        coordinator.start_scheduler()
+        await coordinator.async_config_entry_first_refresh()
+
+        await hass.config_entries.async_forward_entry_setups(
+            entry, [Platform.SENSOR]
+        )
+        entry.async_on_unload(entry.add_update_listener(update_listener))
+        return True
+
     host = entry.data[CONF_HOST]
     port = entry.data[CONF_PORT]
     gw = entry.data[CONF_GW]
@@ -211,6 +332,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    # 电量统计条目卸载
+    if entry.data.get(CONF_ENTRY_TYPE) == ENTRY_TYPE_POWER or CONF_HOST not in entry.data:
+        coordinator: DsAirPowerCoordinator = hass.data[DOMAIN].pop(
+            entry.entry_id, None
+        )
+        if coordinator:
+            coordinator.stop_scheduler()
+
+        unload_ok = await hass.config_entries.async_unload_platforms(
+            entry, [Platform.SENSOR]
+        )
+        return unload_ok
+
     service: Service = hass.data[DOMAIN].pop(entry.entry_id)
 
     if service.state_change_listener is not None:
