@@ -1,4 +1,4 @@
-"""Platform for DS-AIR Ventilation of Daikin"""
+"""Platform for DS-AIR Ventilation and Bathroom Fan of Daikin"""
 from __future__ import annotations
 
 import logging
@@ -13,11 +13,13 @@ from homeassistant.helpers.entity import DeviceInfo
 
 from .const import DOMAIN
 from .ds_air_service import (
+    AirCon,
+    AirConStatus,
+    EnumControl,
     get_vent_mode_name_small_vam,
     get_vent_mode_name_standard_vam,
     get_vent_mode_enum_small_vam,
     get_vent_mode_enum_standard_vam,
-    EnumControl,
 )
 from .ds_air_service.dao import Ventilation, VentilationStatus
 from .ds_air_service.display import display
@@ -34,16 +36,21 @@ def _log(s: str):
 # Fan features
 SMALL_VAM_SUPPORT = FanEntityFeature.SET_SPEED | FanEntityFeature.PRESET_MODE
 STANDARD_VAM_SUPPORT = FanEntityFeature.SET_SPEED | FanEntityFeature.PRESET_MODE
+BATHROOM_FAN_SUPPORT = FanEntityFeature.SET_SPEED
 
 # For HA Core >= 2024.8, add TURN_ON and TURN_OFF flags
 if (MAJOR_VERSION, MINOR_VERSION) >= (2024, 8):
     POWER_SUPPORT = FanEntityFeature.TURN_ON | FanEntityFeature.TURN_OFF
     SMALL_VAM_SUPPORT |= POWER_SUPPORT
     STANDARD_VAM_SUPPORT |= POWER_SUPPORT
+    BATHROOM_FAN_SUPPORT |= POWER_SUPPORT
 
 # 新风模式名称列表
 _MODE_VENT_NAME_LIST_SMALL_VAM = ["内循环", "热交换", "自动", "防污染", "排异味"]
 _MODE_VENT_NAME_LIST_STANDARD_VAM = ["旁通", "热交换", "自动"]
+
+# 浴室排风扇风速名称列表（APP 金制空气只有两个挡位：低/高）
+BATHROOM_FAN_SPEED_LIST = ["低", "高"]
 
 
 async def async_setup_entry(
@@ -51,13 +58,15 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up DS-AIR ventilation platform."""
+    """Set up DS-AIR ventilation and bathroom fan platform."""
     from .ds_air_service import Service
 
     service: Service = hass.data[DOMAIN][config_entry.entry_id]
     entities = []
     for vent in service.get_ventilations():
         entities.append(DsVent(vent, service))
+    for aircon in service.get_bathrooms():
+        entities.append(BathroomFan(aircon, service))
     async_add_entities(entities)
 
 
@@ -223,3 +232,122 @@ class DsVent(FanEntity):
         new_status = VentilationStatus()
         new_status.switch = EnumControl.Switch.OFF
         self._service.control_vent(self._device_info, new_status)
+
+
+class BathroomFan(FanEntity):
+    """Representation of a DS-AIR bathroom exhaust fan."""
+
+    _attr_has_entity_name: bool = True
+    _attr_should_poll: bool = False
+    _attr_translation_key = "bathroom_fan"
+
+    def __init__(self, aircon: AirCon, service):
+        """Initialize the bathroom fan."""
+        _log("create bathroom fan:")
+        _log(str(aircon.__dict__))
+        self._device_info = aircon
+        self._unique_id = f"{aircon.unique_id}_exhaust_fan"
+        self._service = service
+        self._attr_name = f"换气 {aircon.alias}"
+        self._attr_supported_features = BATHROOM_FAN_SUPPORT
+        self._attr_speed_count = 2  # 两个挡位：低/高
+
+        self._attr_device_info = DeviceInfo(
+            identifiers={(DOMAIN, aircon.unique_id)},
+            name=f"{aircon.alias} 空调",
+            manufacturer="Daikin Industries, Ltd.",
+        )
+
+        service.register_status_hook(aircon, self._status_change_hook)
+
+    def _status_change_hook(self, **kwargs):
+        """Handle status change callback."""
+        _log("bathroom fan hook:")
+        if kwargs.get("aircon") is not None:
+            aircon: AirCon = kwargs["aircon"]
+            aircon.status = self._device_info.status
+            self._device_info = aircon
+
+        if kwargs.get("status") is not None:
+            status = self._device_info.status
+            new_status: AirConStatus = kwargs["status"]
+            if new_status.switch is not None:
+                status.switch = new_status.switch
+            if new_status.air_flow is not None:
+                status.air_flow = new_status.air_flow
+            if new_status.mode is not None:
+                status.mode = new_status.mode
+            if new_status.breathe is not None:
+                status.breathe = new_status.breathe
+
+        self.schedule_update_ha_state()
+
+    @property
+    def unique_id(self) -> str:
+        """Return the unique id."""
+        return self._unique_id
+
+    @property
+    def is_on(self) -> bool | None:
+        """Return true if device is on."""
+        if self._device_info.status.breathe is None:
+            return None
+        return self._device_info.status.breathe != EnumControl.Breathe.CLOSE
+
+    @property
+    def percentage(self) -> int | None:
+        """Return the current speed percentage."""
+        if self._device_info.status.breathe is None:
+            return None
+        breathe = self._device_info.status.breathe
+        if breathe == EnumControl.Breathe.WEAK:
+            return 50  # 低
+        elif breathe == EnumControl.Breathe.STRONG:
+            return 100  # 高
+        return None
+
+    def set_percentage(self, percentage: int) -> None:
+        """Set the fan speed percentage."""
+        aircon = self._device_info
+        new_status = AirConStatus()
+
+        # 两个挡位：低 (50%) = WEAK, 高 (100%) = STRONG
+        if percentage > 50:
+            breathe = EnumControl.Breathe.STRONG
+        elif percentage > 0:
+            breathe = EnumControl.Breathe.WEAK
+        else:
+            breathe = aircon.status.breathe
+
+        aircon.status.breathe = breathe
+        new_status.breathe = breathe
+        self._service.control(aircon, new_status)
+        self.schedule_update_ha_state()
+
+    def turn_on(self, **kwargs: Any) -> None:
+        """Turn on the fan."""
+        aircon = self._device_info
+        new_status = AirConStatus()
+        
+        # 使用传入的 percentage 参数，默认低速
+        percentage = kwargs.get("percentage")
+        if percentage is None:
+            percentage = 50
+        if percentage > 50:
+            breathe = EnumControl.Breathe.STRONG
+        else:
+            breathe = EnumControl.Breathe.WEAK
+        
+        new_status.breathe = breathe
+        aircon.status.breathe = breathe
+        self._service.control(aircon, new_status)
+        self.schedule_update_ha_state()
+
+    def turn_off(self, **kwargs: Any) -> None:
+        """Turn the fan off."""
+        aircon = self._device_info
+        new_status = AirConStatus()
+        new_status.breathe = EnumControl.Breathe.CLOSE
+        aircon.status.breathe = EnumControl.Breathe.CLOSE
+        self._service.control(aircon, new_status)
+        self.schedule_update_ha_state()

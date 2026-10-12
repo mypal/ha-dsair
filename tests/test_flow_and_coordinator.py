@@ -94,6 +94,8 @@ ha_const.CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER = "mg/m³"
 ha_const.CONCENTRATION_PARTS_PER_MILLION = "ppm"
 ha_const.MAJOR_VERSION = 2024
 ha_const.UnitOfEnergy = MagicMock(KILO_WATT_HOUR="kWh")
+ha_const.UnitOfDensity = MagicMock(MICROGRAMS_PER_CUBIC_METER="µg/m³", MILLIGRAMS_PER_CUBIC_METER="mg/m³")
+ha_const.UnitOfRatio = MagicMock(PARTS_PER_MILLION="ppm")
 
 
 def callback(func):
