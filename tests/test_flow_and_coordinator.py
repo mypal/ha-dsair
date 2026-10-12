@@ -184,6 +184,7 @@ ha_helpers_config_validation = types.ModuleType("homeassistant.helpers.config_va
 ha_helpers_config_validation.positive_int = int
 ha_helpers_config_validation.boolean = bool
 ha_helpers_config_validation.string = str
+ha_helpers_config_validation.config_entry_only_config_schema = lambda domain: None
 sys.modules["homeassistant.helpers.config_validation"] = ha_helpers_config_validation
 
 ha_helpers.entity_platform = MagicMock()

@@ -32,6 +32,8 @@ from .ds_air_service.dao import migrate_legacy_sensor_links, migrate_legacy_uniq
 
 _LOGGER = logging.getLogger(__name__)
 
+CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
 PLATFORMS = [
     Platform.CLIMATE,
     Platform.SENSOR,
