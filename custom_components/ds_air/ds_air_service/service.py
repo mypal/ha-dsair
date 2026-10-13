@@ -255,6 +255,8 @@ class Service:
         self._hd_hook: list[(HD, Callable)] = []
         self._heartbeat_thread = None
         self._sensors: list[Sensor] = []
+        self._gw_info: dict = {}
+        self._last_error: dict = {}
         self._scan_interval: int = 5
         self.state_change_listener: Callable[[], None] | None = None
         self._config: Config = None
@@ -322,6 +324,8 @@ class Service:
         self._vent_hook = []
         self._hd_hook = []
         self._sensors = []
+        self._gw_info = {}
+        self._last_error = {}
         self._ready = False
         self._config = None
 
@@ -405,6 +409,20 @@ class Service:
 
     def set_rooms(self, v: list[Room]):
         self._rooms = v
+
+    def get_gw_info(self) -> dict:
+        """网关本体信息（固件/MAC/IP/掩码/DNS/网关/时钟），见 SYS_GET_GW_INFO(80)。"""
+        return self._gw_info
+
+    def set_gw_info(self, v: dict):
+        self._gw_info = v or {}
+
+    def get_last_error(self) -> dict:
+        """网关最近一次推送的故障码（SYS_ERR_CODE(6)）。"""
+        return self._last_error
+
+    def set_last_error(self, v: dict):
+        self._last_error = v or {}
 
     def get_sensors(self):
         return self._sensors

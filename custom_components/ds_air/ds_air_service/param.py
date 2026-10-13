@@ -114,6 +114,10 @@ class SystemParam(Param):
 class HandShakeParam(SystemParam):
     def __init__(self):
         SystemParam.__init__(self, EnumCmdType.SYS_HAND_SHAKE, True)
+        # 与官方 App 抓帧一致（tests/protocol-demo.txt 的握手帧 subbody_ver=0）。
+        # 实测固件 02.18.12：ver=1 会话下网关会对 CONTROL 回 ACK 但静默忽略，内机不动；
+        # 改为 ver=0 后控制立即生效。回归测试见 tests/test_subbody_ver_and_gw_info.py。
+        self.subbody_ver = 0
 
 
 class GetGWInfoParam(SystemParam):
@@ -228,6 +232,7 @@ class AirConControlParam(AirconParam):
         self.target = get_device_by_aircon(aircon)
         self._aircon = aircon
         self._new_status = new_status
+        self.subbody_ver = 0  # 与官方 App 一致，否则网关静默忽略（实测）
 
     def generate_subbody(self, s: Encode, config: Config) -> None:
         aircon = self._aircon
@@ -345,6 +350,7 @@ class VentilationControlParam(VentilationParam):
         self.target = get_device_by_vent(vent)
         self._vent = vent
         self._new_status = new_status
+        self.subbody_ver = 0  # 同官方 App（未在本屋验证：家里没有新风设备）
 
     def generate_subbody(self, s: Encode, config: Config) -> None:
         vent = self._vent
@@ -445,6 +451,7 @@ class HDBaseControlParam(HDParam):
         super().__init__(EnumCmdType.NEW_HD_STATE_SETTING, False)
         self._hd = hd
         self._new_status = new_status
+        self.subbody_ver = 0  # 同官方 App（未在本屋验证：家里没有地暖/水机）
 
     def generate_subbody(self, s: Encode, config: Config) -> None:
         hd = self._hd

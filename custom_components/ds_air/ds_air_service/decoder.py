@@ -36,6 +36,7 @@ from .param import (
     AirConCapabilityQueryParam,
     AirConQueryStatusParam,
     AirConRecommendedIndoorTempParam,
+    GetGWInfoParam,
     GetRoomInfoParam,
     HDQueryInfoParam,
     HDQueryStatusParam,
@@ -106,6 +107,8 @@ def result_factory(data: tuple, config: Config):
             result = GetRoomInfoResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_GET_ROOM_INFO_V1.value:
             result = GetRoomInfoResult(cnt, EnumDevice.SYSTEM)
+        elif cmd_type == EnumCmdType.SYS_GET_GW_INFO.value:
+            result = GetGWInfoResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_QUERY_SCHEDULE_SETTING.value:
             result = QueryScheduleSettingResult(cnt, EnumDevice.SYSTEM)
         elif cmd_type == EnumCmdType.SYS_QUERY_SCHEDULE_ID.value:
@@ -520,13 +523,24 @@ class ErrCodeResult(BaseResult):
         self._device = None
         self._room = None
         self._unit = None
+        self._flag: bytes = b""
 
     def load_bytes(self, b: bytes, config: Config) -> None:
         dev_id, room, unit = struct.unpack("<iBB", b[:6])
         self._device = EnumDevice((8, dev_id))
         self._room = room
         self._unit = unit
-        self._code = b[6:].decode("ASCII")
+        # 实测子体布局: dev_id(4B) | room(1B) | unit(1B) | flag(4B) | ASCII 故障码
+        self._flag = b[6:10]
+        code = b[10:].decode("ASCII", "replace")
+        if not code.strip():
+            code = b[6:].decode("ASCII", "replace")
+        self._code = code.strip()
+
+    @property
+    def flag(self) -> bytes:
+        """故障码前的 4 字节标志位（实测 01 00 00 02，语义待与 App 告警页对照）"""
+        return self._flag
 
     @property
     def code(self):
@@ -543,6 +557,16 @@ class ErrCodeResult(BaseResult):
     @property
     def unit(self):
         return self._unit
+
+    def do(self, service: Service) -> None:
+        """把最近一次故障码记到 service 上，供 HA 诊断实体读取。"""
+        service.set_last_error({
+            "code": self._code,
+            "flag": self._flag.hex(),
+            "device": getattr(self._device, "name", str(self._device)),
+            "room": self._room,
+            "unit": self._unit,
+        })
 
 
 class GetWeatherResult(BaseResult):
@@ -793,18 +817,85 @@ class HandShakeResult(BaseResult):
 
         service.send_msg(p)
         service.send_msg(Sensor2InfoParam())
+        service.send_msg(GetGWInfoParam())
 
 
 class GetGWInfoResult(BaseResult):
+    """SYS_GET_GW_INFO(80) 回帧。
+
+    真机（固件 02.18.12）实测的子体布局::
+
+        [08] "02.18.12"      固件版本（首字节是长度）
+        00                   填充
+        xx xx xx xx xx xx    MAC（6 字节，无长度前缀）
+        [0d] "192.168.1.100" IP
+        [0d] "255.255.255.0" 掩码
+        [0c] "192.168.1.1"   DNS1
+        [0c] "8.8.8.8"       DNS2（长度不固定，7~15 字节都见过）
+        [0b] "192.168.1.1"   默认网关
+        [07] 年(LE 2B)+月+日+时+分+秒   网关时钟（与 IPv4 段按内容区分）
+    """
+
     def __init__(self, cmd_id: int, target: EnumDevice):
-        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_HAND_SHAKE)
+        BaseResult.__init__(self, cmd_id, target, EnumCmdType.SYS_GET_GW_INFO)
+        self._version: str = ""
+        self._mac: str = ""
+        self._ip: str = ""
+        self._mask: str = ""
+        self._dns1: str = ""
+        self._dns2: str = ""
+        self._gateway: str = ""
         self._time: str = ""
 
+    @staticmethod
+    def _is_ipv4_text(text: str) -> bool:
+        parts = text.split(".")
+        return len(parts) == 4 and all(p.isdigit() and int(p) <= 255 for p in parts)
+
     def load_bytes(self, b: bytes, config: Config) -> None:
-        """Todo"""
+        try:
+            i = 0
+            n = b[i]
+            self._version = b[i + 1:i + 1 + n].decode("ascii", "replace")
+            i += 1 + n + 1  # +1 跳过 0x00 填充
+            self._mac = ":".join(f"{x:02x}" for x in b[i:i + 6])
+            i += 6
+            nets = []
+            while i < len(b):
+                n = b[i]
+                if n == 0:
+                    i += 1
+                    continue
+                seg = b[i + 1:i + 1 + n]
+                i += 1 + n
+                text = seg.decode("ascii", "replace")
+                # 7 字节段既可能是网关时钟、也可能短 IPv4（如 8.8.8.8），按内容区分
+                if n == 7 and not self._is_ipv4_text(text):
+                    year = seg[0] | (seg[1] << 8)
+                    self._time = (f"{year:04d}-{seg[2]:02d}-{seg[3]:02d} "
+                                  f"{seg[4]:02d}:{seg[5]:02d}:{seg[6]:02d}")
+                elif 7 <= n <= 15 and self._is_ipv4_text(text):
+                    nets.append(text)
+            for attr, v in zip(("_ip", "_mask", "_dns1", "_dns2", "_gateway"), nets):
+                setattr(self, attr, v)
+        except Exception:  # 帧格式变化时不要把整个接收线程带崩
+            return
 
     def do(self, service: Service) -> None:
-        """Todo"""
+        service.set_gw_info(self.info)
+
+    @property
+    def info(self) -> dict:
+        return {
+            "version": self._version,
+            "mac": self._mac,
+            "ip": self._ip,
+            "mask": self._mask,
+            "dns1": self._dns1,
+            "dns2": self._dns2,
+            "gateway": self._gateway,
+            "time": self._time,
+        }
 
 
 class CmdTransferResult(BaseResult):
