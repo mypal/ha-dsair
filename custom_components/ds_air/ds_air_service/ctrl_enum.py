@@ -254,13 +254,13 @@ class EnumControl:
 
     class FanDirection(IntEnum):
         INVALID = 0
-        P0 = 1  # 最右 最上
-        P1 = 2
-        P2 = 3
-        P3 = 4
-        P4 = 5  # 最左 最下
-        AUTO = 6
-        SWING = 7
+        P0 = 1  # 垂直: 最上(水平出风) / 水平: 最左
+        P1 = 2  # 垂直: 偏上         / 水平: 偏左
+        P2 = 3  # 垂直: 居中         / 水平: 正中
+        P3 = 4  # 垂直: 偏下         / 水平: 偏右
+        P4 = 5  # 垂直: 最下(向下出风) / 水平: 最右
+        AUTO = 6  # 自动
+        SWING = 7  # 摆动(上下摆动 / 左右摆动)
 
     class Humidity(IntEnum):
         CLOSE = 0

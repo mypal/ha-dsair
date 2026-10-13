@@ -201,7 +201,10 @@ class AirConQueryStatusParam(AirconParam):
             if dev.fan_volume != EnumFanVolume.NO:
                 flag = flag | t.AIR_FLOW
             if config.is_new_version:
-                if EnumFanDirection.FIX not in (dev.fan_direction1, dev.fan_direction2):
+                if (
+                    dev.fan_direction1 != EnumFanDirection.FIX
+                    or dev.fan_direction2 != EnumFanDirection.FIX
+                ):
                     flag = flag | t.FAN_DIRECTION
                 if dev.bath_room or dev.three_d_fresh_allow:
                     flag = flag | t.BREATHE
@@ -250,9 +253,17 @@ class AirConControlParam(AirconParam):
             li.append((2, status.setted_temp))
         if config.is_new_version:
             if self.target != EnumDevice.BATHROOM:
-                if status.fan_direction1 is not None:
+                if status.fan_direction1 is not None or status.fan_direction2 is not None:
                     flag = flag | EnumControl.Type.FAN_DIRECTION
-                    li.append((1, status.fan_direction1 | status.fan_direction2 << 4))
+                    d1 = status.fan_direction1
+                    if d1 is None and aircon.status is not None:
+                        d1 = aircon.status.fan_direction1
+                    d2 = status.fan_direction2
+                    if d2 is None and aircon.status is not None:
+                        d2 = aircon.status.fan_direction2
+                    val1 = int(d1) if d1 is not None else 0
+                    val2 = int(d2) if d2 is not None else 0
+                    li.append((1, (val1 & 0x0F) | ((val2 & 0x0F) << 4)))
 
                 if self.target == EnumDevice.NEWAIRCON:
                     if status.humidity is not None:

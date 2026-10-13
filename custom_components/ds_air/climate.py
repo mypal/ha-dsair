@@ -38,16 +38,19 @@ from .const import (
     AIR_FLOW_NAME_LIST,
     DOMAIN,
     FAN_DIRECTION_LIST,
+    FAN_DIRECTION_HOR_LIST,
     MANUFACTURER,
     get_action_name,
     get_air_flow_enum,
     get_air_flow_name,
     get_fan_direction_enum,
     get_fan_direction_name,
+    get_fan_direction_hor_enum,
+    get_fan_direction_hor_name,
     get_mode_name,
 )
 from .ds_air_service import AirCon, AirConStatus, EnumControl, Service, display
-from .ds_air_service.ctrl_enum import EnumFanVolume
+from .ds_air_service.ctrl_enum import EnumFanDirection, EnumFanVolume
 from .ds_air_service.dao import build_aircon_device_name
 
 _SUPPORT_FLAGS = (
@@ -124,6 +127,7 @@ class DsAir(ClimateEntity):
     _attr_min_temp: float = 16
     _attr_precision: float = PRECISION_TENTHS
     _attr_swing_modes: list[str] | None = FAN_DIRECTION_LIST[1:]
+    _attr_swing_horizontal_modes: list[str] | None = FAN_DIRECTION_HOR_LIST[1:]
     _attr_target_temperature_high: float | None = None
     _attr_target_temperature_low: float | None = None
     _attr_target_temperature_step: float | None = 0.5
@@ -320,11 +324,19 @@ class DsAir(ClimateEntity):
 
     @property
     def swing_mode(self) -> str | None:
-        """Return the swing setting.
+        """Return the swing setting (vertical / 上下风向).
 
         Requires ClimateEntityFeature.SWING_MODE.
         """
         return get_fan_direction_name(self._device_info.status.fan_direction1)
+
+    @property
+    def swing_horizontal_mode(self) -> str | None:
+        """Return the horizontal swing setting (horizontal / 左右风向).
+
+        Requires ClimateEntityFeature.SWING_HORIZONTAL_MODE.
+        """
+        return get_fan_direction_hor_name(self._device_info.status.fan_direction2)
 
     def set_temperature(self, **kwargs) -> None:
         """Set new target temperatures."""
@@ -409,14 +421,28 @@ class DsAir(ClimateEntity):
         self.schedule_update_ha_state()
 
     def set_swing_mode(self, swing_mode: str) -> None:
-        """Set new swing mode."""
+        """Set new vertical swing mode."""
         status = self._device_info.status
         if status.switch == EnumControl.Switch.ON:
             new_status = AirConStatus()
+            val = get_fan_direction_enum(swing_mode)
+            status.fan_direction1 = val
+            new_status.fan_direction1 = val
+            status.fan_direction2 = self._device_info.status.fan_direction2
+            new_status.fan_direction2 = self._device_info.status.fan_direction2
+            self.service.control(self._device_info, new_status)
+            self.schedule_update_ha_state()
+
+    def set_swing_horizontal_mode(self, swing_horizontal_mode: str) -> None:
+        """Set new horizontal swing mode."""
+        status = self._device_info.status
+        if status.switch == EnumControl.Switch.ON:
+            new_status = AirConStatus()
+            val = get_fan_direction_hor_enum(swing_horizontal_mode)
+            status.fan_direction2 = val
+            new_status.fan_direction2 = val
             status.fan_direction1 = self._device_info.status.fan_direction1
             new_status.fan_direction1 = self._device_info.status.fan_direction1
-            status.fan_direction2 = get_fan_direction_enum(swing_mode)
-            new_status.fan_direction2 = get_fan_direction_enum(swing_mode)
             self.service.control(self._device_info, new_status)
             self.schedule_update_ha_state()
 
@@ -448,8 +474,14 @@ class DsAir(ClimateEntity):
         """Return the list of supported features."""
         flags = _SUPPORT_FLAGS
         aircon = self._device_info
-        if aircon.status.fan_direction1 is not None and aircon.status.fan_direction1.value > 0:
+        if (aircon.fan_direction1 != EnumFanDirection.FIX) or (
+            aircon.status.fan_direction1 is not None and aircon.status.fan_direction1.value > 0
+        ):
             flags |= ClimateEntityFeature.SWING_MODE
+        if (aircon.fan_direction2 != EnumFanDirection.FIX) or (
+            aircon.status.fan_direction2 is not None and aircon.status.fan_direction2.value > 0
+        ):
+            flags |= ClimateEntityFeature.SWING_HORIZONTAL_MODE
         if aircon.relax_mode:
             flags |= ClimateEntityFeature.TARGET_HUMIDITY
         return flags

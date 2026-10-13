@@ -218,6 +218,7 @@ sys.modules["homeassistant.components.climate"] = ha_components_climate
 
 from custom_components.ds_air import config_flow  # noqa: E402
 from custom_components.ds_air import coordinator  # noqa: E402
+coordinator.async_track_time_change = ha_helpers_event.async_track_time_change
 from custom_components.ds_air import sensor  # noqa: E402
 from custom_components.ds_air.const import (  # noqa: E402
     CONF_ENTRY_TYPE,

@@ -97,15 +97,84 @@ def get_air_flow_enum(name: str) -> EnumControl.AirFlow:
     return EnumControl.AirFlow(AIR_FLOW_NAME_LIST.index(name))
 
 
-FAN_DIRECTION_LIST = [None, "➡️", "↘️", "⬇️", "↙️", "⬅️", "↔️", "🔄"]
+# 垂直风向：从最高仰角到垂直向下，再到自动与摆动
+FAN_DIRECTION_LIST = [None, "⬆️", "↗️", "➡️", "↘️", "⬇️", "🅰️", "↕️"]
+
+# 水平风向：从最左到最右，再到自动与左右摆动
+FAN_DIRECTION_HOR_LIST = [None, "⬅️", "↖️", "⬆️", "↗️", "➡️", "🅰️", "↔️"]
+
+_FAN_DIRECTION_MAP: dict[str, EnumControl.FanDirection] = {
+    "⬆️": EnumControl.FanDirection.P0,
+    "↗️": EnumControl.FanDirection.P1,
+    "➡️": EnumControl.FanDirection.P2,
+    "↘️": EnumControl.FanDirection.P3,
+    "⬇️": EnumControl.FanDirection.P4,
+    "🅰️": EnumControl.FanDirection.AUTO,
+    "↕️": EnumControl.FanDirection.SWING,
+    # 兼容历史配置与文本输入
+    "自动": EnumControl.FanDirection.AUTO,
+    "AUTO": EnumControl.FanDirection.AUTO,
+    "auto": EnumControl.FanDirection.AUTO,
+    "摆动": EnumControl.FanDirection.SWING,
+    "上下摆动": EnumControl.FanDirection.SWING,
+    "SWING": EnumControl.FanDirection.SWING,
+    "swing": EnumControl.FanDirection.SWING,
+    "🔄": EnumControl.FanDirection.SWING,
+    "↔️": EnumControl.FanDirection.AUTO,
+}
+
+_FAN_DIRECTION_HOR_MAP: dict[str, EnumControl.FanDirection] = {
+    "⬅️": EnumControl.FanDirection.P0,
+    "↖️": EnumControl.FanDirection.P1,
+    "⬆️": EnumControl.FanDirection.P2,
+    "↗️": EnumControl.FanDirection.P3,
+    "➡️": EnumControl.FanDirection.P4,
+    "🅰️": EnumControl.FanDirection.AUTO,
+    "↔️": EnumControl.FanDirection.SWING,
+    # 兼容历史配置与文本输入
+    "自动": EnumControl.FanDirection.AUTO,
+    "AUTO": EnumControl.FanDirection.AUTO,
+    "auto": EnumControl.FanDirection.AUTO,
+    "摆动": EnumControl.FanDirection.SWING,
+    "左右摆动": EnumControl.FanDirection.SWING,
+    "SWING": EnumControl.FanDirection.SWING,
+    "swing": EnumControl.FanDirection.SWING,
+    "🔄": EnumControl.FanDirection.SWING,
+}
 
 
 def get_fan_direction_name(idx: EnumControl.FanDirection | None) -> str | None:
-    return FAN_DIRECTION_LIST[idx] if idx is not None else None
+    if idx is None or idx == EnumControl.FanDirection.INVALID:
+        return None
+    try:
+        return FAN_DIRECTION_LIST[idx]
+    except (IndexError, TypeError):
+        return None
 
 
 def get_fan_direction_enum(name: str) -> EnumControl.FanDirection:
-    return EnumControl.FanDirection(FAN_DIRECTION_LIST.index(name))
+    if name in _FAN_DIRECTION_MAP:
+        return _FAN_DIRECTION_MAP[name]
+    if name in FAN_DIRECTION_LIST:
+        return EnumControl.FanDirection(FAN_DIRECTION_LIST.index(name))
+    return EnumControl.FanDirection.INVALID
+
+
+def get_fan_direction_hor_name(idx: EnumControl.FanDirection | None) -> str | None:
+    if idx is None or idx == EnumControl.FanDirection.INVALID:
+        return None
+    try:
+        return FAN_DIRECTION_HOR_LIST[idx]
+    except (IndexError, TypeError):
+        return None
+
+
+def get_fan_direction_hor_enum(name: str) -> EnumControl.FanDirection:
+    if name in _FAN_DIRECTION_HOR_MAP:
+        return _FAN_DIRECTION_HOR_MAP[name]
+    if name in FAN_DIRECTION_HOR_LIST:
+        return EnumControl.FanDirection(FAN_DIRECTION_HOR_LIST.index(name))
+    return EnumControl.FanDirection.INVALID
 
 
 # 新风传感器类型

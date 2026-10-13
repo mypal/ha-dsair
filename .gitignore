@@ -96,6 +96,7 @@ virtualization/vagrant/config
 
 # Built docs
 docs/build
+docs/superpowers/
 
 # Windows Explorer
 desktop.ini

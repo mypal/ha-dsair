@@ -40,6 +40,7 @@ class DsAirPowerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=f"DsAirPower_{self.home_id}",
             update_interval=None,  # 采用每天早上 5:00 定时触发，不使用高频轮询
         )
