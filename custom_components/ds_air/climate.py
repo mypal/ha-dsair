@@ -29,6 +29,7 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 from homeassistant.core import Event, HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -377,6 +378,40 @@ class DsAir(ClimateEntity):
             new_status.air_flow = get_air_flow_enum(fan_mode)
             self.service.control(self._device_info, new_status)
             self.schedule_update_ha_state()
+
+    def turn_on(self) -> None:
+        """Turn on power without replacing the gateway's operating mode."""
+        status = self._device_info.status
+        try:
+            mode = EnumControl.Mode(status.mode)
+        except (TypeError, ValueError) as err:
+            raise HomeAssistantError(
+                "Cannot confirm the air conditioner's operating mode; "
+                "select an explicit HVAC mode before turning it on."
+            ) from err
+        capability = {
+            EnumControl.Mode.COLD: "cool_mode",
+            EnumControl.Mode.DRY: "dry_mode",
+            EnumControl.Mode.VENTILATION: "ventilation_mode",
+            EnumControl.Mode.AUTO: "auto_mode",
+            EnumControl.Mode.HEAT: "heat_mode",
+            EnumControl.Mode.AUTODRY: "auto_dry_mode",
+            EnumControl.Mode.RELAX: "relax_mode",
+            EnumControl.Mode.SLEEP: "sleep_mode",
+            EnumControl.Mode.PREHEAT: "pre_heat_mode",
+            EnumControl.Mode.MOREDRY: "more_dry_mode",
+        }[mode]
+        if not getattr(self._device_info, capability, False):
+            raise HomeAssistantError(
+                "The air conditioner's operating mode is not currently available; "
+                "select an explicit HVAC mode before turning it on."
+            )
+
+        new_status = AirConStatus()
+        new_status.switch = EnumControl.Switch.ON
+        self.service.control(self._device_info, new_status)
+        status.switch = EnumControl.Switch.ON
+        self.schedule_update_ha_state()
 
     def set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
