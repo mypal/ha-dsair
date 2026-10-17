@@ -191,6 +191,15 @@ class AirConQueryStatusParam(AirconParam):
         super().__init__(EnumCmdType.QUERY_STATUS, True)
         self._device: AirCon | None = None
 
+    def to_string(self, config: Config) -> bytes:
+        # Only the ordinary indoor-unit V1 layout has been established for F611.
+        self._cmd_type = (
+            EnumCmdType.QUERY_STATUS_V1
+            if config.is_f611 and self.target == EnumDevice.AIRCON
+            else EnumCmdType.QUERY_STATUS
+        )
+        return super().to_string(config)
+
     def generate_subbody(self, s: Encode, config: Config) -> None:
         s.write1(self._device.room_id)
         s.write1(self._device.unit_id)
@@ -206,9 +215,12 @@ class AirConQueryStatusParam(AirconParam):
                     or dev.fan_direction2 != EnumFanDirection.FIX
                 ):
                     flag = flag | t.FAN_DIRECTION
-                if dev.bath_room or dev.three_d_fresh_allow:
+                if (dev.bath_room or dev.three_d_fresh_allow) and not (
+                    config.is_f611 and self.target == EnumDevice.AIRCON
+                ):
                     flag = flag | t.BREATHE
-                flag = flag | t.HUMIDITY
+                if not (config.is_f611 and self.target == EnumDevice.AIRCON):
+                    flag = flag | t.HUMIDITY
             if dev.hum_fresh_air_allow:
                 flag = flag | t.FRESH_AIR_HUMIDIFICATION
         s.write1(flag)

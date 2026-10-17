@@ -11,7 +11,7 @@
       },
       "gateway": {
         "title": "金制空气 - 配置网关",
-        "description": "本插件支持大金DTA117B611/DTA117C611两款空调网关",
+        "description": "支持 DTA117B611/DTA117C611/DTA117D611/DTA117F611。F611 支持基础本地空调控制，暂未启用实测室温及原生静音。",
         "data": {
           "host": "网关IP",
           "port": "网关端口",
@@ -41,6 +41,13 @@
         "data": {
           "home_id": "家庭"
         }
+      },
+      "reconfigure": {
+        "title": "网关型号",
+        "description": "仅修改网关型号，保留现有实体与选项。",
+        "data": {
+          "gw": "网关型号"
+        }
       }
     },
     "error": {
@@ -51,7 +58,8 @@
     "abort": {
       "single_instance_allowed": "只允许创建一个实例",
       "already_configured": "该家庭电量统计已配置",
-      "not_supported": "电量统计无需额外配置"
+      "not_supported": "电量统计无需额外配置",
+      "reconfigure_not_supported": "只有本地网关条目支持重新配置网关型号。"
     },
     "flow_title": "金制空气"
   },

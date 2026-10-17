@@ -216,6 +216,31 @@ class DsAirFlowHandler(ConfigFlow, domain=DOMAIN):
             return DsAirPowerOptionsFlowHandler(config_entry)
         return DsAirOptionsFlowHandler(config_entry)
 
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Change the model without recreating the gateway or its entities."""
+        entry = self._get_reconfigure_entry()
+        if (
+            entry.data.get(CONF_ENTRY_TYPE, ENTRY_TYPE_GATEWAY) != ENTRY_TYPE_GATEWAY
+            or CONF_HOST not in entry.data
+        ):
+            return self.async_abort(reason="reconfigure_not_supported")
+        if user_input is not None:
+            return self.async_update_reload_and_abort(
+                entry, data_updates={CONF_GW: user_input[CONF_GW]}
+            )
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_GW, default=entry.data.get(CONF_GW, DEFAULT_GW)
+                    ): vol.In(GW_LIST),
+                }
+            ),
+        )
+
 
 class DsAirPowerOptionsFlowHandler(OptionsFlow):
     """Options flow for power consumption entries."""
