@@ -11,7 +11,7 @@
       },
       "gateway": {
         "title": "DS-AIR - Configure Gateway",
-        "description": "Support DTA117B611/DTA117C611",
+        "description": "Support DTA117B611/DTA117C611/DTA117D611/DTA117F611. F611 supports basic local HVAC controls; measured room temperature and native quiet mode are not enabled.",
         "data": {
           "host": "Host",
           "port": "Port",
@@ -41,6 +41,13 @@
         "data": {
           "home_id": "Home"
         }
+      },
+      "reconfigure": {
+        "title": "Gateway model",
+        "description": "Change only the gateway model. Existing entities and options are retained.",
+        "data": {
+          "gw": "Gateway model"
+        }
       }
     },
     "error": {
@@ -51,7 +58,8 @@
     "abort": {
       "single_instance_allowed": "Only one instance is allowed.",
       "already_configured": "This home power statistics is already configured.",
-      "not_supported": "Power statistics does not require additional options."
+      "not_supported": "Power statistics does not require additional options.",
+      "reconfigure_not_supported": "Gateway model reconfiguration is only available for local gateway entries."
     },
     "flow_title": "DS-AIR"
   },

@@ -129,7 +129,13 @@ def result_factory(data: tuple, config: Config):
         EnumDevice.SENSOR.value[1],
     ):
         device = EnumDevice((8, dev_id))
-        if cmd_type == EnumCmdType.STATUS_CHANGED.value:
+        if config.is_f611 and device == EnumDevice.AIRCON and cmd_type in (
+            EnumCmdType.QUERY_STATUS_V1.value,
+            EnumCmdType.STATUS_CHANGED_V1.value,
+            EnumCmdType.STATUS_CHANGED.value,
+        ):
+            result = AirConKinseiStatusResult(cnt, device, EnumCmdType(cmd_type))
+        elif cmd_type == EnumCmdType.STATUS_CHANGED.value:
             result = AirConStatusChangedResult(cnt, device)
         elif cmd_type == EnumCmdType.QUERY_STATUS.value:
             result = AirConQueryStatusResult(cnt, device)
@@ -681,7 +687,7 @@ class GetRoomInfoResult(BaseResult):
 
     def do(self, service: Service) -> None:
         service.set_rooms(self.rooms)
-        if not service._config.is_d611:
+        if not (service._config.is_d611 or service._config.is_f611):
             # DTA117D611 似乎不支持这个参数
             service.send_msg(AirConRecommendedIndoorTempParam())
         service.set_sensors(self.sensors)
@@ -785,7 +791,7 @@ class HandShakeResult(BaseResult):
         self._time = d.read_utf(14)
 
     def do(self, service: Service) -> None:
-        if service._config.is_d611:
+        if service._config.is_d611 or service._config.is_f611:
             p = GetRoomInfoParam(EnumCmdType.SYS_GET_ROOM_INFO_V1)
         else:
             p = GetRoomInfoParam(EnumCmdType.SYS_GET_ROOM_INFO)
@@ -856,6 +862,48 @@ class AirConStatusChangedResult(BaseResult):
         service.update_aircon(self.target, self._room, self._unit, status=self._status)
 
 
+class AirConKinseiStatusResult(BaseResult):
+    """Decode established F611 HVAC fields in V1 replies and notifications.
+
+    Bit 3 is a one-byte flags field, never a measured temperature. Optional
+    humidity/ventilation tails differ between queries, notifications and device
+    families. They are deliberately not mapped into entities by this adapter.
+    """
+
+    def __init__(self, cmd_id: int, target: EnumDevice, cmd_type: EnumCmdType):
+        super().__init__(cmd_id, target, cmd_type)
+        self._status = AirConStatus()
+
+    def load_bytes(self, b: bytes, config: Config) -> None:
+        d = Decode(b)
+        self._room = d.read1()
+        self._unit = d.read1()
+        flag = d.read1()
+        status = self._status
+        if flag & 0x01:
+            status.switch = EnumControl.Switch(d.read1())
+        if flag & 0x02:
+            status.mode = EnumControl.Mode(d.read1())
+        if flag & 0x04:
+            status.air_flow = EnumControl.AirFlow(d.read1())
+        if flag & 0x08:
+            d.read1()
+        if flag & 0x10:
+            status.setted_temp = d.read2()
+        if flag & 0x20:
+            direction = d.read1()
+            status.fan_direction1 = EnumControl.FanDirection(direction & 0x0F)
+            status.fan_direction2 = EnumControl.FanDirection(direction >> 4 & 0x0F)
+
+    def do(self, service: Service) -> None:
+        # Notifications may contain only one changed field. Preserve every
+        # absent field instead of replacing it with an OFF/AUTO/zero default.
+        if self.cmd_type == EnumCmdType.QUERY_STATUS_V1:
+            service.set_aircon_status(self.target, self._room, self._unit, self._status)
+        else:
+            service.update_aircon(self.target, self._room, self._unit, status=self._status)
+
+
 class AirConQueryStatusResult(BaseResult):
     def __init__(self, cmd_id: int, target: EnumDevice):
         BaseResult.__init__(self, cmd_id, target, EnumCmdType.QUERY_STATUS)
@@ -886,7 +934,7 @@ class AirConQueryStatusResult(BaseResult):
             self.mode = EnumControl.Mode(d.read1())
         if flag >> 2 & 1:
             self.air_flow = EnumControl.AirFlow(d.read1())
-        if config.is_c611 or config.is_d611:
+        if config.is_kinsei:
             if flag >> 3 & 1:
                 bt = d.read1()
                 self.hum_allow = bt & 8 == 8

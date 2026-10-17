@@ -19,6 +19,7 @@ from .const import (
     CONF_GW,
     C611,
     D611,
+    F611,
     DEFAULT_GW,
     DOMAIN,
     ENTRY_TYPE_POWER,
@@ -306,6 +307,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     config.gateway_id = entry.entry_id
     config.is_c611 = gw == C611
     config.is_d611 = gw == D611
+    config.is_f611 = gw == F611
 
     device_registry = dr.async_get(hass)
     device_registry.async_get_or_create(

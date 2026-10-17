@@ -466,6 +466,11 @@ class Service:
                         _log(str(e))
 
     def poll_status(self):
+        if self._config.is_f611:
+            for aircon in self._aircons or []:
+                p = AirConQueryStatusParam()
+                p.device = aircon
+                self.send_msg(p)
         for i in self._new_aircons:
             p = AirConQueryStatusParam()
             p.target = EnumDevice.NEWAIRCON
